@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Bookmark,
   Category,
@@ -48,6 +49,34 @@ import { parseCSVToEntries, parseJSONBackupText } from "@/lib/importers";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
 
 // ==========================================
+// Pathname ↔ ViewMode mapping
+// ==========================================
+
+const VIEW_TO_PATH: Record<ViewMode, string> = {
+  home: "/app",
+  passwords: "/app/passwords",
+  bookmarks: "/app/bookmarks",
+  totp: "/app/totp",
+  favorites: "/app/favorites",
+  "security-audit": "/app/security-audit",
+  generator: "/app/generator",
+  "import-export": "/app/import-export",
+  files: "/app/files",
+  "masked-emails": "/app/masked-emails",
+  extension: "/app/extension",
+  guide: "/app/guide",
+  settings: "/app/settings",
+};
+
+const PATH_TO_VIEW: Record<string, ViewMode> = Object.fromEntries(
+  Object.entries(VIEW_TO_PATH).map(([k, v]) => [v, k as ViewMode])
+);
+
+function viewFromPath(pathname: string): ViewMode {
+  return PATH_TO_VIEW[pathname] || "home";
+}
+
+// ==========================================
 // Types
 // ==========================================
 
@@ -81,7 +110,7 @@ export interface VaultContextType {
 
   // Navigation
   currentView: ViewMode;
-  setCurrentView: (v: ViewMode) => void;
+  navigateTo: (view: ViewMode) => void;
   selectedCategory: string | null;
   setSelectedCategory: (c: string | null) => void;
   searchQuery: string;
@@ -191,10 +220,24 @@ function normalizeHost(str: string): string {
 // ==========================================
 
 export function VaultProvider({ children }: { children: React.ReactNode }) {
-  // Navigation state
-  const [currentView, setCurrentView] = React.useState<ViewMode>("home");
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Navigation state — derived from URL
+  const [currentView, setCurrentView] = React.useState<ViewMode>(() => viewFromPath(pathname));
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  // Sync URL → currentView (e.g. direct URL access or browser back/forward)
+  React.useEffect(() => {
+    const view = viewFromPath(pathname);
+    setCurrentView(view);
+  }, [pathname]);
+
+  const navigateTo = React.useCallback((view: ViewMode) => {
+    setCurrentView(view);
+    router.push(VIEW_TO_PATH[view]);
+  }, [router]);
 
   // Storage state
   const [bookmarks, setBookmarks] = React.useState<Bookmark[]>([]);
@@ -1035,7 +1078,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo<VaultContextType>(() => ({
     bookmarks, categories, settings, vaultMeta, isUnlocked, derivedKey, decryptedPasswords,
-    currentView, setCurrentView, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery,
+    currentView, navigateTo, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery,
     isMasterPasswordModalOpen, setIsMasterPasswordModalOpen,
     isPasswordModalOpen, setIsPasswordModalOpen, editingPassword, setEditingPassword,
     isBookmarkModalOpen, setIsBookmarkModalOpen, editingBookmark, setEditingBookmark,

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ShieldCheck,
   KeyRound,
@@ -46,8 +47,23 @@ import { Category, ViewMode } from "@/types";
 import { appConfig } from "@/config/app";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
 
+const VIEW_TO_PATH: Record<ViewMode, string> = {
+  home: "/app",
+  passwords: "/app/passwords",
+  bookmarks: "/app/bookmarks",
+  totp: "/app/totp",
+  favorites: "/app/favorites",
+  "security-audit": "/app/security-audit",
+  generator: "/app/generator",
+  "import-export": "/app/import-export",
+  files: "/app/files",
+  "masked-emails": "/app/masked-emails",
+  extension: "/app/extension",
+  guide: "/app/guide",
+  settings: "/app/settings",
+};
+
 interface AppSidebarProps {
-  currentView: ViewMode;
   onSelectView: (view: ViewMode) => void;
   categories: Category[];
   selectedCategory: string | null;
@@ -64,7 +80,6 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({
-  currentView,
   onSelectView,
   categories,
   selectedCategory,
@@ -78,6 +93,7 @@ export function AppSidebar({
   isMobileOpen,
   onCloseMobile,
 }: AppSidebarProps) {
+  const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
   const [editingCatName, setEditingCatName] = React.useState("");
@@ -142,21 +158,22 @@ export function AppSidebar({
 
   const renderNavItem = (item: { id: ViewMode; label: string; icon: React.ElementType; count?: number }) => {
     const Icon = item.icon;
-    const isActive = currentView === item.id && (item.id !== "passwords" || selectedCategory === null);
+    const href = VIEW_TO_PATH[item.id];
+    const isActive = pathname === href && (item.id !== "passwords" || selectedCategory === null);
 
-    const buttonElement = (
-      <button
+    const linkElement = (
+      <Link
         key={item.id}
+        href={href}
         onClick={() => {
           if (item.id === "passwords" || item.id === "bookmarks") {
             onSelectCategory(null);
           }
-          onSelectView(item.id);
           onCloseMobile();
         }}
         className={`w-full flex items-center ${
           isCollapsed ? "justify-center px-0 py-2" : "justify-between px-2.5 py-1.5"
-        } rounded-md text-xs font-medium transition-colors cursor-pointer ${
+        } rounded-md text-xs font-medium transition-colors ${
           isActive
             ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-xs"
             : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
@@ -171,13 +188,13 @@ export function AppSidebar({
             {item.count}
           </span>
         )}
-      </button>
+      </Link>
     );
 
     if (isCollapsed) {
       return (
         <Tooltip key={item.id}>
-          <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
+          <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
           <TooltipContent side="right" className="text-xs">
             {item.label}
             {typeof item.count === "number" ? ` (${item.count})` : ""}
@@ -186,7 +203,7 @@ export function AppSidebar({
       );
     }
 
-    return buttonElement;
+    return linkElement;
   };
 
   return (
@@ -313,7 +330,7 @@ export function AppSidebar({
                       onClick={() => {
                         if (!isEditing) {
                           onSelectCategory(cat.name);
-                          if (currentView !== "passwords" && currentView !== "bookmarks") {
+                          if (pathname !== "/app/passwords" && pathname !== "/app/bookmarks") {
                             onSelectView("passwords");
                           }
                           onCloseMobile();
