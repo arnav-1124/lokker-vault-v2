@@ -1042,6 +1042,11 @@ export default function AppWorkspacePage() {
                 setIsBookmarkModalOpen(true);
               }}
               categories={categories}
+              passwords={decryptedPasswords}
+              onNavigateCredential={(p) => {
+                setEditingPassword(p);
+                setIsPasswordModalOpen(true);
+              }}
             />
           )}
 
@@ -1075,6 +1080,11 @@ export default function AppWorkspacePage() {
                       setIsBookmarkModalOpen(true);
                     }}
                     categories={categories}
+                    passwords={decryptedPasswords}
+                    onNavigateCredential={(p) => {
+                      setEditingPassword(p);
+                      setIsPasswordModalOpen(true);
+                    }}
                   />
                 </div>
 

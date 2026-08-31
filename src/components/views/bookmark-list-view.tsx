@@ -10,6 +10,7 @@ import {
   Edit2,
   Trash2,
   Globe,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bookmark, Category } from "@/types";
+import { Bookmark, Category, PasswordEntry } from "@/types";
+import { calculatePasswordStrength } from "@/lib/crypto";
 
 interface BookmarkListViewProps {
   bookmarks: Bookmark[];
@@ -31,6 +33,8 @@ interface BookmarkListViewProps {
   onDelete: (id: string) => void;
   onOpenAddModal: () => void;
   categories: Category[];
+  passwords?: PasswordEntry[];
+  onNavigateCredential?: (p: PasswordEntry) => void;
 }
 
 export function BookmarkListView({
@@ -41,7 +45,29 @@ export function BookmarkListView({
   onEdit,
   onDelete,
   onOpenAddModal,
+  passwords = [],
+  onNavigateCredential,
 }: BookmarkListViewProps) {
+  // Helper: find linked credential for a bookmark by hostname
+  const normalizeHost = (str: string) => {
+    if (!str) return "";
+    try {
+      const raw = str.startsWith("http") ? str : `https://${str}`;
+      return new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      return str.trim().toLowerCase();
+    }
+  };
+
+  const getLinkedCredential = React.useCallback(
+    (bm: Bookmark): PasswordEntry | undefined => {
+      if (!bm.url && !bm.title) return undefined;
+      const host = normalizeHost(bm.url || bm.title);
+      return passwords.find((p) => normalizeHost(p.websiteUrl || p.websiteName) === host);
+    },
+    [passwords]
+  );
+
   const filteredBookmarks = React.useMemo(() => {
     return bookmarks.filter((b) => {
       const matchesCategory =
@@ -160,6 +186,32 @@ export function BookmarkListView({
                     {bm.description}
                   </p>
                 )}
+
+                {/* Linked credential indicator */}
+                {(() => {
+                  const linked = getLinkedCredential(bm);
+                  if (!linked) return null;
+                  const hasPwd = !!linked.password;
+                  const strength = hasPwd ? calculatePasswordStrength(linked.password) : null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateCredential?.(linked)}
+                      className="flex items-center gap-1.5 text-[11px] text-primary hover:underline cursor-pointer w-fit"
+                      title="Open linked credential"
+                    >
+                      <KeyRound className="size-3" />
+                      <span className="font-medium">
+                        {hasPwd ? "Credential linked" : "Credential shell \u2014 no password"}
+                      </span>
+                      {strength && (
+                        <span className={`text-[9px] font-medium ${strength.color}`}>
+                          {strength.label}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-border-subtle text-xs">

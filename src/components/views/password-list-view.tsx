@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, Category, PasswordEntry } from "@/types";
+import { calculatePasswordStrength } from "@/lib/crypto";
 
 interface PasswordListViewProps {
   passwords: PasswordEntry[];
@@ -174,12 +175,31 @@ export function PasswordListView({
           {filteredPasswords.map((item) => {
             const isRevealed = !!revealedIds[item.id];
             const isCopied = copiedId === item.id;
+            const strength = item.password ? calculatePasswordStrength(item.password) : null;
+            const strengthBarColor = strength
+              ? strength.score <= 40
+                ? "bg-destructive"
+                : strength.score <= 60
+                  ? "bg-warning"
+                  : strength.score <= 80
+                    ? "bg-success"
+                    : "bg-primary"
+              : "";
 
             return (
               <div
                 key={item.id}
-                className="rounded-xl border border-border-subtle bg-surface p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-border-strong transition-colors"
+                className="rounded-xl border border-border-subtle bg-surface p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-border-strong transition-colors relative"
               >
+                {/* Password strength indicator bar */}
+                {strength && item.password && (
+                  <div className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full overflow-hidden bg-surface-elevated">
+                    <div
+                      className={`h-full rounded-full transition-all ${strengthBarColor}`}
+                      style={{ width: `${strength.score}%` }}
+                    />
+                  </div>
+                )}
                 {/* Left: Icon, Title, Username */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="size-9 rounded-lg bg-surface-elevated border border-border-subtle flex items-center justify-center font-bold text-sm text-foreground shrink-0">
@@ -229,6 +249,11 @@ export function PasswordListView({
                       >
                         {isRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                       </button>
+                      {strength && (
+                        <span className={`text-[9px] font-medium px-1 py-0.5 rounded ${strength.color}`}>
+                          {strength.label}
+                        </span>
+                      )}
                     </div>
                   )}
 
