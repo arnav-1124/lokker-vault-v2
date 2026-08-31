@@ -60,6 +60,7 @@ import { MasterPasswordModal } from "@/components/modals/master-password-modal";
 import { PasswordModal } from "@/components/modals/password-modal";
 import { BookmarkModal } from "@/components/modals/bookmark-modal";
 import { CategoryManagerModal } from "@/components/modals/category-modal";
+import { CategoryDeleteModal } from "@/components/modals/category-delete-modal";
 import { CommandPalette } from "@/components/modals/command-palette";
 import { ExtensionGuideModal } from "@/components/modals/extension-guide-modal";
 import { ConfirmationModal } from "@/components/modals/confirmation-modal";
@@ -118,6 +119,15 @@ export default function AppWorkspacePage() {
     confirmText?: string;
     cancelText?: string;
     isDestructive?: boolean;
+  } | null>(null);
+
+  // Category delete-transfer dialog
+  const [deleteTransferDialog, setDeleteTransferDialog] = React.useState<{
+    categoryId: string;
+    categoryName: string;
+    passwordCount: number;
+    bookmarkCount: number;
+    childCount: number;
   } | null>(null);
 
   const showConfirm = React.useCallback(
@@ -562,30 +572,103 @@ export default function AppWorkspacePage() {
 
   const handleDeleteCategory = async (id: string) => {
     const target = categories.find((c) => c.id === id);
+    if (!target) return;
+
+    const catName = target.name;
+    const pwCount = decryptedPasswords.filter((p) => p.category === catName).length;
+    const bmCount = bookmarks.filter((b) => b.category === catName).length;
+    const childCount = categories.filter((c) => c.parentId === id).length;
+
+    // If category has items or child categories, require transfer first
+    if (pwCount > 0 || bmCount > 0 || childCount > 0) {
+      setDeleteTransferDialog({
+        categoryId: id,
+        categoryName: catName,
+        passwordCount: pwCount,
+        bookmarkCount: bmCount,
+        childCount,
+      });
+      return;
+    }
+
+    // Safe to delete — no items or children
     showConfirm(
       "Delete Category",
-      `Delete category "${target?.name || "this category"}"? Items will be moved to General.`,
+      `Delete empty category "${catName}"?`,
       async () => {
         const updated = categories.filter((c) => c.id !== id);
         setCategories(updated);
         await saveAllCategories(updated);
+        if (selectedCategory === catName) setSelectedCategory(null);
         addToast("Category deleted.", "info");
       },
       true
     );
   };
 
+  const handleTransferAndDelete = async (targetCategoryId: string, transferToCatName: string) => {
+    const catName = categories.find((c) => c.id === targetCategoryId)?.name;
+    if (!catName) return;
+
+    // Transfer passwords
+    const updatedPws = decryptedPasswords.map((p) =>
+      p.category === catName ? { ...p, category: transferToCatName } : p
+    );
+    await saveAndEncryptPasswords(updatedPws);
+
+    // Transfer bookmarks
+    const updatedBms = bookmarks.map((b) =>
+      b.category === catName ? { ...b, category: transferToCatName } : b
+    );
+    setBookmarks(updatedBms);
+    await saveAllBookmarks(updatedBms);
+
+    // Re-parent child categories to root (remove parentId)
+    const updatedCats = categories
+      .map((c) => (c.parentId === targetCategoryId ? { ...c, parentId: undefined } : c))
+      .filter((c) => c.id !== targetCategoryId);
+    setCategories(updatedCats);
+    await saveAllCategories(updatedCats);
+
+    if (selectedCategory === catName) setSelectedCategory(null);
+    setDeleteTransferDialog(null);
+    addToast(`Items transferred to "${transferToCatName}" and category deleted.`, "success");
+  };
+
   const handleRenameCategory = async (id: string, newName: string) => {
+    const oldName = categories.find((c) => c.id === id)?.name;
+    if (!oldName) return;
+
     const updated = categories.map((c) =>
       c.id === id ? { ...c, name: newName } : c
     );
     setCategories(updated);
     await saveAllCategories(updated);
-    // Update selectedCategory if it was renamed
-    const oldName = categories.find((c) => c.id === id)?.name;
-    if (selectedCategory === oldName) {
-      setSelectedCategory(newName);
+
+    // Sync rename across all passwords that reference this category
+    if (oldName !== newName) {
+      const updatedPws = decryptedPasswords.map((p) =>
+        p.category === oldName ? { ...p, category: newName } : p
+      );
+      if (updatedPws.length > 0 && updatedPws.some((p) => p.category !== decryptedPasswords.find((op) => op.id === p.id)?.category)) {
+        await saveAndEncryptPasswords(updatedPws);
+      }
+
+      // Sync rename across all bookmarks that reference this category
+      const updatedBms = bookmarks.map((b) =>
+        b.category === oldName ? { ...b, category: newName } : b
+      );
+      if (updatedBms.some((b, i) => b.category !== bookmarks[i]?.category)) {
+        setBookmarks(updatedBms);
+        await saveAllBookmarks(updatedBms);
+      }
+
+      // Update selectedCategory if it was renamed
+      if (selectedCategory === oldName) {
+        setSelectedCategory(newName);
+      }
     }
+
     addToast(`Category renamed to "${newName}".`, "success");
   };
 
@@ -1311,6 +1394,18 @@ export default function AppWorkspacePage() {
         onAddCategory={handleAddCategory}
         onDeleteCategory={handleDeleteCategory}
         defaultParentId={categoryModalParentId}
+      />
+
+      <CategoryDeleteModal
+        isOpen={!!deleteTransferDialog}
+        categoryName={deleteTransferDialog?.categoryName || ""}
+        passwordCount={deleteTransferDialog?.passwordCount || 0}
+        bookmarkCount={deleteTransferDialog?.bookmarkCount || 0}
+        childCount={deleteTransferDialog?.childCount || 0}
+        categories={categories}
+        deleteCategoryId={deleteTransferDialog?.categoryId || ""}
+        onTransferAndDelete={handleTransferAndDelete}
+        onClose={() => setDeleteTransferDialog(null)}
       />
 
       <CommandPalette
