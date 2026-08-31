@@ -176,7 +176,7 @@ export function ImportBackupModal({
         {/* Step 2: Summary & Strategy Selection */}
         {activePayload && activeSummary && (
           <div className="flex flex-col min-h-0 flex-1">
-            <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-5 pt-2">
+            <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-5 pt-2">
             {/* Contents Overview Card */}
             <div className="rounded-xl border border-border-subtle bg-background p-4 space-y-3">
               <div className="flex items-center justify-between">

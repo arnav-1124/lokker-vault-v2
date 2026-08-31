@@ -22,6 +22,10 @@ import {
   X,
   ExternalLink,
   CornerDownRight,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  FolderPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +34,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Category, ViewMode } from "@/types";
 import { appConfig } from "@/config/app";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
@@ -42,6 +54,8 @@ interface AppSidebarProps {
   onSelectCategory: (cat: string | null) => void;
   isUnlocked: boolean;
   onOpenCategoryManager: (defaultParentId?: string) => void;
+  onRenameCategory?: (id: string, newName: string) => void;
+  onDeleteCategory?: (id: string) => void;
   bookmarkCount: number;
   passwordCount: number;
   maskedEmailCount?: number;
@@ -57,12 +71,16 @@ export function AppSidebar({
   onSelectCategory,
   isUnlocked,
   onOpenCategoryManager,
+  onRenameCategory,
+  onDeleteCategory,
   bookmarkCount,
   passwordCount,
   isMobileOpen,
   onCloseMobile,
 }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = React.useState("");
 
   const mainNavItems = [
     { id: "home" as ViewMode, label: "Dashboard", icon: ShieldCheck },
@@ -279,36 +297,116 @@ export function AppSidebar({
 
               {categoryTree.map(({ category: cat, isChild }) => {
                 const isCatActive = selectedCategory === cat.name;
+                const isEditing = editingCatId === cat.id;
+
+                const handleRenameSubmit = () => {
+                  if (isEditing && editingCatName.trim() && onRenameCategory) {
+                    onRenameCategory(cat.id, editingCatName.trim());
+                  }
+                  setEditingCatId(null);
+                  setEditingCatName("");
+                };
+
                 return (
-                  <button
-                    key={cat.id}
-                    onClick={() => {
-                      onSelectCategory(cat.name);
-                      if (currentView !== "passwords" && currentView !== "bookmarks") {
-                        onSelectView("passwords");
-                      }
-                      onCloseMobile();
-                    }}
-                    className={`w-full flex items-center justify-between py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                      isChild ? "pl-5 pr-2.5" : "px-2.5"
-                    } ${
-                      isCatActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {isChild ? (
-                        <CornerDownRight className="size-3 text-muted-foreground shrink-0" />
-                      ) : (
-                        <span
-                          className="size-2 rounded-full shrink-0"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                      )}
-                      <span className="truncate">{cat.name}</span>
-                    </div>
-                  </button>
+                  <div key={cat.id} className="group relative">
+                    <button
+                      onClick={() => {
+                        if (!isEditing) {
+                          onSelectCategory(cat.name);
+                          if (currentView !== "passwords" && currentView !== "bookmarks") {
+                            onSelectView("passwords");
+                          }
+                          onCloseMobile();
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                        isChild ? "pl-5 pr-2" : "pl-2.5 pr-7"
+                      } ${
+                        isCatActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {isChild ? (
+                          <CornerDownRight className="size-3 text-muted-foreground shrink-0" />
+                        ) : (
+                          <span
+                            className="size-2 rounded-full shrink-0"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                        )}
+                        {isEditing ? (
+                          <Input
+                            value={editingCatName}
+                            onChange={(e) => setEditingCatName(e.target.value)}
+                            onBlur={handleRenameSubmit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleRenameSubmit();
+                              if (e.key === "Escape") {
+                                setEditingCatId(null);
+                                setEditingCatName("");
+                              }
+                            }}
+                            autoFocus
+                            className="h-6 text-xs px-1.5 py-0 bg-background"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span className="truncate">{cat.name}</span>
+                        )}
+                      </div>
+                    </button>
+
+                    {!isEditing && (
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="p-0.5 rounded text-muted-foreground hover:text-foreground cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="size-3" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingCatId(cat.id);
+                                setEditingCatName(cat.name);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Pencil className="size-3 mr-1.5" />
+                              <span>Rename</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenCategoryManager(cat.id);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <FolderPlus className="size-3 mr-1.5" />
+                              <span>Add Nested</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteCategory?.(cat.id);
+                              }}
+                              className="text-destructive focus:text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="size-3 mr-1.5" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

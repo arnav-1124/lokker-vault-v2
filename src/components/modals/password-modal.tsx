@@ -166,7 +166,7 @@ export function PasswordModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-          <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
+          <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-4 pt-2">
           {/* Entry Type Selector */}
           <div className="grid grid-cols-4 gap-2">
             <button

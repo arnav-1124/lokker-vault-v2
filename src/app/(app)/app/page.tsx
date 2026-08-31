@@ -575,6 +575,20 @@ export default function AppWorkspacePage() {
     );
   };
 
+  const handleRenameCategory = async (id: string, newName: string) => {
+    const updated = categories.map((c) =>
+      c.id === id ? { ...c, name: newName } : c
+    );
+    setCategories(updated);
+    await saveAllCategories(updated);
+    // Update selectedCategory if it was renamed
+    const oldName = categories.find((c) => c.id === id)?.name;
+    if (selectedCategory === oldName) {
+      setSelectedCategory(newName);
+    }
+    addToast(`Category renamed to "${newName}".`, "success");
+  };
+
   // Copy Clipboard Helper
   const handleCopyText = (text: string, label: string) => {
     navigator.clipboard?.writeText(text);
@@ -927,7 +941,12 @@ export default function AppWorkspacePage() {
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
         isUnlocked={isUnlocked}
-        onOpenCategoryManager={() => setIsCategoryModalOpen(true)}
+        onOpenCategoryManager={(parentId) => {
+          setCategoryModalParentId(parentId);
+          setIsCategoryModalOpen(true);
+        }}
+        onRenameCategory={handleRenameCategory}
+        onDeleteCategory={handleDeleteCategory}
         bookmarkCount={bookmarks.length}
         passwordCount={decryptedPasswords.length}
         isMobileOpen={isMobileSidebarOpen}

@@ -48,7 +48,7 @@ export function ExtensionGuideModal({ isOpen, onClose }: ExtensionGuideModalProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2 text-xs">
+        <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-4 pt-2 text-xs">
           <div className="p-3.5 rounded-xl border border-border-subtle bg-background flex items-center justify-between">
             <div>
               <p className="font-semibold text-foreground">Manifest V3 Extension Package (.zip)</p>

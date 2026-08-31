@@ -180,8 +180,8 @@ export function MasterPasswordModal({
 
         {isInitialSetup ? (
           /* INITIAL SETUP FORM */
-          <form onSubmit={handleSetupSubmit} className="flex flex-col min-h-0 flex-1">
-            <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
+          <form onSubmit={handleSetupSubmit} className="flex flex-col min-h-0 flex-1 w-full">
+            <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label htmlFor="setup-pass" className="text-xs font-medium">
                 Master Password
@@ -295,8 +295,8 @@ export function MasterPasswordModal({
           </form>
         ) : (
           /* UNLOCK TABS FORM */
-          <div className="flex flex-col min-h-0 flex-1">
-            <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
+          <div className="flex flex-col min-h-0 flex-1 w-full">
+            <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-4 pt-2">
             <Tabs defaultValue="password">
               <TabsList className="grid grid-cols-3 w-full bg-background border border-border-subtle">
                 <TabsTrigger value="password" className="text-xs cursor-pointer">

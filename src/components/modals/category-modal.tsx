@@ -86,7 +86,7 @@ export function CategoryManagerModal({
         </DialogHeader>
 
         <div className="flex flex-col min-h-0 flex-1">
-          <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
+          <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-4 pt-2">
           {/* Add Category Form */}
           <form onSubmit={handleAdd} className="space-y-3 p-3.5 rounded-xl border border-border-subtle bg-background">
             <Label htmlFor="cat-name" className="text-xs font-medium">
