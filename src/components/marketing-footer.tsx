@@ -77,7 +77,7 @@ export function MarketingFooter() {
             <ul className="space-y-1.5 text-caption">
               <li>
                 <a
-                  href="https://github.com/arnav-1124/lokker-vault"
+                  href="https://github.com/arnav-1124/lokker-vault-v2"
                   target="_blank"
                   rel="noreferrer"
                   className="hover:text-foreground transition-colors"
