@@ -43,7 +43,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Workspace Container */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto lokker-scrollbar">
         <AppHeader
-          currentView={vault.currentView}
           searchQuery={vault.searchQuery}
           onSearchChange={vault.setSearchQuery}
           isUnlocked={vault.isUnlocked}
