@@ -7,6 +7,7 @@ import {
   Bookmark as BookmarkIcon,
   Copy,
   ExternalLink,
+  Globe,
   QrCode,
   Activity,
   Sparkles,
@@ -396,7 +397,7 @@ export function CommandPalette({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl bg-surface border-border-subtle p-0 overflow-hidden shadow-overlay">
+      <DialogContent className="max-w-xl bg-surface border-border-subtle p-0 overflow-hidden shadow-overlay" showCloseButton={false}>
         <DialogHeader className="sr-only">
           <DialogTitle>Command Palette</DialogTitle>
         </DialogHeader>
@@ -489,24 +490,51 @@ export function CommandPalette({
                         {item.type === "bookmark" && (
                           <ExternalLink className="size-3 shrink-0 opacity-50" />
                         )}
-                        {item.type === "password" && isUnlocked && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Find the password to copy username (not password — safe)
+                        {item.type === "password" && (
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            {(() => {
                               const pwdId = item.id.replace("pwd-", "");
                               const pwd = passwords.find((p) => p.id === pwdId);
-                              if (pwd && pwd.username) {
-                                onCopyText(pwd.username, "Username");
-                              }
-                              onClose();
-                            }}
-                            className="p-1 rounded hover:bg-surface-active text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-                            aria-label="Copy username"
-                          >
-                            <Copy className="size-3" />
-                          </button>
+                              const hasUrl = pwd?.websiteUrl;
+                              return (
+                                <>
+                                  {hasUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(hasUrl, "_blank", "noopener,noreferrer");
+                                        onClose();
+                                      }}
+                                      className="p-1 rounded hover:bg-surface-active text-muted-foreground hover:text-foreground cursor-pointer"
+                                      aria-label="Open website"
+                                      title="Open website in new tab"
+                                    >
+                                      <Globe className="size-3" />
+                                    </button>
+                                  )}
+                                  {isUnlocked && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const pwdId2 = item.id.replace("pwd-", "");
+                                        const pwd2 = passwords.find((p) => p.id === pwdId2);
+                                        if (pwd2?.username) {
+                                          onCopyText(pwd2.username, "Username");
+                                        }
+                                        onClose();
+                                      }}
+                                      className="p-1 rounded hover:bg-surface-active text-muted-foreground hover:text-foreground cursor-pointer"
+                                      aria-label="Copy username"
+                                    >
+                                      <Copy className="size-3" />
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
                         )}
                       </button>
                     );

@@ -49,9 +49,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.tabs.query(
       {
         url: [
-          '*://localhost/*',
-          '*://127.0.0.1/*',
-          '*://0.0.0.0/*',
+          '*://localhost:*/*',
+          '*://127.0.0.1:*/*',
+          '*://0.0.0.0:*/*',
           'https://*.e2b.app/*',
           'https://*.vercel.app/*',
           'https://*.space-z.ai/*',
@@ -61,14 +61,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       },
       (tabs) => {
         if (tabs && tabs.length > 0) {
-          // Send a message to request sync
           for (const tab of tabs) {
-            chrome.tabs.sendMessage(
-              tab.id,
-              { action: 'LOKKER_REQUEST_VAULT_SYNC' },
+            // Use executeScript to inject a window.postMessage call into the page
+            // so the content script's window.addEventListener('message') picks it up
+            chrome.scripting.executeScript(
+              {
+                target: { tabId: tab.id },
+                func: () => {
+                  window.postMessage({ type: 'LOKKER_REQUEST_VAULT_SYNC' }, '*');
+                },
+              },
               () => {
-                // After requesting sync, retry status check after a short delay
-                setTimeout(checkStatus, 1500);
+                // After requesting sync, retry status check after a delay
+                setTimeout(checkStatus, 2000);
               }
             );
           }
@@ -135,9 +140,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.tabs.query(
       {
         url: [
-          '*://localhost/*',
-          '*://127.0.0.1/*',
-          '*://0.0.0.0/*',
+          '*://localhost:*/*',
+          '*://127.0.0.1:*/*',
+          '*://0.0.0.0:*/*',
           'https://*.e2b.app/*',
           'https://*.vercel.app/*',
           'https://*.space-z.ai/*',
