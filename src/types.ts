@@ -86,6 +86,12 @@ export interface VaultMetadata {
   recoveryKeyVerifier?: string;
   wrappedVekByRecoveryKey?: WrappedKeySlot;
   encryptedVault?: EncryptedVaultData;
+  // WebAuthn PRF biometric slot
+  webauthnCredentialId?: string;
+  webauthnUserHandle?: string;
+  webauthnSalt?: string;
+  wrappedVekByWebAuthn?: WrappedKeySlot;
+  webauthnVerifier?: string;
 }
 
 export interface VaultSettings {

@@ -41,6 +41,8 @@ interface MasterPasswordModalProps {
   onClose?: () => void;
   onSubmitPassword: (password: string, isSetup: boolean, recoveryKey?: string) => Promise<boolean>;
   onUnlockWithRecoveryKey?: (recoveryKey: string) => Promise<boolean>;
+  onUnlockWithWebAuthn?: () => Promise<boolean>;
+  hasWebAuthnCredential?: boolean;
 }
 
 export function MasterPasswordModal({
@@ -49,6 +51,8 @@ export function MasterPasswordModal({
   onClose,
   onSubmitPassword,
   onUnlockWithRecoveryKey,
+  onUnlockWithWebAuthn,
+  hasWebAuthnCredential,
 }: MasterPasswordModalProps) {
   // Setup state
   const [password, setPassword] = React.useState("");
@@ -379,19 +383,45 @@ export function MasterPasswordModal({
                 <div className="space-y-1">
                   <p className="text-xs font-semibold">WebAuthn PRF Biometric Unlock</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Authenticate via Touch ID, Windows Hello, or FIDO2 security key to derive your symmetric encryption key directly.
+                    {hasWebAuthnCredential
+                      ? "Authenticate via Touch ID, Windows Hello, or FIDO2 security key to derive your encryption key."
+                      : "No passkey registered yet. Unlock with your master password first, then register a passkey in Settings."}
                   </p>
                 </div>
+
+                {error && (
+                  <div className="p-2 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
+                    <AlertCircle className="size-3.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
                 <Button
-                  variant="outline"
+                  variant={hasWebAuthnCredential ? "default" : "outline"}
                   size="sm"
                   className="w-full h-9 text-xs gap-2 cursor-pointer"
-                  onClick={() => {
-                    setError("WebAuthn hardware passkey can be paired in Settings after unlocking.");
+                  disabled={!hasWebAuthnCredential || loading}
+                  onClick={async () => {
+                    setError(null);
+                    if (!onUnlockWithWebAuthn) {
+                      setError("Passkey unlock not available.");
+                      return;
+                    }
+                    setLoading(true);
+                    try {
+                      const success = await onUnlockWithWebAuthn();
+                      if (!success) {
+                        setError("Biometric authentication failed. Try again or use your master password.");
+                      }
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Biometric authentication failed.");
+                    } finally {
+                      setLoading(false);
+                    }
                   }}
                 >
                   <Fingerprint className="size-3.5" />
-                  <span>Authenticate with Passkey</span>
+                  <span>{loading ? "Authenticating..." : "Authenticate with Passkey"}</span>
                 </Button>
               </TabsContent>
             </Tabs>

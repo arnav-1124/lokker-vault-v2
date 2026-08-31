@@ -26,6 +26,9 @@ interface SettingsViewProps {
   onResetVault: () => void;
   isUnlocked: boolean;
   onOpenExtensionGuide: () => void;
+  isWebAuthnRegistered?: boolean;
+  onRegisterWebAuthn?: () => Promise<void>;
+  onUnregisterWebAuthn?: () => Promise<void>;
 }
 
 export function SettingsView({
@@ -33,12 +36,18 @@ export function SettingsView({
   onUpdateSettings,
   onResetVault,
   onOpenExtensionGuide,
+  isUnlocked,
+  isWebAuthnRegistered,
+  onRegisterWebAuthn,
+  onUnregisterWebAuthn,
 }: SettingsViewProps) {
   const [autoLock, setAutoLock] = React.useState(settings.autoLockMinutes);
   const [requireConfirmation, setRequireConfirmation] = React.useState(
     settings.requireConfirmationForAutofill ?? true
   );
   const [webAuthnActive, setWebAuthnActive] = React.useState(!!settings.webAuthnEnabled);
+  const [webAuthnLoading, setWebAuthnLoading] = React.useState(false);
+  const [webAuthnError, setWebAuthnError] = React.useState<string | null>(null);
 
   // Genuine WebAuthn platform authenticator detection
   const [hasPlatformAuth, setHasPlatformAuth] = React.useState<boolean | null>(null);
@@ -67,9 +76,43 @@ export function SettingsView({
     };
   }, []);
 
+  // Sync toggle state with actual registration status
+  React.useEffect(() => {
+    if (isWebAuthnRegistered !== undefined) {
+      setWebAuthnActive(isWebAuthnRegistered);
+    }
+  }, [isWebAuthnRegistered]);
+
   const handleToggleWebAuthn = async (checked: boolean) => {
-    setWebAuthnActive(checked);
-    onUpdateSettings({ ...settings, webAuthnEnabled: checked });
+    setWebAuthnError(null);
+    setWebAuthnLoading(true);
+    try {
+      if (checked) {
+        if (!onRegisterWebAuthn) {
+          setWebAuthnError("WebAuthn registration is not available.");
+          setWebAuthnLoading(false);
+          return;
+        }
+        await onRegisterWebAuthn();
+        setWebAuthnActive(true);
+        onUpdateSettings({ ...settings, webAuthnEnabled: true });
+      } else {
+        if (!onUnregisterWebAuthn) {
+          setWebAuthnError("WebAuthn unregistration is not available.");
+          setWebAuthnLoading(false);
+          return;
+        }
+        await onUnregisterWebAuthn();
+        setWebAuthnActive(false);
+        onUpdateSettings({ ...settings, webAuthnEnabled: false });
+      }
+    } catch (err) {
+      setWebAuthnError(err instanceof Error ? err.message : "WebAuthn operation failed.");
+      // Revert toggle
+      setWebAuthnActive(!checked);
+    } finally {
+      setWebAuthnLoading(false);
+    }
   };
 
   const handleToggleAutofillConfirmation = (checked: boolean) => {
@@ -149,11 +192,30 @@ export function SettingsView({
               id="webauthn-toggle"
               checked={webAuthnActive}
               onCheckedChange={handleToggleWebAuthn}
-              disabled={hasPlatformAuth === false}
+              disabled={hasPlatformAuth === false || webAuthnLoading || !isUnlocked}
               className="cursor-pointer"
             />
+            {webAuthnLoading && (
+              <span className="text-[10px] text-muted-foreground animate-pulse">
+                {webAuthnActive ? "Registering..." : "Removing..."}
+              </span>
+            )}
           </div>
         </div>
+
+        {webAuthnError && (
+          <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{webAuthnError}</span>
+          </div>
+        )}
+
+        {!isUnlocked && (
+          <div className="p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>Unlock your vault first to register or manage a passkey.</span>
+          </div>
+        )}
 
         <div className="p-3 rounded-xl bg-background border border-border-subtle text-xs space-y-1">
           <div className="flex items-center gap-2 text-foreground font-medium">

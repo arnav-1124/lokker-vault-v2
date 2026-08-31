@@ -35,6 +35,11 @@ import {
   encryptPayloadWithVek,
 } from "@/lib/crypto";
 import {
+  registerWebAuthnCredential,
+  authenticateWithWebAuthn,
+  clearWebAuthnSlot,
+} from "@/lib/webauthn";
+import {
   createLokkerBackupPayload,
   exportEncryptedLokkerBackup,
   inspectBackupFileText,
@@ -369,6 +374,58 @@ export default function AppWorkspacePage() {
     } catch {
       return false;
     }
+  };
+
+  // WebAuthn Passkey Unlock Handler
+  const handleUnlockWithWebAuthn = async (): Promise<boolean> => {
+    if (!vaultMeta) return false;
+
+    try {
+      const { vek, passwords } = await authenticateWithWebAuthn(vaultMeta);
+
+      setDerivedKey(vek);
+      setDecryptedPasswords(passwords);
+      setIsUnlocked(true);
+      setIsMasterPasswordModalOpen(false);
+      addToast("Vault unlocked with Passkey!", "success");
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // WebAuthn Registration Handler (from Settings)
+  const handleRegisterWebAuthn = async () => {
+    if (!derivedKey || !vaultMeta) {
+      throw new Error("Vault must be unlocked to register a passkey.");
+    }
+
+    const result = await registerWebAuthnCredential(derivedKey);
+
+    const updatedMeta: VaultMetadata = {
+      ...vaultMeta,
+      webauthnCredentialId: result.credentialIdBase64,
+      webauthnUserHandle: result.userHandleBase64,
+      webauthnSalt: result.saltBase64,
+      wrappedVekByWebAuthn: result.wrappedSlot,
+      webauthnVerifier: result.verifier,
+    };
+
+    await saveVaultMeta(updatedMeta);
+    setVaultMeta(updatedMeta);
+    addToast("Passkey registered successfully. You can now unlock with biometrics.", "success");
+  };
+
+  // WebAuthn Unregistration Handler (from Settings)
+  const handleUnregisterWebAuthn = async () => {
+    if (!vaultMeta) {
+      throw new Error("No vault metadata found.");
+    }
+
+    const cleanedMeta = clearWebAuthnSlot(vaultMeta);
+    await saveVaultMeta(cleanedMeta);
+    setVaultMeta(cleanedMeta);
+    addToast("Passkey removed. Biometric unlock is no longer available.", "info");
   };
 
   // Save Decrypted Passwords & Re-encrypt with active VEK
@@ -1322,6 +1379,9 @@ export default function AppWorkspacePage() {
               onResetVault={handleResetVault}
               isUnlocked={isUnlocked}
               onOpenExtensionGuide={() => setIsExtensionGuideOpen(true)}
+              isWebAuthnRegistered={!!vaultMeta?.webauthnCredentialId}
+              onRegisterWebAuthn={handleRegisterWebAuthn}
+              onUnregisterWebAuthn={handleUnregisterWebAuthn}
             />
           )}
 
@@ -1366,6 +1426,8 @@ export default function AppWorkspacePage() {
         onClose={vaultMeta?.isInitialized ? () => setIsMasterPasswordModalOpen(false) : undefined}
         onSubmitPassword={handleMasterPasswordSubmit}
         onUnlockWithRecoveryKey={handleUnlockWithRecoveryKey}
+        onUnlockWithWebAuthn={handleUnlockWithWebAuthn}
+        hasWebAuthnCredential={!!vaultMeta?.webauthnCredentialId}
       />
 
       <PasswordModal
