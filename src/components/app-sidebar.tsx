@@ -369,7 +369,7 @@ export function AppSidebar({
                               <MoreVertical className="size-3" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuContent align="end" className="w-40 z-[400]">
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
