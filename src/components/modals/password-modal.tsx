@@ -158,14 +158,15 @@ export function PasswordModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg bg-surface border-border-subtle p-6 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-lg bg-surface border-border-subtle p-6 max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-base font-semibold">
             {initialEntry ? "Edit Credential Entry" : "Add New Credential"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+          <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
           {/* Entry Type Selector */}
           <div className="grid grid-cols-4 gap-2">
             <button
@@ -439,6 +440,8 @@ export function PasswordModal({
             <Label htmlFor="pwd-fav" className="text-xs text-muted-foreground cursor-pointer font-normal">
               Pin to Favorites
             </Label>
+          </div>
+
           </div>
 
           <DialogFooter className="gap-2 pt-2">

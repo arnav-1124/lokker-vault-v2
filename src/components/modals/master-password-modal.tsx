@@ -164,7 +164,7 @@ export function MasterPasswordModal({
       }}
     >
       <DialogContent className="max-w-md bg-surface border-border-subtle p-6" showCloseButton={!isInitialSetup}>
-        <DialogHeader className="space-y-1">
+        <DialogHeader className="space-y-1 shrink-0">
           <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-1">
             <ShieldCheck className="size-5" />
           </div>
@@ -180,7 +180,8 @@ export function MasterPasswordModal({
 
         {isInitialSetup ? (
           /* INITIAL SETUP FORM */
-          <form onSubmit={handleSetupSubmit} className="space-y-4 pt-2">
+          <form onSubmit={handleSetupSubmit} className="flex flex-col min-h-0 flex-1">
+            <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label htmlFor="setup-pass" className="text-xs font-medium">
                 Master Password
@@ -284,14 +285,18 @@ export function MasterPasswordModal({
                 <span>{error}</span>
               </div>
             )}
+            </div>
 
-            <Button type="submit" disabled={loading} className="w-full h-9 text-xs font-medium mt-2 cursor-pointer">
-              {loading ? "Encrypting & Initializing..." : "Initialize Encrypted Vault"}
-            </Button>
+            <DialogFooter className="gap-2 pt-2 -mx-6 -mb-6 mt-auto">
+              <Button type="submit" disabled={loading} className="w-full h-9 text-xs font-medium cursor-pointer">
+                {loading ? "Encrypting & Initializing..." : "Initialize Encrypted Vault"}
+              </Button>
+            </DialogFooter>
           </form>
         ) : (
           /* UNLOCK TABS FORM */
-          <div className="space-y-4 pt-2">
+          <div className="flex flex-col min-h-0 flex-1">
+            <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
             <Tabs defaultValue="password">
               <TabsList className="grid grid-cols-3 w-full bg-background border border-border-subtle">
                 <TabsTrigger value="password" className="text-xs cursor-pointer">
@@ -390,6 +395,7 @@ export function MasterPasswordModal({
                 </Button>
               </TabsContent>
             </Tabs>
+            </div>
           </div>
         )}
       </DialogContent>

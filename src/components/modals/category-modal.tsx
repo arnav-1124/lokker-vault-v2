@@ -78,14 +78,15 @@ export function CategoryManagerModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-md bg-surface border-border-subtle p-6">
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Tag className="size-4 text-primary" />
             <span>Manage Categories & Nested Hierarchy</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
+        <div className="flex flex-col min-h-0 flex-1">
+          <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2">
           {/* Add Category Form */}
           <form onSubmit={handleAdd} className="space-y-3 p-3.5 rounded-xl border border-border-subtle bg-background">
             <Label htmlFor="cat-name" className="text-xs font-medium">
@@ -181,6 +182,7 @@ export function CategoryManagerModal({
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
 

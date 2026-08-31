@@ -36,7 +36,7 @@ export function ExtensionGuideModal({ isOpen, onClose }: ExtensionGuideModalProp
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg bg-surface border-border-subtle p-6">
-        <DialogHeader className="space-y-1">
+        <DialogHeader className="space-y-1 shrink-0">
           <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-1">
             <Puzzle className="size-5" />
           </div>
@@ -48,7 +48,7 @@ export function ExtensionGuideModal({ isOpen, onClose }: ExtensionGuideModalProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2 text-xs">
+        <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-4 pt-2 text-xs">
           <div className="p-3.5 rounded-xl border border-border-subtle bg-background flex items-center justify-between">
             <div>
               <p className="font-semibold text-foreground">Manifest V3 Extension Package (.zip)</p>

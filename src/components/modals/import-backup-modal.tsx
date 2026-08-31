@@ -112,7 +112,7 @@ export function ImportBackupModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-lg bg-surface border-border-subtle p-6">
-        <DialogHeader className="space-y-1">
+        <DialogHeader className="space-y-1 shrink-0">
           <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-1">
             <ShieldCheck className="size-5" />
           </div>
@@ -175,7 +175,8 @@ export function ImportBackupModal({
 
         {/* Step 2: Summary & Strategy Selection */}
         {activePayload && activeSummary && (
-          <div className="space-y-5 pt-2">
+          <div className="flex flex-col min-h-0 flex-1">
+            <div className="flex-1 overflow-y-auto lokker-scrollbar space-y-5 pt-2">
             {/* Contents Overview Card */}
             <div className="rounded-xl border border-border-subtle bg-background p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -309,6 +310,7 @@ export function ImportBackupModal({
                   : "Merge into Vault"}
               </Button>
             </DialogFooter>
+            </div>
           </div>
         )}
       </DialogContent>
