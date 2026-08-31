@@ -32,14 +32,14 @@ interface PublicKeyCredentialRequestOptionsExtensions {
 }
 
 interface AuthenticatorAttestationResponse {
-  readonly clientExtensionResults: () => {
+  readonly clientExtensionResults: {
     prf?: WebAuthnPRFOutputs;
     [key: string]: unknown;
   };
 }
 
 interface AuthenticatorAssertionResponse {
-  readonly clientExtensionResults: () => {
+  readonly clientExtensionResults: {
     prf?: WebAuthnPRFOutputs;
     [key: string]: unknown;
   };

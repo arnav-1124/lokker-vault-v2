@@ -68,7 +68,7 @@ async function prfBytesToKek(prfBytes: ArrayBuffer): Promise<CryptoKey> {
 
 /** Helper to get PRF output from a credential response (works for both create & get) */
 function getPrfOutput(response: AuthenticatorAttestationResponse | AuthenticatorAssertionResponse): ArrayBuffer | undefined {
-  const extResults = response.clientExtensionResults();
+  const extResults = response.clientExtensionResults;
   const prfData = (extResults as { prf?: { results?: { first?: ArrayBuffer } } }).prf;
   return prfData?.results?.first;
 }
