@@ -66,9 +66,18 @@ async function prfBytesToKek(prfBytes: ArrayBuffer): Promise<CryptoKey> {
   );
 }
 
-/** Helper to get PRF output from a credential response (works for both create & get) */
-function getPrfOutput(response: AuthenticatorAttestationResponse | AuthenticatorAssertionResponse): ArrayBuffer | undefined {
-  const extResults = response.clientExtensionResults;
+/** Helper to get PRF output from a PublicKeyCredential (works for both create & get) */
+function getPrfOutput(credential: PublicKeyCredential): ArrayBuffer | undefined {
+  // clientExtensionResults is a getter in WebAuthn Level 3, but a method in Level 2.
+  // Handle both to maximize browser compatibility.
+  let extResults: any;
+  const raw = (credential as any).clientExtensionResults;
+  if (typeof raw === "function") {
+    extResults = raw.call(credential);
+  } else {
+    extResults = raw;
+  }
+  if (!extResults) return undefined;
   const prfData = (extResults as { prf?: { results?: { first?: ArrayBuffer } } }).prf;
   return prfData?.results?.first;
 }
@@ -150,8 +159,8 @@ export async function registerWebAuthnCredential(vek: CryptoKey): Promise<{
     throw new Error("WebAuthn credential creation returned empty result.");
   }
 
-  // 5. Extract PRF output from attestation extensions
-  const prfOutput = getPrfOutput(credential.response as AuthenticatorAttestationResponse);
+  // 5. Extract PRF output from credential extensions
+  const prfOutput = getPrfOutput(credential);
 
   if (!prfOutput || prfOutput.byteLength === 0) {
     throw new Error(
@@ -245,8 +254,8 @@ export async function authenticateWithWebAuthn(meta: VaultMetadata): Promise<{
     throw new Error("WebAuthn assertion returned empty result.");
   }
 
-  // 3. Extract PRF output from assertion extensions
-  const prfOutput = getPrfOutput(assertion.response as AuthenticatorAssertionResponse);
+  // 3. Extract PRF output from credential extensions
+  const prfOutput = getPrfOutput(assertion);
 
   if (!prfOutput || prfOutput.byteLength === 0) {
     throw new Error("Authenticator did not return PRF output during authentication.");
