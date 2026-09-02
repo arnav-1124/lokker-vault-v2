@@ -44,7 +44,14 @@ export function CategoryDeleteModal({
   onTransferAndDelete,
   onClose,
 }: CategoryDeleteModalProps) {
-  const [selectedTarget, setSelectedTarget] = React.useState<string>("");
+  // Auto-select the first available target: derived during render instead of
+  // seeded via setState in an effect. A user's explicit choice wins while it
+  // remains a valid target.
+  const [userSelectedTarget, setUserSelectedTarget] = React.useState<string>("");
+  const selectedTarget =
+    userSelectedTarget && targetCategories.some((c) => c.name === userSelectedTarget)
+      ? userSelectedTarget
+      : targetCategories[0]?.name || "";
 
   // Available targets: all categories except the one being deleted and its descendants
   const getDescendantIds = React.useCallback(
@@ -73,13 +80,6 @@ export function CategoryDeleteModal({
     () => categories.filter((c) => !excludedIds.has(c.id)),
     [categories, excludedIds]
   );
-
-  // Auto-select first available target
-  React.useEffect(() => {
-    if (targetCategories.length > 0 && !selectedTarget) {
-      setSelectedTarget(targetCategories[0].name);
-    }
-  }, [targetCategories, selectedTarget]);
 
   const canConfirm = selectedTarget !== "";
 
@@ -125,7 +125,7 @@ export function CategoryDeleteModal({
               <ArrowRight className="size-3 text-primary" />
               Transfer items to:
             </Label>
-            <Select value={selectedTarget} onValueChange={setSelectedTarget}>
+            <Select value={selectedTarget} onValueChange={setUserSelectedTarget}>
               <SelectTrigger className="h-8 text-xs bg-surface">
                 <SelectValue placeholder="Select a category..." />
               </SelectTrigger>

@@ -228,21 +228,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Navigation state — derived from URL
-  const [currentView, setCurrentView] = React.useState<ViewMode>(() => viewFromPath(pathname));
+  // Navigation state — derived from the URL, the single source of truth.
+  // No local mirror state: navigateTo pushes the route and currentView
+  // updates when the pathname changes.
+  const currentView = viewFromPath(pathname);
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  // Sync URL → currentView (e.g. direct URL access or browser back/forward)
-  React.useEffect(() => {
-    const view = viewFromPath(pathname);
-    setCurrentView(view);
-  }, [pathname]);
-
-  const navigateTo = React.useCallback((view: ViewMode) => {
-    setCurrentView(view);
-    router.push(VIEW_TO_PATH[view]);
-  }, [router]);
+  const navigateTo = React.useCallback(
+    (view: ViewMode) => {
+      router.push(VIEW_TO_PATH[view]);
+    },
+    [router]
+  );
 
   // Storage state
   const [bookmarks, setBookmarks] = React.useState<Bookmark[]>([]);
@@ -1141,7 +1139,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     await saveSettings(s);
   };
 
-  const value = React.useMemo<VaultContextType>(() => ({
+  // A plain object — the useMemo wrapper was ineffective (its dependency
+  // list already covered every provider state, so consumers re-rendered
+  // on each provider render regardless) and the dependency array fought
+  // the non-memoized handlers. See React's "You Might Not Need Memo".
+  const value: VaultContextType = ({
     bookmarks, categories, settings, vaultMeta, isUnlocked, derivedKey, decryptedPasswords,
     currentView, navigateTo, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery,
     isMasterPasswordModalOpen, setIsMasterPasswordModalOpen,
@@ -1167,26 +1169,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     handleConfirmRestoreBackup, handleResetVault,
     toasts, addToast, dismissToast, showConfirm, dismissConfirm,
     updateSettings,
-  }), [
-    bookmarks, categories, settings, vaultMeta, isUnlocked, derivedKey, decryptedPasswords,
-    currentView, selectedCategory, searchQuery,
-    isMasterPasswordModalOpen, isPasswordModalOpen, editingPassword,
-    isBookmarkModalOpen, editingBookmark,
-    isCategoryModalOpen, categoryModalParentId,
-    isCommandPaletteOpen, isExtensionGuideOpen, isMobileSidebarOpen,
-    isImportBackupModalOpen, isBackupPasswordModalOpen, pendingEncryptedBackup, pendingUnencryptedBackup,
-    confirmDialog, deleteTransferDialog,
-    lockVault, handleMasterPasswordSubmit, handleUnlockWithRecoveryKey, handleUnlockWithWebAuthn,
-    handleRegisterWebAuthn, handleUnregisterWebAuthn,
-    handleSavePassword, handleDeletePassword, handleTogglePasswordFavorite,
-    handleSaveBookmark, handleDeleteBookmark, handleToggleBookmarkFavorite,
-    handleAddCategory, handleDeleteCategory, handleTransferAndDelete, handleRenameCategory,
-    handleCopyText,
-    handleExportEncryptedBackup, handleBackupPasswordSubmit, handleExportUnencryptedBackup,
-    handleImportLokkerBackupFile, handleImportExternalFile, handleExportCSV,
-    handleConfirmRestoreBackup, handleResetVault,
-    toasts, addToast, dismissToast, showConfirm,
-  ]);
+  });
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;
 }
