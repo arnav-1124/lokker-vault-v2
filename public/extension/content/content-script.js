@@ -16,27 +16,9 @@
   let fields = null;
   let focusTimeout = null;
 
-  function isTrustedLokkerOrigin() {
-    const origin = (window.location.origin || '').toLowerCase();
-    const host = (window.location.hostname || '').toLowerCase();
-
-    // 1. Local development host check
-    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local')) {
-      return true;
-    }
-
-    // 2. e2b / Arena preview environment check
-    if (host.includes('.e2b.app')) {
-      return true;
-    }
-
-    // 3. Official Lokker origins
-    if (origin.includes('lokker') || origin.includes('xerox')) {
-      return true;
-    }
-
-    return true;
-  }
+  // Origin gate is provided by trusted-origins.js (LokkerOriginPolicy) —
+  // an exact-host allowlist. Never inline substring checks here.
+  const isTrustedLokkerOrigin = () => window.LokkerOriginPolicy.isTrustedLokkerOrigin();
 
   function closeAllModals() {
     try {

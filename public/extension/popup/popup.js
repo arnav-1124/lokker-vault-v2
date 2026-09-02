@@ -3,6 +3,9 @@
  * Controls vault lock/unlock status, displays domain matches, and manages popup -> content script autofill triggers.
  */
 
+// App origin comes from ../config.js (loaded before this module in popup.html).
+const APP_ORIGIN = (self.LOKKER_EXT_CONFIG && self.LOKKER_EXT_CONFIG.appOrigin) || 'http://localhost:3000';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const statusBadge = document.getElementById('status-badge');
   const statusText = document.getElementById('status-text');
@@ -154,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (tabs && tabs.length > 0) {
           chrome.tabs.update(tabs[0].id, { active: true });
         } else {
-          chrome.tabs.create({ url: 'http://localhost:3000/app' });
+          chrome.tabs.create({ url: APP_ORIGIN + '/app' });
         }
       }
     );
