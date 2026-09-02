@@ -35,6 +35,8 @@ import {
   unwrapVekWithRecoveryKey,
   encryptPayloadWithVek,
   verifyMasterPassword,
+  rotateMasterPassword,
+  rotateRecoveryKey,
 } from "@/lib/crypto";
 import {
   registerWebAuthnCredential,
@@ -159,6 +161,9 @@ export interface VaultContextType {
   handleUnlockWithWebAuthn: () => Promise<boolean>;
   handleRegisterWebAuthn: () => Promise<void>;
   handleUnregisterWebAuthn: () => Promise<void>;
+  handleVerifyMasterPassword: (password: string) => Promise<boolean>;
+  handleChangeMasterPassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
+  handleRegenerateRecoveryKey: (newRecoveryKey: string) => Promise<boolean>;
   handleSavePassword: (entry: PasswordEntry) => Promise<void>;
   handleDeletePassword: (id: string) => Promise<void>;
   handleTogglePasswordFavorite: (id: string) => Promise<void>;
@@ -533,6 +538,49 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     await saveVaultMeta(cleanedMeta);
     setVaultMeta(cleanedMeta);
     addToast("Passkey removed. Biometric unlock is no longer available.", "info");
+  };
+
+  // ==========================================
+  // Account Recovery (master password rotation / recovery key)
+  // ==========================================
+
+  const handleVerifyMasterPassword = async (password: string): Promise<boolean> => {
+    if (!vaultMeta?.salt || !vaultMeta.verifier) return false;
+    return verifyMasterPassword(password, vaultMeta.salt, vaultMeta.verifier);
+  };
+
+  const handleChangeMasterPassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<boolean> => {
+    if (!vaultMeta?.salt || !vaultMeta.verifier || !isUnlocked || !derivedKey) return false;
+    const isValid = await verifyMasterPassword(currentPassword, vaultMeta.salt, vaultMeta.verifier);
+    if (!isValid) return false;
+    try {
+      const { updatedMeta, vek } = await rotateMasterPassword(currentPassword, newPassword, vaultMeta);
+      await saveVaultMeta(updatedMeta);
+      setVaultMeta(updatedMeta);
+      setDerivedKey(vek);
+      addToast("Master password changed. Use the new password to unlock from now on.", "success");
+      return true;
+    } catch {
+      addToast("Failed to change the master password.", "error");
+      return false;
+    }
+  };
+
+  const handleRegenerateRecoveryKey = async (newRecoveryKey: string): Promise<boolean> => {
+    if (!vaultMeta || !isUnlocked || !derivedKey) return false;
+    try {
+      const updatedMeta = await rotateRecoveryKey(newRecoveryKey, derivedKey, vaultMeta);
+      await saveVaultMeta(updatedMeta);
+      setVaultMeta(updatedMeta);
+      addToast("Emergency Recovery Key regenerated. The previous key no longer works.", "success");
+      return true;
+    } catch {
+      addToast("Failed to regenerate the recovery key.", "error");
+      return false;
+    }
   };
 
   // ==========================================
@@ -1161,6 +1209,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     confirmDialog, deleteTransferDialog, setDeleteTransferDialog,
     lockVault, handleMasterPasswordSubmit, handleUnlockWithRecoveryKey, handleUnlockWithWebAuthn,
     handleRegisterWebAuthn, handleUnregisterWebAuthn,
+    handleVerifyMasterPassword, handleChangeMasterPassword, handleRegenerateRecoveryKey,
     handleSavePassword, handleDeletePassword, handleTogglePasswordFavorite,
     handleSaveBookmark, handleDeleteBookmark, handleToggleBookmarkFavorite,
     handleAddCategory, handleDeleteCategory, handleTransferAndDelete, handleRenameCategory,
