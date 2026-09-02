@@ -18,6 +18,7 @@ import {
   saveEncryptedFile,
 } from "@/lib/db";
 import { decryptFileWithVek, encryptFileWithVek } from "@/lib/crypto";
+import { generateId } from "@/lib/id";
 
 interface FileVaultViewProps {
   derivedKey: CryptoKey | null;
@@ -79,7 +80,7 @@ export function FileVaultView({
         const { cipherText, iv } = await encryptFileWithVek(base64Data, derivedKey);
 
         const newFile: EncryptedFile = {
-          id: "file-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+          id: generateId("file"),
           name: file.name,
           size: file.size,
           type: file.type || "application/octet-stream",

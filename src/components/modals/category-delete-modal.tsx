@@ -44,14 +44,8 @@ export function CategoryDeleteModal({
   onTransferAndDelete,
   onClose,
 }: CategoryDeleteModalProps) {
-  // Auto-select the first available target: derived during render instead of
-  // seeded via setState in an effect. A user's explicit choice wins while it
-  // remains a valid target.
+  // User's explicit transfer-target choice; empty until they pick one.
   const [userSelectedTarget, setUserSelectedTarget] = React.useState<string>("");
-  const selectedTarget =
-    userSelectedTarget && targetCategories.some((c) => c.name === userSelectedTarget)
-      ? userSelectedTarget
-      : targetCategories[0]?.name || "";
 
   // Available targets: all categories except the one being deleted and its descendants
   const getDescendantIds = React.useCallback(
@@ -80,6 +74,14 @@ export function CategoryDeleteModal({
     () => categories.filter((c) => !excludedIds.has(c.id)),
     [categories, excludedIds]
   );
+
+  // Auto-select the first available target: derived during render instead of
+  // seeded via setState in an effect. A user's explicit choice wins while it
+  // remains a valid target.
+  const selectedTarget =
+    userSelectedTarget && targetCategories.some((c) => c.name === userSelectedTarget)
+      ? userSelectedTarget
+      : targetCategories[0]?.name || "";
 
   const canConfirm = selectedTarget !== "";
 

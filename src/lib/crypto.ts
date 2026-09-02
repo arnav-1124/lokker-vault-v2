@@ -596,7 +596,9 @@ export function generateMemorablePassphrase(wordCount = 4, separator = "-"): str
     selected.push(word.charAt(0).toUpperCase() + word.slice(1));
   }
 
-  const randomNum = Math.floor(10 + Math.random() * 90);
+  const randomValues = new Uint32Array(1);
+  crypto.getRandomValues(randomValues);
+  const randomNum = 10 + (randomValues[0] % 90);
   return selected.join(separator) + separator + randomNum;
 }
 

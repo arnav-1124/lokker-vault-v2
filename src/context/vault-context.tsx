@@ -49,6 +49,7 @@ import {
 import { parseCSVToEntries, parseJSONBackupText } from "@/lib/importers";
 import { downloadTextFile } from "@/lib/download";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
+import { generateId } from "@/lib/id";
 
 // ==========================================
 // Pathname ↔ ViewMode mapping
@@ -292,7 +293,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const addToast = React.useCallback((text: string, type: "success" | "error" | "info" = "success") => {
     setToasts((prev) => {
       if (prev.length > 0 && prev[prev.length - 1].text === text) return prev;
-      const id = "toast-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4);
+      const id = generateId("toast");
       return [...prev, { id, text, type }];
     });
   }, []);
@@ -609,7 +610,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const newPwd: PasswordEntry = {
-      id: "pwd-sync-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+      id: generateId("pwd-sync"),
       websiteName: bookmark.title,
       websiteUrl: bookmark.url,
       username: "",
@@ -710,7 +711,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
     // Add-sync: creating a password entry creates its bookmark counterpart.
     const newBm: Bookmark = {
-      id: "bm-sync-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+      id: generateId("bm-sync"),
       title: entry.websiteName,
       url: entry.websiteUrl || `https://${entry.websiteName.toLowerCase().replace(/\s+/g, "")}.com`,
       category: entry.category || "General",
@@ -773,7 +774,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   // ==========================================
 
   const handleAddCategory = async (name: string, color: string, parentId?: string) => {
-    const newCat: Category = { id: "cat-" + Date.now(), name, color, parentId };
+    const newCat: Category = { id: generateId("cat"), name, color, parentId };
     const updated = [...categories, newCat];
     setCategories(updated);
     await saveCategoryDB(newCat);

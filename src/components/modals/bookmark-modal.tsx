@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Bookmark, Category } from "@/types";
+import { generateId } from "@/lib/id";
 
 interface BookmarkModalProps {
   isOpen: boolean;
@@ -74,7 +75,7 @@ export function BookmarkModal({
     }
 
     const newBookmark: Bookmark = {
-      id: initialBookmark?.id || "bm-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+      id: initialBookmark?.id || generateId("bm"),
       title: title.trim(),
       url: cleanUrl,
       category: category || "General",

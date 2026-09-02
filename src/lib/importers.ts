@@ -9,6 +9,7 @@
  */
 
 import { Bookmark, Category, PasswordEntry } from "@/types";
+import { generateId } from "@/lib/id";
 import { decryptPayload, deriveKeyFromPassword } from "./crypto";
 
 export function parseCSVRows(csvText: string): string[][] {
@@ -92,7 +93,7 @@ export function parseCSVToEntries(csvText: string): PasswordEntry[] {
 
     if (name || url || username || password) {
       entries.push({
-        id: "pwd-imp-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
+        id: generateId("pwd-imp"),
         websiteName: name || (url ? new URL(url.startsWith("http") ? url : `https://${url}`).hostname : "Imported Item"),
         websiteUrl: url,
         username,
@@ -159,7 +160,7 @@ export function parseJSONBackupText(jsonText: string): ParsedImportResult {
         // Login item
         const uri = item.login.uris?.[0]?.uri || "";
         passwords.push({
-          id: "pwd-bw-" + (item.id || Math.random().toString(36).substr(2, 6)),
+          id: item.id ? `pwd-bw-${item.id}` : generateId("pwd-bw"),
           websiteName: item.name || "Bitwarden Item",
           websiteUrl: uri,
           username: item.login.username || "",
