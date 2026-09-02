@@ -107,7 +107,15 @@ export function SettingsView({
         onUpdateSettings({ ...settings, webAuthnEnabled: false });
       }
     } catch (err) {
-      setWebAuthnError(err instanceof Error ? err.message : "WebAuthn operation failed.");
+      // Prefer the AppError userMessage (actionable guidance) over the
+      // developer-facing error message.
+      const userMessage =
+        err && typeof err === "object" && "userMessage" in err
+          ? String((err as { userMessage: unknown }).userMessage)
+          : err instanceof Error
+            ? err.message
+            : null;
+      setWebAuthnError(userMessage || "WebAuthn operation failed.");
       // Revert toggle
       setWebAuthnActive(!checked);
     } finally {
