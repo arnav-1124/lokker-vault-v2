@@ -103,26 +103,47 @@ Lokker implements a local-first **3-Tier Envelope Encryption Architecture** usin
      `content/trusted-origins.js`, sourced from the extension environment file `config.js`
      (see §8). Plain http is trusted only for hardcoded local dev hosts; hostname
      substring matching is forbidden.
+   - Autofill badge visibility (`chrome.storage.local.badgeAllSites`, default `false`):
+     badge renders only when the vault is unlocked and the page has matching
+     credentials; `badgeAllSites: true` restores badge-on-every-login-form. The popup
+     exposes the toggle plus a connection status line and a "Sync Now" control.
 
-5. **Storage & Memory Hygiene:**
+5. **WebAuthn PRF Passkey Unlock (IMPLEMENTED, authenticator-dependent):**
+   - The VEK is wrapped under a KEK derived from the WebAuthn PRF extension output,
+     so no key material is ever stored. Registration asks for PRF evaluation at
+     credential creation; if the authenticator only supports PRF during assertions
+     (`prf.enabled === false`), a follow-up assertion derives the key.
+   - Authenticators WITHOUT PRF support (Windows Hello, Touch ID / iCloud Keychain,
+     most built-in browser passkeys) fail registration with explicit guidance.
+     PRF-capable: FIDO2 security keys with PRF (YubiKey 5.3+), passkey providers
+     that implement PRF (e.g. 1Password), Chrome on Android (Google Password Manager).
+   - No `authenticatorAttachment` or `transports` restriction is imposed, so roaming
+     security keys (USB/NFC/BLE) can register and assert. All failures throw
+     `AppError` and surface `userMessage` in the unlock modal / Settings.
+
+6. **Storage & Memory Hygiene:**
    - Sensitive keys exist only in ephemeral client memory during an active unlocked session.
+   - The master password is never kept in React state or long-lived memory: it exists only
+     inside the unlock/setup handler scope, and backup export re-collects it through
+     `BackupPasswordModal` (verified via the stored verifier) at export time.
    - Auto-lock timer clears decrypted vault arrays and unloads crypto keys.
    - Dark web breach checks use SHA-1 k-Anonymity (5-character prefix search with `Add-Padding: true`).
 
-## 6. Testing (IMPLEMENTED)
+## 7. Testing (IMPLEMENTED)
 
 Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 
 - `src/test/crypto.test.ts`: 12 tests verifying VEK derivation, key wrapping, password rotation, emergency recovery unlock, file encryption, and tampering authentication.
+- `src/test/totp.test.ts`: 10 tests verifying RFC 6238 test vectors, base32 decoding, and fail-closed error behavior.
 - `src/test/backup.test.ts`: 8 composite tests covering 24 backup/restore requirements (export, encryption, inspection, schema validation, merge deduplication, tampering rejection).
-- `src/test/extension.test.ts`: 7 tests verifying URL domain extraction, strict domain matching against squatting attacks, credential filtering, and V2 VEK unwrapping.
+- `src/test/extension.test.ts`: 11 tests verifying the trusted-origin allowlist, URL domain extraction, strict domain matching against squatting attacks, credential filtering, and V2 VEK unwrapping.
 - `src/test/importers.test.ts`: 6 tests verifying Chrome, Bitwarden, and 1Password CSV/JSON parsing and field mapping.
 - `src/test/product.test.ts`: 5 tests verifying password generator modes, entropy calculation, nested category parent mappings, and bidirectional credential/bookmark synchronization.
-- `src/test/foundations.test.ts`: 3 tests verifying design token foundations and theme switching.
+- `src/test/foundations.test.ts`: 4 tests verifying design token foundations, theme switching, and app configuration.
 
-All 41 tests pass cleanly.
+All 56 tests pass cleanly.
 
-## 7. Commands
+## 8. Commands
 
 ```bash
 npm install        # install dependencies
@@ -133,7 +154,7 @@ npm run build      # Production build
 npm start          # Serve production build
 ```
 
-## 8. Configuration & Environments (IMPLEMENTED)
+## 9. Configuration & Environments (IMPLEMENTED)
 
 Environment-specific values (URLs, origins) live in exactly two places — one per runtime:
 

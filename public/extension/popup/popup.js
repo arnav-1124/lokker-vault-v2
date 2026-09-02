@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentDomainEl = document.getElementById('current-domain');
   const credentialsContainer = document.getElementById('credentials-container');
   const noMatchesEl = document.getElementById('no-matches');
+  const syncStatus = document.getElementById('sync-status');
+  const syncNowBtn = document.getElementById('sync-now-btn');
+  const badgeAllToggle = document.getElementById('badge-all-toggle');
 
   // Get current active tab
   let activeTab = null;
@@ -31,6 +34,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Check initial lock status
   checkStatus();
+
+  // Badge visibility preference (off by default = only sites with matches)
+  chrome.storage.local.get(['badgeAllSites'], (res) => {
+    badgeAllToggle.checked = !!res?.badgeAllSites;
+  });
+  badgeAllToggle.addEventListener('change', () => {
+    chrome.storage.local.set({ badgeAllSites: badgeAllToggle.checked });
+  });
 
   function checkStatus() {
     chrome.runtime.sendMessage({ action: 'GET_LOCK_STATUS' }, (res) => {
@@ -47,7 +58,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function requestSyncFromLokkerTab() {
+  function setSyncStatus(state, text) {
+    syncStatus.className = 'sync-status' + (state ? ' ' + state : '');
+    syncStatus.textContent = text;
+  }
+
+  function requestSyncFromLokkerTab(done) {
+    setSyncStatus(null, 'Looking for an open Lokker Web Vault tab…');
     // Try to find an open Lokker web app tab and request a sync
     chrome.tabs.query(
       {
@@ -64,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       },
       (tabs) => {
         if (tabs && tabs.length > 0) {
+          let pending = tabs.length;
           for (const tab of tabs) {
             // Use executeScript to inject a window.postMessage call into the page
             // so the content script's window.addEventListener('message') picks it up
@@ -75,15 +93,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
               },
               () => {
-                // After requesting sync, retry status check after a delay
-                setTimeout(checkStatus, 2000);
+                pending -= 1;
+                if (pending <= 0) {
+                  setSyncStatus(null, 'Sync requested — verifying…');
+                  // After requesting sync, retry status check after a delay
+                  setTimeout(() => {
+                    checkStatus();
+                    if (done) done();
+                  }, 2000);
+                }
               }
             );
           }
+        } else {
+          setSyncStatus(
+            'disconnected',
+            'Not connected. Open your Lokker Web Vault tab once (and unlock it) so the extension can sync your vault.'
+          );
+          if (done) done();
         }
       }
     );
   }
+
+  syncNowBtn.addEventListener('click', () => {
+    syncNowBtn.disabled = true;
+    requestSyncFromLokkerTab(() => {
+      syncNowBtn.disabled = false;
+    });
+  });
 
   function setLockedUI(hasVaultData = true) {
     statusBadge.className = 'status-badge locked';
@@ -93,8 +131,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     lockBtn.classList.add('hidden');
     if (!hasVaultData) {
       errorMsg.textContent = 'Vault data not synced yet. Open your Lokker Web Vault tab and unlock it first, then try again.';
+      setSyncStatus('disconnected', 'Not connected to the Web Vault yet. Open and unlock the web vault once, then press "Sync Now".');
     } else {
       errorMsg.textContent = '';
+      setSyncStatus('connected', 'Connected to Web Vault. Enter your master password to unlock.');
     }
   }
 

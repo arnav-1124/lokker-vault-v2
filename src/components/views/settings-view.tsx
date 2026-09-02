@@ -183,7 +183,7 @@ export function SettingsView({
               )}
             </div>
             <p className="text-xs text-muted-foreground max-w-xl">
-              Integrates with WebAuthn PRF (Pseudo-Random Function) extension. Allows Touch ID, Windows Hello, or FIDO2 hardware keys to derive encryption keys without storing raw master passwords in memory.
+              Uses the WebAuthn PRF extension to derive your encryption key on-device — your biometrics never leave the device and no secret is stored. Requires a PRF-capable authenticator: FIDO2 security keys (YubiKey 5.3+), PRF-capable passkey providers (e.g. 1Password), or Chrome on Android. Note: Windows Hello and Touch ID / iCloud Keychain do not support PRF.
             </p>
           </div>
 
@@ -226,8 +226,8 @@ export function SettingsView({
             )}
             <span>
               {hasPlatformAuth
-                ? "Platform authenticator (Touch ID / Windows Hello) is available on this device."
-                : "No platform biometric hardware detected in current environment. Master password is required."}
+                ? "Platform authenticator detected. If registration fails, this device's biometrics may not support PRF — use a FIDO2 security key instead."
+                : "No platform biometric hardware detected in current environment. A FIDO2 security key can still be used."}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground pl-6">

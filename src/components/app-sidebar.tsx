@@ -211,13 +211,13 @@ export function AppSidebar({
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-[var(--z-modal)] bg-black/80 backdrop-blur-xs md:hidden cursor-pointer"
+          className="fixed inset-0 z-[var(--z-drawer)] bg-black/80 backdrop-blur-xs md:hidden cursor-pointer"
           onClick={onCloseMobile}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-[var(--z-modal)] md:static flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-[var(--z-drawer)] md:static flex flex-col ${
           isCollapsed ? "md:w-16" : "md:w-64"
         } w-64 border-r border-border-subtle bg-sidebar text-sidebar-foreground transition-all duration-200 ease-standard ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"

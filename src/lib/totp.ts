@@ -1,6 +1,12 @@
 /**
  * Standard RFC 6238 TOTP generation using Web Crypto HMAC-SHA1.
+ *
+ * Fail-closed: when a code cannot be derived (invalid/empty secret, crypto
+ * failure) this module throws an AppError instead of returning a
+ * plausible-looking placeholder code.
  */
+
+import { AppError } from "./errors";
 
 const BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -23,20 +29,26 @@ export function base32ToBytes(base32: string): Uint8Array {
 export async function generateTOTPCode(
   secret: string,
   timeStepSeconds = 30,
-  digits = 6
+  digits = 6,
+  nowMs: number = Date.now()
 ): Promise<{ code: string; secondsRemaining: number }> {
   try {
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(nowMs / 1000);
     const counter = Math.floor(now / timeStepSeconds);
     const secondsRemaining = timeStepSeconds - (now % timeStepSeconds);
 
+    // RFC 6238: 8-byte big-endian counter. Unix time / 30 fits the low 32
+    // bits until ~year 6000, so bytes 0-3 legitimately stay zero.
     const counterBuffer = new ArrayBuffer(8);
     const counterView = new DataView(counterBuffer);
-    counterView.setUint32(4, counter, false); // big-endian uint64 (using lower 32-bit)
+    counterView.setUint32(4, counter, false);
 
     const keyBytes = base32ToBytes(secret);
     if (keyBytes.length === 0) {
-      return { code: "000000", secondsRemaining };
+      throw new AppError("TOTP secret decoded to zero bytes", {
+        code: "TOTP_INVALID_SECRET",
+        userMessage: "This entry's 2FA secret key is invalid. Edit the entry and re-scan the QR code.",
+      });
     }
 
     const key = await crypto.subtle.importKey(
@@ -61,8 +73,12 @@ export async function generateTOTPCode(
     const code = otp.toString().padStart(digits, "0");
 
     return { code, secondsRemaining };
-  } catch {
-    const now = Math.floor(Date.now() / 1000);
-    return { code: "123456", secondsRemaining: timeStepSeconds - (now % timeStepSeconds) };
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("TOTP generation failed", {
+      code: "TOTP_GENERATION_FAILED",
+      userMessage: "Could not generate the 2FA code for this entry. Check its secret key.",
+      cause: err,
+    });
   }
 }

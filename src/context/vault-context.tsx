@@ -34,6 +34,7 @@ import {
   unwrapVekWithPassword,
   unwrapVekWithRecoveryKey,
   encryptPayloadWithVek,
+  verifyMasterPassword,
 } from "@/lib/crypto";
 import {
   registerWebAuthnCredential,
@@ -46,6 +47,7 @@ import {
   inspectBackupFileText,
 } from "@/lib/backup";
 import { parseCSVToEntries, parseJSONBackupText } from "@/lib/importers";
+import { downloadTextFile } from "@/lib/download";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
 
 // ==========================================
@@ -139,6 +141,8 @@ export interface VaultContextType {
   setIsMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isImportBackupModalOpen: boolean;
   setIsImportBackupModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isBackupPasswordModalOpen: boolean;
+  setIsBackupPasswordModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   pendingEncryptedBackup: LokkerEncryptedBackupFile | null;
   setPendingEncryptedBackup: React.Dispatch<React.SetStateAction<LokkerEncryptedBackupFile | null>>;
   pendingUnencryptedBackup: LokkerBackupPayload | null;
@@ -166,6 +170,7 @@ export interface VaultContextType {
   handleRenameCategory: (id: string, newName: string) => Promise<void>;
   handleCopyText: (text: string, label: string) => void;
   handleExportEncryptedBackup: () => Promise<void>;
+  handleBackupPasswordSubmit: (password: string) => Promise<boolean>;
   handleExportUnencryptedBackup: () => Promise<void>;
   handleImportLokkerBackupFile: (file: File) => void;
   handleImportExternalFile: (file: File) => void;
@@ -249,11 +254,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   });
 
   // Vault Security State
+  // NOTE: the master password is intentionally never kept in React state —
+  // it exists only inside the unlock/setup handler scope. Backup export
+  // re-asks for it through BackupPasswordModal and verifies it on submit.
   const [vaultMeta, setVaultMeta] = React.useState<VaultMetadata | null>(null);
   const [isUnlocked, setIsUnlocked] = React.useState(false);
   const [derivedKey, setDerivedKey] = React.useState<CryptoKey | null>(null);
   const [decryptedPasswords, setDecryptedPasswords] = React.useState<PasswordEntry[]>([]);
-  const [activeMasterPassword, setActiveMasterPassword] = React.useState<string | null>(null);
 
   // Modal states
   const [isMasterPasswordModalOpen, setIsMasterPasswordModalOpen] = React.useState(false);
@@ -267,8 +274,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [isExtensionGuideOpen, setIsExtensionGuideOpen] = React.useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
   const [isImportBackupModalOpen, setIsImportBackupModalOpen] = React.useState(false);
+  const [isBackupPasswordModalOpen, setIsBackupPasswordModalOpen] = React.useState(false);
   const [pendingEncryptedBackup, setPendingEncryptedBackup] = React.useState<LokkerEncryptedBackupFile | null>(null);
   const [pendingUnencryptedBackup, setPendingUnencryptedBackup] = React.useState<LokkerBackupPayload | null>(null);
+
+  // When a linked-entry edit modal is opened from a sync suggestion, the next
+  // save must not trigger the mirrored suggestion again (ping-pong guard).
+  const skipSyncSuggestionRef = React.useRef(false);
 
   // Confirmation dialog
   const [confirmDialog, setConfirmDialog] = React.useState<ConfirmDialogState | null>(null);
@@ -304,9 +316,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         isOpen: true,
         title,
         message,
+        // Close the current dialog BEFORE running the callback so a callback
+        // can chain a follow-up confirm (e.g. cross-delete prompts) without
+        // being wiped by this cleanup.
         onConfirm: () => {
-          onConfirm();
           setConfirmDialog(null);
+          onConfirm();
         },
         confirmText,
         cancelText,
@@ -373,11 +388,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (vaultMeta && typeof window !== "undefined") {
       window.postMessage(
         { type: "LOKKER_SYNC_VAULT", vaultMeta, encryptedVault: vaultMeta.encryptedVault },
-        "*"
+        window.location.origin
       );
       window.postMessage(
         { type: "XEROX_SYNC_VAULT", vaultMeta, encryptedVault: vaultMeta.encryptedVault },
-        "*"
+        window.location.origin
       );
     }
   }, [vaultMeta]);
@@ -393,7 +408,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         if (vaultMeta) {
           window.postMessage(
             { type: "LOKKER_SYNC_VAULT", vaultMeta, encryptedVault: vaultMeta.encryptedVault },
-            "*"
+            window.location.origin
           );
         }
       }
@@ -410,10 +425,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setIsUnlocked(false);
     setDerivedKey(null);
     setDecryptedPasswords([]);
-    setActiveMasterPassword(null);
     if (typeof window !== "undefined") {
-      window.postMessage({ type: "LOKKER_VAULT_LOCKED" }, "*");
-      window.postMessage({ type: "XEROX_VAULT_LOCKED" }, "*");
+      window.postMessage({ type: "LOKKER_VAULT_LOCKED" }, window.location.origin);
+      window.postMessage({ type: "XEROX_VAULT_LOCKED" }, window.location.origin);
     }
     addToast("Password Vault locked.", "info");
   }, [addToast]);
@@ -438,7 +452,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         setVaultMeta(meta);
         setDerivedKey(vek);
         setDecryptedPasswords(INITIAL_DEMO_VAULT_ITEMS);
-        setActiveMasterPassword(password);
         setIsUnlocked(true);
         setIsMasterPasswordModalOpen(false);
         addToast("Local vault initialized with 3-tier AES-GCM envelope encryption!", "success");
@@ -457,7 +470,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         }
         setDerivedKey(vek);
         setDecryptedPasswords(passwords);
-        setActiveMasterPassword(password);
         setIsUnlocked(true);
         setIsMasterPasswordModalOpen(false);
         addToast("Password Vault unlocked.", "success");
@@ -493,8 +505,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       setIsMasterPasswordModalOpen(false);
       addToast("Vault unlocked with Passkey!", "success");
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      // Surface the specific failure reason (e.g. missing PRF support) to the
+      // unlock modal instead of a generic "authentication failed".
+      throw err instanceof Error ? err : new Error("Passkey unlock failed.");
     }
   };
 
@@ -554,53 +568,65 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const handleSaveBookmark = async (bookmark: Bookmark) => {
     const existingIndex = bookmarks.findIndex((b) => b.id === bookmark.id);
-    let updatedBookmarks: Bookmark[];
-    if (existingIndex >= 0) {
-      updatedBookmarks = [...bookmarks];
-      updatedBookmarks[existingIndex] = bookmark;
-    } else {
-      updatedBookmarks = [bookmark, ...bookmarks];
-    }
+    const updatedBookmarks =
+      existingIndex >= 0
+        ? bookmarks.map((b) => (b.id === bookmark.id ? bookmark : b))
+        : [bookmark, ...bookmarks];
     setBookmarks(updatedBookmarks);
     await saveBookmark(bookmark);
 
-    if (isUnlocked && decryptedPasswords) {
-      const bmHost = normalizeHost(bookmark.url || bookmark.title);
-      const existingPwdIndex = decryptedPasswords.findIndex(
-        (p) => normalizeHost(p.websiteUrl || p.websiteName) === bmHost
-      );
-      let updatedPwds: PasswordEntry[];
-      if (existingPwdIndex >= 0) {
-        const existing = decryptedPasswords[existingPwdIndex];
-        const syncedPwd: PasswordEntry = {
-          ...existing,
-          websiteName: bookmark.title,
-          websiteUrl: bookmark.url || existing.websiteUrl,
-          category: bookmark.category || existing.category,
-          isFavorite: bookmark.isFavorite !== undefined ? bookmark.isFavorite : existing.isFavorite,
-          notes: bookmark.description || existing.notes,
-          updatedAt: Date.now(),
-        };
-        updatedPwds = [...decryptedPasswords];
-        updatedPwds[existingPwdIndex] = syncedPwd;
-      } else {
-        const newPwd: PasswordEntry = {
-          id: "pwd-sync-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
-          websiteName: bookmark.title,
-          websiteUrl: bookmark.url,
-          username: "",
-          password: "",
-          category: bookmark.category || "General",
-          isFavorite: !!bookmark.isFavorite,
-          notes: bookmark.description || "",
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        updatedPwds = [newPwd, ...decryptedPasswords];
+    const bmHost = normalizeHost(bookmark.url || bookmark.title);
+    const linkedPassword = decryptedPasswords.find(
+      (p) => normalizeHost(p.websiteUrl || p.websiteName) === bmHost
+    );
+
+    if (linkedPassword) {
+      if (skipSyncSuggestionRef.current) {
+        // This save came from a linked-entry suggestion; don't mirror back.
+        skipSyncSuggestionRef.current = false;
+        addToast(existingIndex >= 0 ? "Bookmark updated." : "Bookmark saved.", "success");
+        return;
       }
-      await saveAndEncryptPasswords(updatedPwds);
+      addToast(existingIndex >= 0 ? "Bookmark updated." : "Bookmark saved.", "success");
+      showConfirm(
+        "Linked Password Entry Found",
+        `A password entry for "${bmHost}" already exists. Do you want to edit it now? (Nothing is overwritten without your confirmation.)`,
+        () => {
+          setEditingPassword(linkedPassword);
+          setIsPasswordModalOpen(true);
+          skipSyncSuggestionRef.current = true;
+        },
+        false,
+        "Edit Password Entry",
+        "Not Now"
+      );
+      return;
     }
-    addToast(existingIndex >= 0 ? "Bookmark updated & synced." : "Bookmark saved & synced to vault.", "success");
+
+    // Add-sync: creating a bookmark creates its password entry with empty
+    // credentials so the extension can already match the domain. The vault
+    // must be unlocked for the entry to be encrypted and persisted.
+    if (!isUnlocked) {
+      addToast("Bookmark saved. Unlock the vault to link a password entry.", "success");
+      return;
+    }
+    const newPwd: PasswordEntry = {
+      id: "pwd-sync-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+      websiteName: bookmark.title,
+      websiteUrl: bookmark.url,
+      username: "",
+      password: "",
+      category: bookmark.category || "General",
+      isFavorite: !!bookmark.isFavorite,
+      notes: bookmark.description || "",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await saveAndEncryptPasswords([newPwd, ...decryptedPasswords]);
+    addToast(
+      existingIndex >= 0 ? "Bookmark updated & password entry linked." : "Bookmark saved & synced to vault.",
+      "success"
+    );
   };
 
   const handleToggleBookmarkFavorite = async (id: string) => {
@@ -620,6 +646,27 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         setBookmarks(updated);
         await deleteBookmarkDB(id);
         addToast("Bookmark deleted.", "info");
+
+        // Deletion is isolated by default — only offer to remove the linked
+        // password entry, and the default answer is No (Keep Entry).
+        const linked = target
+          ? decryptedPasswords.find(
+              (p) => normalizeHost(p.websiteUrl || p.websiteName) === normalizeHost(target.url || target.title)
+            )
+          : undefined;
+        if (linked) {
+          showConfirm(
+            "Delete Linked Password Entry?",
+            `"${linked.websiteName}" (${linked.username || "no username"}) shares this bookmark's URL. Delete it too?`,
+            async () => {
+              await saveAndEncryptPasswords(decryptedPasswords.filter((p) => p.id !== linked.id));
+              addToast("Linked password entry deleted.", "info");
+            },
+            true,
+            "Delete Entry",
+            "Keep Entry"
+          );
+        }
       },
       true
     );
@@ -631,48 +678,55 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const handleSavePassword = async (entry: PasswordEntry) => {
     const existingIndex = decryptedPasswords.findIndex((p) => p.id === entry.id);
-    let updatedPwds: PasswordEntry[];
-    if (existingIndex >= 0) {
-      updatedPwds = [...decryptedPasswords];
-      updatedPwds[existingIndex] = entry;
-    } else {
-      updatedPwds = [entry, ...decryptedPasswords];
-    }
+    const updatedPwds =
+      existingIndex >= 0
+        ? decryptedPasswords.map((p) => (p.id === entry.id ? entry : p))
+        : [entry, ...decryptedPasswords];
     await saveAndEncryptPasswords(updatedPwds);
 
     const pwdHost = normalizeHost(entry.websiteUrl || entry.websiteName);
-    const existingBmIndex = bookmarks.findIndex((b) => normalizeHost(b.url || b.title) === pwdHost);
-    let updatedBookmarks: Bookmark[];
-    if (existingBmIndex >= 0) {
-      const existing = bookmarks[existingBmIndex];
-      const syncedBm: Bookmark = {
-        ...existing,
-        title: entry.websiteName,
-        url: entry.websiteUrl || existing.url,
-        category: entry.category || existing.category,
-        isFavorite: entry.isFavorite !== undefined ? entry.isFavorite : existing.isFavorite,
-        description: entry.notes || existing.description,
-        updatedAt: Date.now(),
-      };
-      updatedBookmarks = [...bookmarks];
-      updatedBookmarks[existingBmIndex] = syncedBm;
-      await saveBookmark(syncedBm);
-    } else {
-      const newBm: Bookmark = {
-        id: "bm-sync-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
-        title: entry.websiteName,
-        url: entry.websiteUrl || `https://${entry.websiteName.toLowerCase().replace(/\s+/g, "")}.com`,
-        category: entry.category || "General",
-        isFavorite: !!entry.isFavorite,
-        description: entry.notes || "",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      updatedBookmarks = [newBm, ...bookmarks];
-      await saveBookmark(newBm);
+    const linkedBookmark = bookmarks.find((b) => normalizeHost(b.url || b.title) === pwdHost);
+
+    if (linkedBookmark) {
+      if (skipSyncSuggestionRef.current) {
+        // This save came from a linked-entry suggestion; don't mirror back.
+        skipSyncSuggestionRef.current = false;
+        addToast(existingIndex >= 0 ? "Password updated." : "Password stored.", "success");
+        return;
+      }
+      addToast(existingIndex >= 0 ? "Password updated." : "Password stored.", "success");
+      showConfirm(
+        "Linked Bookmark Found",
+        `A bookmark for "${pwdHost}" already exists. Do you want to edit it now? (Nothing is overwritten without your confirmation.)`,
+        () => {
+          setEditingBookmark(linkedBookmark);
+          setIsBookmarkModalOpen(true);
+          skipSyncSuggestionRef.current = true;
+        },
+        false,
+        "Edit Bookmark",
+        "Not Now"
+      );
+      return;
     }
-    setBookmarks(updatedBookmarks);
-    addToast(existingIndex >= 0 ? "Password updated & synced." : "Password stored & synced.", "success");
+
+    // Add-sync: creating a password entry creates its bookmark counterpart.
+    const newBm: Bookmark = {
+      id: "bm-sync-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+      title: entry.websiteName,
+      url: entry.websiteUrl || `https://${entry.websiteName.toLowerCase().replace(/\s+/g, "")}.com`,
+      category: entry.category || "General",
+      isFavorite: !!entry.isFavorite,
+      description: entry.notes || "",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setBookmarks([newBm, ...bookmarks]);
+    await saveBookmark(newBm);
+    addToast(
+      existingIndex >= 0 ? "Password updated & bookmark linked." : "Password stored & synced to bookmarks.",
+      "success"
+    );
   };
 
   const handleTogglePasswordFavorite = async (id: string) => {
@@ -686,9 +740,31 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       "Delete Password Entry",
       `Are you sure you want to permanently delete credentials for "${target?.websiteName || "this entry"}"?`,
       async () => {
-        const updated = decryptedPasswords.filter((p) => p.id !== id);
-        await saveAndEncryptPasswords(updated);
+        await saveAndEncryptPasswords(decryptedPasswords.filter((p) => p.id !== id));
         addToast("Password entry deleted.", "info");
+
+        // Deletion is isolated by default — only offer to remove the linked
+        // bookmark, and the default answer is No (Keep Bookmark).
+        const linked = target
+          ? bookmarks.find(
+              (b) => normalizeHost(b.url || b.title) === normalizeHost(target.websiteUrl || target.websiteName)
+            )
+          : undefined;
+        if (linked) {
+          showConfirm(
+            "Delete Linked Bookmark?",
+            `"${linked.title}" shares this entry's URL. Delete it too?`,
+            async () => {
+              const updatedBms = bookmarks.filter((b) => b.id !== linked.id);
+              setBookmarks(updatedBms);
+              await deleteBookmarkDB(linked.id);
+              addToast("Linked bookmark deleted.", "info");
+            },
+            true,
+            "Delete Bookmark",
+            "Keep Bookmark"
+          );
+        }
       },
       true
     );
@@ -789,6 +865,15 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       setIsMasterPasswordModalOpen(true);
       return;
     }
+    // The master password is never kept in memory between sessions — the
+    // BackupPasswordModal collects it, verifies it, then encrypts.
+    setIsBackupPasswordModalOpen(true);
+  };
+
+  const handleBackupPasswordSubmit = async (password: string): Promise<boolean> => {
+    if (!vaultMeta?.salt || !vaultMeta.verifier) return false;
+    const isValid = await verifyMasterPassword(password, vaultMeta.salt, vaultMeta.verifier);
+    if (!isValid) return false;
     try {
       const files = await getEncryptedFiles();
       const payload = createLokkerBackupPayload({
@@ -799,26 +884,23 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         files,
         vaultMeta,
       });
-      const passwordToUse = activeMasterPassword || prompt("Enter Master Password to encrypt this backup:");
-      if (!passwordToUse) return;
-      const encryptedBackup = await exportEncryptedLokkerBackup(payload, passwordToUse);
-      const jsonStr = JSON.stringify(encryptedBackup, null, 2);
-      const blob = new Blob([jsonStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      const encryptedBackup = await exportEncryptedLokkerBackup(payload, password);
       const dateStr = new Date().toISOString().split("T")[0];
-      a.download = `lokker-backup-${dateStr}.lokker`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadTextFile(
+        JSON.stringify(encryptedBackup, null, 2),
+        `lokker-backup-${dateStr}.lokker`,
+        "application/json"
+      );
       const updatedSettings = { ...settings, lastBackupTime: Date.now() };
       setSettingsState(updatedSettings);
       await saveSettings(updatedSettings);
+      setIsBackupPasswordModalOpen(false);
       addToast("Full encrypted Lokker backup exported successfully (.lokker).", "success");
-    } catch (err: any) {
-      addToast(err?.message || "Failed to export backup.", "error");
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to export backup.";
+      addToast(message, "error");
+      return false;
     }
   };
 
@@ -843,16 +925,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
             vaultMeta,
           });
           const jsonStr = JSON.stringify({ format: "lokker-unencrypted-backup", ...payload }, null, 2);
-          const blob = new Blob([jsonStr], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
           const dateStr = new Date().toISOString().split("T")[0];
-          a.download = `lokker-unencrypted-backup-${dateStr}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          downloadTextFile(jsonStr, `lokker-unencrypted-backup-${dateStr}.json`, "application/json");
           addToast("Exported unencrypted backup (keep this file secure).", "info");
         } catch {
           addToast("Failed to export unencrypted backup.", "error");
@@ -978,15 +1052,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       `"${(p.category || "General").replace(/"/g, '""')}"`,
     ]);
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `lokker-passwords-export-${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadTextFile(csvContent, `lokker-passwords-export-${Date.now()}.csv`, "text/csv;charset=utf-8;");
     addToast("CSV Passwords exported successfully.", "success");
   };
 
@@ -1057,7 +1123,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         setVaultMeta(null);
         setIsUnlocked(false);
         setDerivedKey(null);
-        setActiveMasterPassword(null);
         setIsMasterPasswordModalOpen(true);
         addToast("Local vault reset completed.", "info");
       },
@@ -1087,6 +1152,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     isExtensionGuideOpen, setIsExtensionGuideOpen,
     isMobileSidebarOpen, setIsMobileSidebarOpen,
     isImportBackupModalOpen, setIsImportBackupModalOpen,
+    isBackupPasswordModalOpen, setIsBackupPasswordModalOpen,
     pendingEncryptedBackup, setPendingEncryptedBackup,
     pendingUnencryptedBackup, setPendingUnencryptedBackup,
     confirmDialog, deleteTransferDialog, setDeleteTransferDialog,
@@ -1096,7 +1162,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     handleSaveBookmark, handleDeleteBookmark, handleToggleBookmarkFavorite,
     handleAddCategory, handleDeleteCategory, handleTransferAndDelete, handleRenameCategory,
     handleCopyText,
-    handleExportEncryptedBackup, handleExportUnencryptedBackup,
+    handleExportEncryptedBackup, handleBackupPasswordSubmit, handleExportUnencryptedBackup,
     handleImportLokkerBackupFile, handleImportExternalFile, handleExportCSV,
     handleConfirmRestoreBackup, handleResetVault,
     toasts, addToast, dismissToast, showConfirm, dismissConfirm,
@@ -1108,7 +1174,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     isBookmarkModalOpen, editingBookmark,
     isCategoryModalOpen, categoryModalParentId,
     isCommandPaletteOpen, isExtensionGuideOpen, isMobileSidebarOpen,
-    isImportBackupModalOpen, pendingEncryptedBackup, pendingUnencryptedBackup,
+    isImportBackupModalOpen, isBackupPasswordModalOpen, pendingEncryptedBackup, pendingUnencryptedBackup,
     confirmDialog, deleteTransferDialog,
     lockVault, handleMasterPasswordSubmit, handleUnlockWithRecoveryKey, handleUnlockWithWebAuthn,
     handleRegisterWebAuthn, handleUnregisterWebAuthn,
@@ -1116,7 +1182,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     handleSaveBookmark, handleDeleteBookmark, handleToggleBookmarkFavorite,
     handleAddCategory, handleDeleteCategory, handleTransferAndDelete, handleRenameCategory,
     handleCopyText,
-    handleExportEncryptedBackup, handleExportUnencryptedBackup,
+    handleExportEncryptedBackup, handleBackupPasswordSubmit, handleExportUnencryptedBackup,
     handleImportLokkerBackupFile, handleImportExternalFile, handleExportCSV,
     handleConfirmRestoreBackup, handleResetVault,
     toasts, addToast, dismissToast, showConfirm,

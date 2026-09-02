@@ -29,6 +29,10 @@
           <button id="unlock-btn" class="btn btn-primary">Unlock Vault</button>
         </div>
         <p id="error-msg" class="error-msg"></p>
+        <div class="sync-box">
+          <span id="sync-status" class="sync-status">Checking connection to Web Vault…</span>
+          <button id="sync-now-btn" class="btn btn-ghost">Sync Now</button>
+        </div>
       </div>
 
       <!-- Unlocked State View -->
@@ -47,6 +51,14 @@
         </div>
       </div>
     </main>
+
+    <!-- Badge Visibility Setting -->
+    <div class="setting-row">
+      <label class="setting-label" for="badge-all-toggle" title="When off, the autofill badge appears only on sites that have matching credentials in your vault. When on, it appears on every login form.">
+        Show autofill badge on every site
+      </label>
+      <input type="checkbox" id="badge-all-toggle" class="toggle" />
+    </div>
 
     <!-- Footer Actions -->
     <footer class="popup-footer">

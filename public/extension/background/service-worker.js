@@ -160,27 +160,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (action === 'GET_MATCHING_CREDENTIALS') {
     const { url } = payload || {};
-    getActiveVault().then((vault) => {
-      if (!vault) {
-        debugLog('GET_MATCHING_CREDENTIALS: Vault is locked');
-        sendResponse({ isUnlocked: false, matches: [] });
-        return;
-      }
+    // Include the badge visibility preference so content scripts can decide
+    // whether to show the autofill badge on this page.
+    chrome.storage.local.get(['badgeAllSites'], (pref) => {
+      const badgeAllSites = !!(pref && pref.badgeAllSites);
+      getActiveVault().then((vault) => {
+        if (!vault) {
+          debugLog('GET_MATCHING_CREDENTIALS: Vault is locked');
+          sendResponse({ isUnlocked: false, matches: [], badgeAllSites });
+          return;
+        }
 
-      touchSession();
-      const matches = filterMatchingCredentials(url, vault);
-      const host = extractDomain(url);
-      debugLog(`GET_MATCHING_CREDENTIALS for "${host}": found ${matches.length} matches`);
-      sendResponse({
-        isUnlocked: true,
-        domain: host,
-        matches: matches.map((m) => ({
-          id: m.id,
-          websiteName: m.websiteName || m.title || extractDomain(m.websiteUrl) || 'Untitled',
-          websiteUrl: m.websiteUrl || m.url || '',
-          username: m.username || m.email || '',
-          hasTotp: !!m.totpSecret,
-        })),
+        touchSession();
+        const matches = filterMatchingCredentials(url, vault);
+        const host = extractDomain(url);
+        debugLog(`GET_MATCHING_CREDENTIALS for "${host}": found ${matches.length} matches`);
+        sendResponse({
+          isUnlocked: true,
+          domain: host,
+          badgeAllSites,
+          matches: matches.map((m) => ({
+            id: m.id,
+            websiteName: m.websiteName || m.title || extractDomain(m.websiteUrl) || 'Untitled',
+            websiteUrl: m.websiteUrl || m.url || '',
+            username: m.username || m.email || '',
+            hasTotp: !!m.totpSecret,
+          })),
+        });
       });
     });
     return true;

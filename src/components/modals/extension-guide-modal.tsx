@@ -97,6 +97,42 @@ export function ExtensionGuideModal({ isOpen, onClose }: ExtensionGuideModalProp
               </div>
             </div>
           </div>
+
+          {/* Connect the vault (after install) */}
+          <div className="space-y-2">
+            <p className="font-semibold text-foreground">Connect the Extension to Your Vault:</p>
+            <div className="space-y-2 text-muted-foreground">
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-background border border-border-subtle">
+                <span className="size-5 rounded-full bg-success/10 text-success font-mono text-[11px] font-bold flex items-center justify-center shrink-0">
+                  4
+                </span>
+                <p className="leading-snug">
+                  Keep this web vault tab open and <strong>unlocked</strong>. The extension syncs your encrypted vault from this page automatically.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-background border border-border-subtle">
+                <span className="size-5 rounded-full bg-success/10 text-success font-mono text-[11px] font-bold flex items-center justify-center shrink-0">
+                  5
+                </span>
+                <p className="leading-snug">
+                  Click the Lokker icon in your browser toolbar. The popup shows the connection status — if it says <strong>&quot;Not connected&quot;</strong>, press <strong>&quot;Sync Now&quot;</strong>.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-background border border-border-subtle">
+                <span className="size-5 rounded-full bg-success/10 text-success font-mono text-[11px] font-bold flex items-center justify-center shrink-0">
+                  6
+                </span>
+                <p className="leading-snug">
+                  Unlock the vault in the popup with your master password once. Autofill is then available on any site you visit.
+                </p>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-lg bg-primary/5 border border-border-subtle text-[11px] text-muted-foreground leading-snug">
+              <strong className="text-foreground">Badge behavior:</strong> by default the Lokker autofill badge appears only on sites that have matching credentials in your vault. Use <strong>&quot;Show autofill badge on every site&quot;</strong> in the extension popup if you want it on every login form.
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="pt-2">

@@ -104,8 +104,8 @@
         initialTop = rect.top;
 
         element.style.cursor = 'grabbing';
-        element.style.borderColor = '#60a5fa';
-        element.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.4), 0 10px 25px rgba(0,0,0,0.8)';
+        element.style.borderColor = '#e4e4e7';
+        element.style.boxShadow = '0 0 0 3px rgba(244, 244, 245, 0.3), 0 10px 25px rgba(0,0,0,0.8)';
 
         document.addEventListener('mousemove', onMouseMove, true);
         document.addEventListener('mouseup', onMouseUp, true);
@@ -128,7 +128,7 @@
         if (!isDragging) return;
         isDragging = false;
         element.style.cursor = 'grab';
-        element.style.borderColor = '#3b82f6';
+        element.style.borderColor = '#525252';
         element.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.6)';
 
         document.removeEventListener('mousemove', onMouseMove, true);
@@ -200,13 +200,13 @@
         display: flex;
         align-items: center;
         gap: 5px;
-        background: #111827;
-        border: 1.5px solid #3b82f6;
+        background: #111111;
+        border: 1.5px solid #525252;
         border-radius: 8px;
         padding: 4px 8px;
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 12px;
-        color: #f3f4f6;
+        color: #f4f4f5;
         box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6), 0 8px 10px -6px rgba(0,0,0,0.5);
         user-select: none;
         transition: border-color 0.2s, box-shadow 0.2s;
@@ -215,9 +215,9 @@
       wrapper.innerHTML = `
         <span style="font-size: 12px; opacity: 0.7; cursor: grab;" title="Drag to move">⋮⋮</span>
         <span style="font-size: 13px;">🔐</span>
-        <span style="font-weight: 700; font-size: 11px; color: #60a5fa; letter-spacing: 0.3px;">Lokker</span>
-        <button type="button" class="lokker-autofill-btn" style="background: #2563eb; color: #ffffff; border: none; border-radius: 5px; padding: 3px 8px; font-size: 11px; font-weight: 600; margin-left: 2px; cursor: pointer; transition: background 0.15s;">Autofill</button>
-        <button type="button" class="lokker-dismiss-btn" aria-label="Dismiss Lokker autofill" style="background: transparent; color: #9ca3af; border: none; border-radius: 4px; padding: 2px 5px; font-size: 13px; font-weight: 700; margin-left: 1px; cursor: pointer; transition: color 0.15s;">✕</button>
+        <span style="font-weight: 700; font-size: 11px; color: #e4e4e7; letter-spacing: 0.3px;">Lokker</span>
+        <button type="button" class="lokker-autofill-btn" style="background: #f4f4f5; color: #0a0a0a; border: none; border-radius: 5px; padding: 3px 8px; font-size: 11px; font-weight: 600; margin-left: 2px; cursor: pointer; transition: background 0.15s;">Autofill</button>
+        <button type="button" class="lokker-dismiss-btn" aria-label="Dismiss Lokker autofill" style="background: transparent; color: #8c8c8c; border: none; border-radius: 4px; padding: 2px 5px; font-size: 13px; font-weight: 700; margin-left: 1px; cursor: pointer; transition: color 0.15s;">✕</button>
       `;
 
       const updatePosition = () => {

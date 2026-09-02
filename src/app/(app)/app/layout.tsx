@@ -6,6 +6,7 @@ import { VaultProvider } from "@/context/vault-context";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MasterPasswordModal } from "@/components/modals/master-password-modal";
+import { BackupPasswordModal } from "@/components/modals/backup-password-modal";
 import { PasswordModal } from "@/components/modals/password-modal";
 import { BookmarkModal } from "@/components/modals/bookmark-modal";
 import { CategoryManagerModal } from "@/components/modals/category-modal";
@@ -82,6 +83,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
         onUnlockWithRecoveryKey={vault.handleUnlockWithRecoveryKey}
         onUnlockWithWebAuthn={vault.handleUnlockWithWebAuthn}
         hasWebAuthnCredential={!!vault.vaultMeta?.webauthnCredentialId}
+      />
+
+      <BackupPasswordModal
+        isOpen={vault.isBackupPasswordModalOpen}
+        onClose={() => vault.setIsBackupPasswordModalOpen(false)}
+        onSubmit={vault.handleBackupPasswordSubmit}
       />
 
       <PasswordModal

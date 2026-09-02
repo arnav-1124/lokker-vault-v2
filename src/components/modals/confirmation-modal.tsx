@@ -60,8 +60,10 @@ export function ConfirmationModal({
             variant={isDestructive ? "destructive" : "default"}
             size="sm"
             onClick={() => {
-              onConfirm();
+              // Close before running the callback so a callback can chain a
+              // follow-up confirm (e.g. linked-entry cross-delete prompts).
               onClose();
+              onConfirm();
             }}
             className="text-xs font-medium cursor-pointer"
           >

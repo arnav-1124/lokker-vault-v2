@@ -23,9 +23,22 @@
 import { bufferToBase64, base64ToBuffer, wrapVek, unwrapVek, createVerifierToken, verifyToken, generateRandomSalt } from "./crypto";
 import type { VaultMetadata, WrappedKeySlot, PasswordEntry } from "@/types";
 import { decryptPayloadWithVek } from "./crypto";
+import { AppError } from "./errors";
 
 const RP_NAME = "Lokker Vault";
 const USER_NAME = "lokker-user";
+
+/**
+ * Guidance for users whose authenticator cannot derive PRF output.
+ * Windows Hello, Touch ID / iCloud Keychain and most browser-built-in
+ * passkeys do not implement the PRF extension; PRF-capable security keys
+ * (e.g. YubiKey 5.3+) and PRF-capable passkey providers do.
+ */
+const PRF_UNSUPPORTED_USER_MESSAGE =
+  "This authenticator can't derive vault keys (no WebAuthn PRF support). " +
+  "Windows Hello, Touch ID / iCloud Keychain and most built-in browser passkeys don't support PRF. " +
+  "Use a PRF-capable security key (e.g. YubiKey with firmware 5.3+), a passkey provider that supports PRF (e.g. 1Password), " +
+  "or Chrome on Android with a Google Password Manager passkey — then register it here.";
 
 /**
  * Check if WebAuthn PRF is available in this browser/environment.
@@ -66,20 +79,51 @@ async function prfBytesToKek(prfBytes: ArrayBuffer): Promise<CryptoKey> {
   );
 }
 
-/** Helper to get PRF output from a PublicKeyCredential (works for both create & get) */
-function getPrfOutput(credential: PublicKeyCredential): ArrayBuffer | undefined {
-  // clientExtensionResults is a getter in WebAuthn Level 3, but a method in Level 2.
-  // Handle both to maximize browser compatibility.
-  let extResults: any;
-  const raw = (credential as any).clientExtensionResults;
+interface PrfExtensionOutput {
+  enabled?: boolean;
+  results?: { first?: ArrayBuffer };
+}
+
+/** Helper to read the PRF extension output from a PublicKeyCredential (create & get).
+ *  clientExtensionResults is a getter in WebAuthn Level 3, but a method in Level 2. */
+function getPrfResults(credential: PublicKeyCredential): PrfExtensionOutput | undefined {
+  let extResults: unknown;
+  const raw = (credential as unknown as { clientExtensionResults: unknown }).clientExtensionResults;
   if (typeof raw === "function") {
-    extResults = raw.call(credential);
+    extResults = (raw as () => unknown).call(credential);
   } else {
     extResults = raw;
   }
   if (!extResults) return undefined;
-  const prfData = (extResults as { prf?: { results?: { first?: ArrayBuffer } } }).prf;
-  return prfData?.results?.first;
+  return (extResults as { prf?: PrfExtensionOutput }).prf;
+}
+
+/** Extract the PRF bytes, or undefined when the authenticator returned none. */
+function extractPrfBytes(prfResults: PrfExtensionOutput | undefined): ArrayBuffer | undefined {
+  return prfResults?.results?.first;
+}
+
+/** Build a PRF evaluation assertion request for an existing credential. */
+function buildPrfGetOptions(credentialId: Uint8Array, prfSalt: Uint8Array) {
+  return {
+    publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rpId: window.location.hostname,
+      allowCredentials: [
+        {
+          id: credentialId,
+          type: "public-key" as const,
+        },
+      ],
+      userVerification: "required" as const,
+      extensions: {
+        prf: {
+          eval: { first: prfSalt.buffer as ArrayBuffer },
+        },
+      },
+      timeout: 60000,
+    },
+  };
 }
 
 /**
@@ -124,7 +168,9 @@ export async function registerWebAuthnCredential(vek: CryptoKey): Promise<{
         { alg: -257, type: "public-key" as const },
       ],
       authenticatorSelection: {
-        authenticatorAttachment: "platform" as const,
+        // No authenticatorAttachment restriction: both platform
+        // authenticators AND roaming FIDO2 security keys (USB/NFC/BLE)
+        // may register. PRF capability is verified after creation.
         userVerification: "required" as const,
         residentKey: "preferred" as const,
       },
@@ -146,26 +192,56 @@ export async function registerWebAuthnCredential(vek: CryptoKey): Promise<{
   } catch (err) {
     if (err instanceof DOMException) {
       if (err.name === "NotAllowedError") {
-        throw new Error("Biometric authentication was cancelled or timed out.");
+        throw new AppError("WebAuthn registration cancelled or timed out", {
+          code: "WEBAUTHN_NOT_ALLOWED",
+          userMessage: "Biometric authentication was cancelled or timed out.",
+        });
       }
       if (err.name === "SecurityError") {
-        throw new Error("WebAuthn is not available in this context. Ensure you are on HTTPS or localhost.");
+        throw new AppError("WebAuthn security error (insecure context or RP ID mismatch)", {
+          code: "WEBAUTHN_SECURITY_ERROR",
+          userMessage: "WebAuthn is not available in this context. Ensure you are on HTTPS or localhost.",
+        });
       }
     }
-    throw new Error(`WebAuthn registration failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new AppError(`WebAuthn registration failed: ${err instanceof Error ? err.message : String(err)}`, {
+      code: "WEBAUTHN_CREATE_FAILED",
+      userMessage: "Passkey registration failed. Please try again.",
+      cause: err,
+    });
   }
 
   if (!credential) {
-    throw new Error("WebAuthn credential creation returned empty result.");
+    throw new AppError("WebAuthn credential creation returned empty result", {
+      code: "WEBAUTHN_EMPTY_CREDENTIAL",
+      userMessage: "Passkey registration returned no result. Please try again.",
+    });
   }
 
-  // 5. Extract PRF output from credential extensions
-  const prfOutput = getPrfOutput(credential);
+  // 5. Extract PRF output from credential extensions.
+  // Per the WebAuthn PRF spec: no `prf` key at all means the authenticator
+  // (or browser) lacks PRF support. `enabled: false` means it supports PRF
+  // for assertions but not during creation — fall back to an immediate
+  // assertion to derive the key.
+  let prfResults = getPrfResults(credential);
+
+  if (prfResults && (prfResults.enabled === false || !extractPrfBytes(prfResults))) {
+    // PRF-capable only during sign-in: derive via a second prompt.
+    const fallbackAssertion = (await navigator.credentials.get(
+      buildPrfGetOptions(new Uint8Array(credential.rawId), prfSalt) as CredentialRequestOptions
+    )) as PublicKeyCredential | null;
+    if (fallbackAssertion) {
+      prfResults = getPrfResults(fallbackAssertion);
+    }
+  }
+
+  const prfOutput = extractPrfBytes(prfResults);
 
   if (!prfOutput || prfOutput.byteLength === 0) {
-    throw new Error(
-      "Authenticator did not return PRF output. Your hardware may not support the PRF extension."
-    );
+    throw new AppError("Authenticator returned no PRF output during registration", {
+      code: "WEBAUTHN_PRF_UNSUPPORTED",
+      userMessage: PRF_UNSUPPORTED_USER_MESSAGE,
+    });
   }
 
   // 6. Derive KEK from PRF bytes
@@ -198,35 +274,19 @@ export async function authenticateWithWebAuthn(meta: VaultMetadata): Promise<{
   passwords: PasswordEntry[];
 }> {
   if (!meta.webauthnCredentialId || !meta.webauthnSalt || !meta.wrappedVekByWebAuthn) {
-    throw new Error("No WebAuthn credential registered for this vault.");
+    throw new AppError("No WebAuthn credential registered for this vault", {
+      code: "WEBAUTHN_NOT_REGISTERED",
+      userMessage: "No passkey is registered for this vault. Unlock with your master password and register one in Settings.",
+    });
   }
 
   // 1. Decode stored values
   const credentialId = new Uint8Array(base64ToBuffer(meta.webauthnCredentialId));
   const prfSalt = new Uint8Array(base64ToBuffer(meta.webauthnSalt));
-  const challenge = crypto.getRandomValues(new Uint8Array(32));
 
-  // 2. Get credential with PRF extension
-  const getOptions = {
-    publicKey: {
-      challenge,
-      rpId: window.location.hostname,
-      allowCredentials: [
-        {
-          id: credentialId,
-          type: "public-key" as const,
-          transports: ["internal" as const],
-        },
-      ],
-      userVerification: "required" as const,
-      extensions: {
-        prf: {
-          eval: { first: prfSalt.buffer as ArrayBuffer },
-        },
-      },
-      timeout: 60000,
-    },
-  };
+  // 2. Get credential with PRF extension. No transports restriction so both
+  // platform credentials and USB/NFC security keys can assert.
+  const getOptions = buildPrfGetOptions(credentialId, prfSalt);
 
   let assertion: PublicKeyCredential;
   try {
@@ -236,29 +296,46 @@ export async function authenticateWithWebAuthn(meta: VaultMetadata): Promise<{
   } catch (err) {
     if (err instanceof DOMException) {
       if (err.name === "NotAllowedError") {
-        throw new Error("Biometric authentication was cancelled or timed out.");
+        throw new AppError("WebAuthn assertion not allowed (cancelled or timed out)", {
+          code: "WEBAUTHN_NOT_ALLOWED",
+          userMessage: "Biometric authentication was cancelled or timed out.",
+        });
       }
       if (err.name === "SecurityError") {
-        throw new Error("WebAuthn security error. Ensure you are on HTTPS or localhost.");
+        throw new AppError("WebAuthn security error (insecure context or RP ID mismatch)", {
+          code: "WEBAUTHN_SECURITY_ERROR",
+          userMessage: "WebAuthn is not available in this context. Ensure you are on HTTPS or localhost, on the same site where the passkey was registered.",
+        });
       }
       if (err.name === "InvalidStateError") {
-        throw new Error(
-          "Passkey not found on this device. The credential may have been removed. Please re-register in Settings."
-        );
+        throw new AppError("WebAuthn credential not found on this device", {
+          code: "WEBAUTHN_INVALID_STATE",
+          userMessage: "Passkey not found on this device. The credential may have been removed. Please re-register in Settings.",
+        });
       }
     }
-    throw new Error(`WebAuthn authentication failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new AppError(`WebAuthn authentication failed: ${err instanceof Error ? err.message : String(err)}`, {
+      code: "WEBAUTHN_ASSERT_FAILED",
+      userMessage: "Passkey authentication failed. Please try again or use your master password.",
+      cause: err,
+    });
   }
 
   if (!assertion) {
-    throw new Error("WebAuthn assertion returned empty result.");
+    throw new AppError("WebAuthn assertion returned empty result", {
+      code: "WEBAUTHN_EMPTY_ASSERTION",
+      userMessage: "Passkey authentication returned no result. Please try again.",
+    });
   }
 
   // 3. Extract PRF output from credential extensions
-  const prfOutput = getPrfOutput(assertion);
+  const prfOutput = extractPrfBytes(getPrfResults(assertion));
 
   if (!prfOutput || prfOutput.byteLength === 0) {
-    throw new Error("Authenticator did not return PRF output during authentication.");
+    throw new AppError("Authenticator returned no PRF output during authentication", {
+      code: "WEBAUTHN_PRF_UNSUPPORTED",
+      userMessage: PRF_UNSUPPORTED_USER_MESSAGE,
+    });
   }
 
   // 4. Derive KEK from PRF bytes
@@ -268,7 +345,10 @@ export async function authenticateWithWebAuthn(meta: VaultMetadata): Promise<{
   if (meta.webauthnVerifier) {
     const isValid = await verifyToken(kek, meta.webauthnVerifier, "LOKKER_WEBAUTHN_TOKEN_2026");
     if (!isValid) {
-      throw new Error("Biometric authentication succeeded but derived key does not match. Vault may be corrupted.");
+      throw new AppError("WebAuthn-derived KEK does not match the stored verifier", {
+        code: "WEBAUTHN_VERIFIER_MISMATCH",
+        userMessage: "Biometric authentication succeeded but the derived key does not match this vault. Re-register your passkey in Settings.",
+      });
     }
   }
 
