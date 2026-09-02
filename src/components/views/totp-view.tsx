@@ -16,6 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PasswordEntry } from "@/types";
 import { generateTOTPCode } from "@/lib/totp";
+import { AppError } from "@/lib/errors";
+
+type TotpCodeState = { code: string; secondsRemaining: number; error?: string };
 
 interface TotpViewProps {
   passwords: PasswordEntry[];
@@ -24,7 +27,7 @@ interface TotpViewProps {
 }
 
 export function TotpView({ passwords, onEditPassword, addToast }: TotpViewProps) {
-  const [totpCodes, setTotpCodes] = React.useState<Record<string, { code: string; secondsRemaining: number }>>({});
+  const [totpCodes, setTotpCodes] = React.useState<Record<string, TotpCodeState>>({});
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -48,11 +51,19 @@ export function TotpView({ passwords, onEditPassword, addToast }: TotpViewProps)
     let isMounted = true;
 
     const updateCodes = async () => {
-      const results: Record<string, { code: string; secondsRemaining: number }> = {};
+      const results: Record<string, TotpCodeState> = {};
       for (const item of totpItems) {
         if (item.totpSecret) {
-          const res = await generateTOTPCode(item.totpSecret);
-          results[item.id] = res;
+          try {
+            results[item.id] = await generateTOTPCode(item.totpSecret);
+          } catch (err) {
+            // Fail closed: show an explicit invalid state, never a fake code.
+            results[item.id] = {
+              code: "------",
+              secondsRemaining: 0,
+              error: err instanceof AppError ? err.userMessage : "Could not generate the 2FA code.",
+            };
+          }
         }
       }
       if (isMounted) {
@@ -157,7 +168,11 @@ export function TotpView({ passwords, onEditPassword, addToast }: TotpViewProps)
 
                 {/* Code display card */}
                 <div className="p-3 rounded-lg bg-background border border-border-subtle flex items-center justify-between">
-                  <span className="font-mono text-2xl font-bold tracking-widest text-foreground select-all">
+                  <span
+                    className={`font-mono text-2xl font-bold tracking-widest select-all ${
+                      data.error ? "text-muted-foreground/60 line-through" : "text-foreground"
+                    }`}
+                  >
                     {data.code.length >= 6 ? `${data.code.slice(0, 3)} ${data.code.slice(3)}` : data.code}
                   </span>
                   <div className="flex items-center gap-1.5">
@@ -176,6 +191,8 @@ export function TotpView({ passwords, onEditPassword, addToast }: TotpViewProps)
                       variant="outline"
                       size="sm"
                       onClick={() => handleCopy(item.id, data.code)}
+                      disabled={!!data.error}
+                      title={data.error ? "Fix this entry's 2FA secret key first" : "Copy code"}
                       className="h-8 text-xs gap-1 cursor-pointer"
                     >
                       {isCopied ? (
@@ -202,6 +219,13 @@ export function TotpView({ passwords, onEditPassword, addToast }: TotpViewProps)
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
+
+                {data.error && (
+                  <p className="text-[10px] text-destructive flex items-start gap-1.5 leading-tight">
+                    <ShieldAlert className="size-3.5 shrink-0 mt-px" />
+                    <span>{data.error}</span>
+                  </p>
+                )}
               </div>
             );
           })}

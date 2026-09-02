@@ -116,7 +116,10 @@ Portability is first-class and independent of browser/machine state:
 
 Manifest V3 browser extension with local-first secure communication:
 - Contextual login field detection and one-click autofill overlay.
-- Real-time postMessage handshake between Web Vault and background service worker.
+- Badge appears by default only on sites with vault-matching credentials; a popup
+  toggle ("Show autofill badge on every site") opts into badge-on-every-login-form.
+- Real-time postMessage handshake between Web Vault and background service worker,
+  with explicit connection status and a "Sync Now" control in the popup.
 - Strict origin/domain validation: Rejects squatting attacks (e.g. `evil-github.com`
   or `github.com.attacker.com` never match `github.com`).
 - Least-privilege architecture: Content scripts receive only domain-filtered matching

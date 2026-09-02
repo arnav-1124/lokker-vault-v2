@@ -19,6 +19,8 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "config.js",
+        "content/trusted-origins.js",
         "content/field-detector.js",
         "content/autofill.js",
         "content/content-script.js"

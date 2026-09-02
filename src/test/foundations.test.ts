@@ -25,4 +25,10 @@ describe("appConfig", () => {
   it("identifies the product", () => {
     expect(appConfig.name).toBe("Lokker");
   });
+
+  it("resolves a valid public URL from the environment", () => {
+    expect(() => new URL(appConfig.url)).not.toThrow();
+    expect(appConfig.url).toMatch(/^https?:\/\//);
+    expect(appConfig.url.endsWith("/")).toBe(false);
+  });
 });

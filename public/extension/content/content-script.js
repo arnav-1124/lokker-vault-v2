@@ -16,27 +16,9 @@
   let fields = null;
   let focusTimeout = null;
 
-  function isTrustedLokkerOrigin() {
-    const origin = (window.location.origin || '').toLowerCase();
-    const host = (window.location.hostname || '').toLowerCase();
-
-    // 1. Local development host check
-    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local')) {
-      return true;
-    }
-
-    // 2. e2b / Arena preview environment check
-    if (host.includes('.e2b.app')) {
-      return true;
-    }
-
-    // 3. Official Lokker origins
-    if (origin.includes('lokker') || origin.includes('xerox')) {
-      return true;
-    }
-
-    return true;
-  }
+  // Origin gate is provided by trusted-origins.js (LokkerOriginPolicy) —
+  // an exact-host allowlist. Never inline substring checks here.
+  const isTrustedLokkerOrigin = () => window.LokkerOriginPolicy.isTrustedLokkerOrigin();
 
   function closeAllModals() {
     try {
@@ -225,10 +207,35 @@
       focusTarget || loginFields.passwordInput || loginFields.usernameInput || loginFields.targetInput;
     if (!target) return;
 
-    window.LokkerAutofill.attachAutofillBadge(target, () => {
-      handleAutofillTrigger(loginFields);
-    });
+    // Badge visibility policy:
+    //  - "All sites" mode (popup toggle): badge on every login form.
+    //  - Default: badge only when the vault is unlocked AND has credentials
+    //    matching this page's domain.
+    chrome.runtime.sendMessage(
+      { action: 'GET_MATCHING_CREDENTIALS', payload: { url: window.location.href } },
+      (response) => {
+        if (chrome.runtime.lastError || !response) return;
+        const showEverywhere = !!response.badgeAllSites;
+        const hasMatches = !!response.isUnlocked && (response.matches || []).length > 0;
+        if (showEverywhere || hasMatches) {
+          window.LokkerAutofill.attachAutofillBadge(target, () => {
+            handleAutofillTrigger(loginFields);
+          });
+        } else {
+          window.LokkerAutofill.hideBadge();
+        }
+      }
+    );
   }
+
+  // React immediately when the popup toggles the badge preference off.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && Object.prototype.hasOwnProperty.call(changes, 'badgeAllSites')) {
+      if (!changes.badgeAllSites.newValue) {
+        window.LokkerAutofill.hideBadge();
+      }
+    }
+  });
 
   function handleAutofillTrigger(loginFields) {
     const currentUrl = window.location.href;
@@ -350,25 +357,25 @@
     const banner = document.createElement('div');
     banner.id = 'lokker-save-password-banner';
     banner.style.cssText =
-      'position:fixed;top:16px;right:16px;background:#111827;border:1.5px solid #3b82f6;border-radius:12px;padding:14px 18px;color:#f3f4f6;z-index:2147483647;box-shadow:0 10px 25px rgba(0,0,0,0.8);font-family:system-ui,-apple-system,sans-serif;width:300px;display:flex;flex-direction:column;gap:10px;';
+      'position:fixed;top:16px;right:16px;background:#111111;border:1.5px solid #525252;border-radius:12px;padding:14px 18px;color:#f4f4f5;z-index:2147483647;box-shadow:0 10px 25px rgba(0,0,0,0.8);font-family:system-ui,-apple-system,sans-serif;width:300px;display:flex;flex-direction:column;gap:10px;';
 
     const titleText = isUpdate ? 'Update password in Lokker?' : 'Save to Lokker?';
     const actionText = isUpdate ? 'Update' : 'Save';
     const bodyText = isUpdate
-      ? `Update saved password for <strong style="color:#60a5fa;">${domainName}</strong> (${username || 'User'}) in your local vault?`
-      : `Save login for <strong style="color:#60a5fa;">${domainName}</strong> (${username || 'User'}) to your encrypted local vault?`;
+      ? `Update saved password for <strong style="color:#e4e4e7;">${domainName}</strong> (${username || 'User'}) in your local vault?`
+      : `Save login for <strong style="color:#e4e4e7;">${domainName}</strong> (${username || 'User'}) to your encrypted local vault?`;
 
     banner.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-weight:700;font-size:13px;color:#60a5fa;">🔐 ${titleText}</span>
-        <button id="lokker-save-close" aria-label="Dismiss Lokker prompt" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;">✕</button>
+        <span style="font-weight:700;font-size:13px;color:#e4e4e7;">🔐 ${titleText}</span>
+        <button id="lokker-save-close" aria-label="Dismiss Lokker prompt" style="background:none;border:none;color:#8c8c8c;cursor:pointer;font-size:16px;">✕</button>
       </div>
-      <div style="font-size:11.5px;color:#d1d5db;">
+      <div style="font-size:11.5px;color:#d4d4d4;">
         ${bodyText}
       </div>
       <div style="display:flex;gap:8px;margin-top:2px;">
-        <button id="lokker-save-confirm" style="flex:1;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:7px;font-size:11.5px;font-weight:600;cursor:pointer;">${actionText}</button>
-        <button id="lokker-save-cancel" style="flex:1;background:#374151;color:#f3f4f6;border:none;border-radius:6px;padding:7px;font-size:11.5px;font-weight:500;cursor:pointer;">Not now</button>
+        <button id="lokker-save-confirm" style="flex:1;background:#f4f4f5;color:#0a0a0a;border:none;border-radius:6px;padding:7px;font-size:11.5px;font-weight:600;cursor:pointer;">${actionText}</button>
+        <button id="lokker-save-cancel" style="flex:1;background:#262626;color:#f4f4f5;border:none;border-radius:6px;padding:7px;font-size:11.5px;font-weight:500;cursor:pointer;">Not now</button>
       </div>
     `;
 
@@ -403,24 +410,24 @@
 
     const box = document.createElement('div');
     box.style.cssText =
-      'background:#111827;border:1px solid #374151;border-radius:14px;padding:22px;width:340px;color:#f3f4f6;box-shadow:0 20px 25px -5px rgba(0,0,0,0.8);display:flex;flex-direction:column;gap:14px;';
+      'background:#111111;border:1px solid #262626;border-radius:14px;padding:22px;width:340px;color:#f4f4f5;box-shadow:0 20px 25px -5px rgba(0,0,0,0.8);display:flex;flex-direction:column;gap:14px;';
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:18px;">🔐</span>
-          <span style="font-weight:700;font-size:14px;color:#60a5fa;">No Matching Credential</span>
+          <span style="font-weight:700;font-size:14px;color:#e4e4e7;">No Matching Credential</span>
         </div>
-        <button id="lokker-no-matches-close" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:18px;">✕</button>
+        <button id="lokker-no-matches-close" style="background:none;border:none;color:#8c8c8c;cursor:pointer;font-size:18px;">✕</button>
       </div>
-      <div style="font-size:12.5px;color:#d1d5db;line-height:1.5;">
-        No saved credential found for domain: <strong style="color:#60a5fa;">${domainName}</strong>
+      <div style="font-size:12.5px;color:#d4d4d4;line-height:1.5;">
+        No saved credential found for domain: <strong style="color:#e4e4e7;">${domainName}</strong>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-        <button id="lokker-pick-all-btn" style="background:#1f2937;border:1px solid #4b5563;color:#60a5fa;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
+        <button id="lokker-pick-all-btn" style="background:#1c1c1c;border:1px solid #3f3f3f;color:#e4e4e7;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
           Choose another credential...
         </button>
-        <button id="lokker-no-matches-cancel" style="background:#374151;border:none;color:#f3f4f6;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
+        <button id="lokker-no-matches-cancel" style="background:#262626;border:none;color:#f4f4f5;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
           Cancel
         </button>
       </div>
@@ -465,21 +472,21 @@
 
     const box = document.createElement('div');
     box.style.cssText =
-      'background:#111827;border:1px solid #374151;border-radius:14px;padding:22px;width:320px;color:#f3f4f6;box-shadow:0 20px 25px -5px rgba(0,0,0,0.7);display:flex;flex-direction:column;gap:14px;';
+      'background:#111111;border:1px solid #262626;border-radius:14px;padding:22px;width:320px;color:#f4f4f5;box-shadow:0 20px 25px -5px rgba(0,0,0,0.7);display:flex;flex-direction:column;gap:14px;';
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:18px;">🔐</span>
-          <span style="font-weight:700;font-size:14px;color:#60a5fa;">Unlock Lokker Vault</span>
+          <span style="font-weight:700;font-size:14px;color:#e4e4e7;">Unlock Lokker Vault</span>
         </div>
-        <button id="lokker-unlock-close" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:18px;">✕</button>
+        <button id="lokker-unlock-close" style="background:none;border:none;color:#8c8c8c;cursor:pointer;font-size:18px;">✕</button>
       </div>
-      <div style="font-size:12px;color:#9ca3af;line-height:1.4;">Enter your Master Password to unlock your vault and autofill this form.</div>
+      <div style="font-size:12px;color:#8c8c8c;line-height:1.4;">Enter your Master Password to unlock your vault and autofill this form.</div>
       <form id="lokker-inline-unlock-form" style="display:flex;flex-direction:column;gap:10px;">
-        <input type="password" id="lokker-inline-master-pass" placeholder="Master Password" style="width:100%;background:#1f2937;border:1px solid #4b5563;border-radius:8px;padding:10px;color:#fff;font-size:13px;outline:none;box-sizing:border-box;">
+        <input type="password" id="lokker-inline-master-pass" placeholder="Master Password" style="width:100%;background:#1c1c1c;border:1px solid #3f3f3f;border-radius:8px;padding:10px;color:#fff;font-size:13px;outline:none;box-sizing:border-box;">
         <div id="lokker-inline-error" style="color:#f87171;font-size:11px;display:none;line-height:1.3;"></div>
-        <button type="submit" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;">Unlock & Autofill</button>
+        <button type="submit" style="width:100%;background:#f4f4f5;color:#0a0a0a;border:none;border-radius:8px;padding:10px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;">Unlock & Autofill</button>
       </form>
     `;
 
@@ -523,7 +530,7 @@
 
     const box = document.createElement('div');
     box.style.cssText =
-      'background:#111827;border:1px solid #374151;border-radius:14px;padding:20px;width:340px;color:#f3f4f6;box-shadow:0 20px 25px -5px rgba(0,0,0,0.8);max-height:80vh;display:flex;flex-direction:column;';
+      'background:#111111;border:1px solid #262626;border-radius:14px;padding:20px;width:340px;color:#f4f4f5;box-shadow:0 20px 25px -5px rgba(0,0,0,0.8);max-height:80vh;display:flex;flex-direction:column;';
 
     const titleText = isAllFallback ? 'Select Account to Autofill' : 'Matching Lokker Credentials';
     const subText = isAllFallback
@@ -532,25 +539,25 @@
 
     let html = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-weight:700;font-size:14px;color:#60a5fa;">🔐 ${titleText}</span>
-        <button id="lokker-picker-close" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:18px;">✕</button>
+        <span style="font-weight:700;font-size:14px;color:#e4e4e7;">🔐 ${titleText}</span>
+        <button id="lokker-picker-close" style="background:none;border:none;color:#8c8c8c;cursor:pointer;font-size:18px;">✕</button>
       </div>
-      <div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">${subText}</div>
-      <input type="text" id="lokker-picker-search" placeholder="Search accounts..." style="width:100%;background:#1f2937;border:1px solid #4b5563;border-radius:6px;padding:8px 10px;color:#fff;font-size:12px;outline:none;margin-bottom:10px;box-sizing:border-box;">
+      <div style="font-size:12px;color:#8c8c8c;margin-bottom:10px;">${subText}</div>
+      <input type="text" id="lokker-picker-search" placeholder="Search accounts..." style="width:100%;background:#1c1c1c;border:1px solid #3f3f3f;border-radius:6px;padding:8px 10px;color:#fff;font-size:12px;outline:none;margin-bottom:10px;box-sizing:border-box;">
       <div id="lokker-picker-list" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:300px;padding-right:4px;">
     `;
 
     matches.forEach((m) => {
       const totpBadge = m.hasTotp
-        ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;margin-left:6px;">2FA</span>'
+        ? '<span style="font-size:10px;background:#3f3f3f;color:#f4f4f5;padding:2px 6px;border-radius:4px;margin-left:6px;">2FA</span>'
         : '';
       html += `
-        <button class="lokker-picker-item" data-id="${m.id}" data-search="${(m.websiteName + ' ' + m.username + ' ' + (m.websiteUrl || '')).toLowerCase()}" style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:10px 12px;text-align:left;color:#fff;cursor:pointer;font-size:13px;display:flex;flex-direction:column;transition:background 0.15s, border-color 0.15s;width:100%;">
+        <button class="lokker-picker-item" data-id="${m.id}" data-search="${(m.websiteName + ' ' + m.username + ' ' + (m.websiteUrl || '')).toLowerCase()}" style="background:#1c1c1c;border:1px solid #262626;border-radius:8px;padding:10px 12px;text-align:left;color:#fff;cursor:pointer;font-size:13px;display:flex;flex-direction:column;transition:background 0.15s, border-color 0.15s;width:100%;">
           <div style="display:flex;align-items:center;justify-space-between;width:100%;">
-            <span style="font-weight:600;color:#f3f4f6;">${m.websiteName}</span>
+            <span style="font-weight:600;color:#f4f4f5;">${m.websiteName}</span>
             ${totpBadge}
           </div>
-          <span style="font-size:11px;color:#9ca3af;margin-top:2px;">${m.username || 'No username'}</span>
+          <span style="font-size:11px;color:#8c8c8c;margin-top:2px;">${m.username || 'No username'}</span>
         </button>
       `;
     });
@@ -604,15 +611,15 @@
 
     const box = document.createElement('div');
     box.style.cssText =
-      'background:#111827;border:1px solid #374151;border-radius:12px;padding:20px;width:320px;color:#f3f4f6;box-shadow:0 10px 25px rgba(0,0,0,0.8);display:flex;flex-direction:column;gap:12px;';
+      'background:#111111;border:1px solid #262626;border-radius:12px;padding:20px;width:320px;color:#f4f4f5;box-shadow:0 10px 25px rgba(0,0,0,0.8);display:flex;flex-direction:column;gap:12px;';
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-weight:700;font-size:14px;color:#60a5fa;">🔐 ${title}</span>
-        <button id="lokker-notice-close" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;">✕</button>
+        <span style="font-weight:700;font-size:14px;color:#e4e4e7;">🔐 ${title}</span>
+        <button id="lokker-notice-close" style="background:none;border:none;color:#8c8c8c;cursor:pointer;font-size:16px;">✕</button>
       </div>
-      <div style="font-size:12px;color:#d1d5db;white-space:pre-wrap;line-height:1.5;">${message}</div>
-      <button id="lokker-notice-ok" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;align-self:flex-end;">OK</button>
+      <div style="font-size:12px;color:#d4d4d4;white-space:pre-wrap;line-height:1.5;">${message}</div>
+      <button id="lokker-notice-ok" style="background:#f4f4f5;color:#0a0a0a;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;align-self:flex-end;">OK</button>
     `;
 
     overlay.appendChild(box);
@@ -629,7 +636,7 @@
     const shadow = window.LokkerAutofill.getShadowRoot();
     const toast = document.createElement('div');
     toast.style.cssText =
-      'position:fixed;bottom:24px;right:24px;background:#1e293b;border:1.5px solid #8b5cf6;color:#c084fc;padding:10px 16px;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;z-index:2147483647;box-shadow:0 10px 25px rgba(0,0,0,0.7);transition:opacity 0.3s;white-space:pre-wrap;';
+      'position:fixed;bottom:24px;right:24px;background:#1c1c1c;border:1.5px solid #3f3f3f;color:#f4f4f5;padding:10px 16px;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;z-index:2147483647;box-shadow:0 10px 25px rgba(0,0,0,0.7);transition:opacity 0.3s;white-space:pre-wrap;';
     toast.textContent = text;
     shadow.appendChild(toast);
     setTimeout(() => {

@@ -1,10 +1,59 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { extractDomain, isSafeDomainMatch, filterMatchingCredentials } from "../../public/extension/vault/credential-matcher.js";
 import { decryptVaultEnvelope } from "../../public/extension/vault/secure-storage.js";
+import "../../public/extension/content/trusted-origins.js";
 import { initializeEnvelopeVault } from "../lib/crypto";
 import { PasswordEntry } from "../types";
 
 describe("Lokker Browser Extension Suite", () => {
+  describe("Trusted Origin Policy (vault sync gate)", () => {
+    type ExtConfig = { appOrigin: string; trustedHosts: string[]; trustedHostSuffixes: string[] };
+    const globalScope = globalThis as unknown as { LokkerOriginPolicy?: { isTrustedLokkerOrigin: (loc: URL) => boolean }; LOKKER_EXT_CONFIG?: ExtConfig };
+    const policy = () => globalScope.LokkerOriginPolicy!;
+
+    beforeEach(() => {
+      globalScope.LOKKER_EXT_CONFIG = {
+        appOrigin: "https://lokker-vault.vercel.app",
+        trustedHosts: ["localhost", "127.0.0.1", "0.0.0.0", "lokker-vault.vercel.app"],
+        trustedHostSuffixes: [".local", ".e2b.app"],
+      };
+    });
+
+    afterEach(() => {
+      delete globalScope.LOKKER_EXT_CONFIG;
+    });
+
+    it("accepts local development origins over http and https (any port)", () => {
+      expect(policy().isTrustedLokkerOrigin(new URL("http://localhost:3000/app"))).toBe(true);
+      expect(policy().isTrustedLokkerOrigin(new URL("http://127.0.0.1:3000"))).toBe(true);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://localhost"))).toBe(true);
+    });
+
+    it("accepts the configured production origin over https only", () => {
+      expect(policy().isTrustedLokkerOrigin(new URL("https://lokker-vault.vercel.app/app"))).toBe(true);
+      // plain http must never be trusted for the production origin
+      expect(policy().isTrustedLokkerOrigin(new URL("http://lokker-vault.vercel.app"))).toBe(false);
+    });
+
+    it("accepts trusted preview subdomains only", () => {
+      expect(policy().isTrustedLokkerOrigin(new URL("https://lokker-vault.e2b.app/app"))).toBe(true);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://dev.local"))).toBe(true);
+    });
+
+    it("REJECTS arbitrary pages, spoofed hostnames and insecure protocols", () => {
+      expect(policy().isTrustedLokkerOrigin(new URL("https://github.com/login"))).toBe(false);
+      // substring spoofing must fail
+      expect(policy().isTrustedLokkerOrigin(new URL("https://lokker.phishing.example"))).toBe(false);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://evil-lokker.com"))).toBe(false);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://vercel.app"))).toBe(false);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://lokker-vault.vercel.app.evil.com"))).toBe(false);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://evil-e2b.app"))).toBe(false);
+      expect(policy().isTrustedLokkerOrigin(new URL("https://notlocal"))).toBe(false);
+      // plain http on a non-local page must never sync vault data
+      expect(policy().isTrustedLokkerOrigin(new URL("http://evil.com"))).toBe(false);
+    });
+  });
+
   describe("Domain & Credential Matcher", () => {
     it("extracts clean domains from URLs and hostnames", () => {
       expect(extractDomain("https://github.com/login")).toBe("github.com");

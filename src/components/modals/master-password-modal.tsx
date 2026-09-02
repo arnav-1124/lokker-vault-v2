@@ -384,8 +384,8 @@ export function MasterPasswordModal({
                   <p className="text-xs font-semibold">WebAuthn PRF Biometric Unlock</p>
                   <p className="text-[11px] text-muted-foreground">
                     {hasWebAuthnCredential
-                      ? "Authenticate via Touch ID, Windows Hello, or FIDO2 security key to derive your encryption key."
-                      : "No passkey registered yet. Unlock with your master password first, then register a passkey in Settings."}
+                      ? "Authenticate with your registered passkey (security key or PRF-capable provider) to derive your encryption key."
+                      : "No passkey registered yet. Unlock with your master password first, then register a passkey in Settings. Requires a PRF-capable authenticator (YubiKey 5.3+, 1Password, Chrome on Android) — Windows Hello and Touch ID do not support PRF."}
                   </p>
                 </div>
 
@@ -414,7 +414,13 @@ export function MasterPasswordModal({
                         setError("Biometric authentication failed. Try again or use your master password.");
                       }
                     } catch (err) {
-                      setError(err instanceof Error ? err.message : "Biometric authentication failed.");
+                      const userMessage =
+                        err && typeof err === "object" && "userMessage" in err
+                          ? String((err as { userMessage: unknown }).userMessage)
+                          : err instanceof Error
+                            ? err.message
+                            : null;
+                      setError(userMessage || "Biometric authentication failed.");
                     } finally {
                       setLoading(false);
                     }
