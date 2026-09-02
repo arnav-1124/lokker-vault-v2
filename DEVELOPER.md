@@ -99,6 +99,10 @@ Lokker implements a local-first **3-Tier Envelope Encryption Architecture** usin
    - Content script inspects inputs for username/password fields and queries the background service worker using active tab domain.
    - Strict domain matching prevents squatting and subdomain spoofing (rejects `evil-example.com` or `example.com.phishing.org`).
    - Content scripts only receive domain-filtered matching credentials (least privilege).
+   - Vault sync messages are accepted only from an exact origin allowlist enforced in
+     `content/trusted-origins.js`, sourced from the extension environment file `config.js`
+     (see §8). Plain http is trusted only for hardcoded local dev hosts; hostname
+     substring matching is forbidden.
 
 5. **Storage & Memory Hygiene:**
    - Sensitive keys exist only in ephemeral client memory during an active unlocked session.
@@ -124,7 +128,23 @@ All 41 tests pass cleanly.
 npm install        # install dependencies
 npm run dev        # dev server on 0.0.0.0:3000 (Turbopack)
 npm run lint       # ESLint check
-npm test           # Run all 41 unit tests
+npm test           # Run all unit tests
 npm run build      # Production build
 npm start          # Serve production build
 ```
+
+## 8. Configuration & Environments (IMPLEMENTED)
+
+Environment-specific values (URLs, origins) live in exactly two places — one per runtime:
+
+1. **Web app — `NEXT_PUBLIC_APP_URL` (.env):**
+   - Read only through `src/config/app.ts` (`appConfig.url`), with an `http://localhost:3000` fallback.
+   - Local development: copy `.env.example` to `.env.local` (`.env*` is gitignored).
+   - Production: set `NEXT_PUBLIC_APP_URL` in the Vercel project environment settings
+     (current deployment origin: `https://lokker-vault.vercel.app`).
+2. **Browser extension — `public/extension/config.js`:**
+   - The extension ships without a build step, so this file is its environment:
+     `appOrigin` (the vault the popup opens) and the trusted vault-sync hosts/suffixes.
+   - It is loaded before `popup.js` (popup.html) and injected first into every
+     content script (manifest.json). Content scripts run in Chrome's isolated
+     world, so page scripts cannot override these values.
