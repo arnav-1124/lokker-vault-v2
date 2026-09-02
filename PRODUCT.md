@@ -75,7 +75,10 @@ maintain an integrated relationship across the workspace.
 - TOTP / 2FA authenticator with RFC 6238 time-based one-time code generation,
   real-time countdown timers, and one-click copying
 - Emergency recovery key unlock mechanism (32-character hexadecimal)
-- WebAuthn / passkey unlock (FUTURE boundary)
+- Account recovery management in Settings: master password rotation (re-wraps the vault
+  key in place) and emergency recovery key regeneration with one-time display, copy,
+  and offline download
+- WebAuthn / passkey unlock via the PRF extension (implemented; requires a PRF-capable authenticator — see DEVELOPER.md §5)
 
 ### D. Security health (IMPLEMENTED)
 

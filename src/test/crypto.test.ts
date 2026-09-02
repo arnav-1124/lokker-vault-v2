@@ -13,12 +13,14 @@ import {
   unwrapVekWithPassword,
   unwrapVekWithRecoveryKey,
   rotateMasterPassword,
+  rotateRecoveryKey,
   encryptFileWithVek,
   decryptFileWithVek,
   encryptPayloadWithVek,
   decryptPayloadWithVek,
 } from "../lib/crypto";
 import { PasswordEntry, VaultMetadata } from "../types";
+import { AppError } from "../lib/errors";
 
 describe("Web Crypto API Primitives & Foundations", () => {
   it("generates a valid formatted 32-character recovery key", () => {
@@ -165,6 +167,44 @@ describe("P0 Cryptographic Architecture & Regression Suite", () => {
     // Recovery Key still unwraps the same payload without modification
     const { passwords: recItems } = await unwrapVekWithRecoveryKey(recoveryKey, updatedMeta);
     expect(recItems).toEqual(sampleItems);
+  });
+
+  // 3b. Recovery key rotation re-wraps only the recovery slot.
+  it("3b. Recovery key rotation invalidates the old key and preserves password + payload", async () => {
+    const masterPass = "RecoveryRotatePass!2026";
+    const oldRecoveryKey = generateRecoveryKey();
+
+    const { meta: initialMeta, vek } = await initializeEnvelopeVault(
+      masterPass,
+      oldRecoveryKey,
+      sampleItems
+    );
+
+    const newRecoveryKey = generateRecoveryKey();
+    const rotatedMeta = await rotateRecoveryKey(newRecoveryKey, vek, initialMeta);
+
+    // New recovery key unwraps the same payload
+    const { passwords } = await unwrapVekWithRecoveryKey(newRecoveryKey, rotatedMeta);
+    expect(passwords).toEqual(sampleItems);
+
+    // Old recovery key is rejected after rotation
+    await expect(unwrapVekWithRecoveryKey(oldRecoveryKey, rotatedMeta)).rejects.toThrow();
+
+    // Master password slot untouched: unlock still works, payload identical
+    const { passwords: pwdItems } = await unwrapVekWithPassword(masterPass, rotatedMeta);
+    expect(pwdItems).toEqual(sampleItems);
+    expect(rotatedMeta.encryptedVault?.cipherText).toBe(initialMeta.encryptedVault?.cipherText);
+  });
+
+  // 3c. Recovery key rotation rejects malformed keys (fail closed).
+  it("3c. Recovery key rotation rejects malformed keys", async () => {
+    const masterPass = "MalformedKeyPass!2026";
+    const { meta, vek } = await initializeEnvelopeVault(
+      masterPass,
+      generateRecoveryKey(),
+      sampleItems
+    );
+    await expect(rotateRecoveryKey("short-key", vek, meta)).rejects.toBeInstanceOf(AppError);
   });
 
   // 4. File contents are encrypted at rest.

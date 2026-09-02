@@ -8,6 +8,7 @@
  */
 
 import { EncryptedVaultData, PasswordEntry, VaultMetadata, WrappedKeySlot } from "@/types";
+import { AppError } from "./errors";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_SIZE = 16;
@@ -405,6 +406,37 @@ export async function rotateMasterPassword(
   };
 
   return { updatedMeta, vek };
+}
+
+/**
+ * Rotates the Emergency Recovery Key without re-encrypting the vault payload
+ * and without touching the password or WebAuthn slots. The previous recovery
+ * key stops working immediately (its slot is re-wrapped under a new KEK).
+ */
+export async function rotateRecoveryKey(
+  newRecoveryKey: string,
+  vek: CryptoKey,
+  meta: VaultMetadata
+): Promise<VaultMetadata> {
+  const clean = parseRecoveryKey(newRecoveryKey);
+  if (clean.length !== 32) {
+    throw new AppError("Invalid recovery key format for rotation", {
+      code: "CRYPTO_INVALID_RECOVERY_KEY",
+      userMessage: "The recovery key must be 32 hexadecimal characters (XXXX-XXXX-...).",
+    });
+  }
+
+  const recoverySalt = generateRandomSalt();
+  const recoveryKek = await deriveKeyFromPassword(clean, recoverySalt);
+  const wrappedVekByRecoveryKey = await wrapVek(vek, recoveryKek);
+  const recoveryVerifier = await createVerifierToken(recoveryKek, "LOKKER_RECOVERY_TOKEN_2026");
+
+  return {
+    ...meta,
+    recoveryKeySalt: bufferToBase64(recoverySalt),
+    recoveryKeyVerifier: recoveryVerifier,
+    wrappedVekByRecoveryKey,
+  };
 }
 
 /**

@@ -89,7 +89,8 @@ Lokker implements a local-first **3-Tier Envelope Encryption Architecture** usin
 2. **Key Encryption Keys (KEKs) & Key Wrapping:**
    - **Password KEK:** Derived from the user's Master Password + 16-byte random salt using PBKDF2 (SHA-256, 100,000 iterations). Wraps the VEK using AES-GCM (`wrappedVekByPassword`).
    - **Recovery KEK:** Derived from the 32-character hexadecimal Emergency Recovery Key + 16-byte random recovery salt using PBKDF2 (SHA-256, 100,000 iterations). Wraps the SAME VEK using AES-GCM (`wrappedVekByRecoveryKey`).
-   - **Password Rotation:** Re-wrapping the existing VEK under a new Password KEK allows changing the master password without re-encrypting the underlying vault payload or invalidating the Emergency Recovery Key.
+   - **Password Rotation:** Re-wrapping the existing VEK under a new Password KEK (`rotateMasterPassword`) allows changing the master password from Settings without re-encrypting the underlying vault payload or invalidating the Emergency Recovery Key or passkey slots.
+   - **Recovery Key Rotation:** `rotateRecoveryKey` re-wraps the VEK under a fresh Recovery KEK (new salt + verifier), invalidating the previous key. Exposed in Settings with a master-password re-authentication step, one-time key display, copy, and offline `.txt` download.
    - **Recovery Key Unlock:** The emergency recovery key derives the Recovery KEK, unwraps the VEK, and restores vault access without requiring server assistance.
 
 3. **Full Encrypted Vault Backup Engine (`src/lib/backup.ts`):**
@@ -138,7 +139,7 @@ Lokker implements a local-first **3-Tier Envelope Encryption Architecture** usin
 
 Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 
-- `src/test/crypto.test.ts`: 12 tests verifying VEK derivation, key wrapping, password rotation, emergency recovery unlock, file encryption, and tampering authentication.
+- `src/test/crypto.test.ts`: 14 tests verifying VEK derivation, key wrapping, password rotation, recovery key rotation, emergency recovery unlock, file encryption, and tampering authentication.
 - `src/test/totp.test.ts`: 10 tests verifying RFC 6238 test vectors, base32 decoding, and fail-closed error behavior.
 - `src/test/backup.test.ts`: 8 composite tests covering 24 backup/restore requirements (export, encryption, inspection, schema validation, merge deduplication, tampering rejection).
 - `src/test/extension.test.ts`: 11 tests verifying the trusted-origin allowlist, URL domain extraction, strict domain matching against squatting attacks, credential filtering, and V2 VEK unwrapping.
@@ -146,7 +147,7 @@ Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 - `src/test/product.test.ts`: 5 tests verifying password generator modes, entropy calculation, nested category parent mappings, and bidirectional credential/bookmark synchronization.
 - `src/test/foundations.test.ts`: 8 tests verifying design token foundations, theme switching, app configuration, and the ID/random helpers.
 
-All 60 tests pass cleanly.
+All 62 tests pass cleanly.
 
 ## 8. Commands
 

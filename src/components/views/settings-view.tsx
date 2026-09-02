@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
+  KeyRound,
+  FileKey,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,6 +31,8 @@ interface SettingsViewProps {
   isWebAuthnRegistered?: boolean;
   onRegisterWebAuthn?: () => Promise<void>;
   onUnregisterWebAuthn?: () => Promise<void>;
+  onChangeMasterPasswordClick?: () => void;
+  onOpenRecoveryKeyClick?: () => void;
 }
 
 export function SettingsView({
@@ -40,6 +44,8 @@ export function SettingsView({
   isWebAuthnRegistered,
   onRegisterWebAuthn,
   onUnregisterWebAuthn,
+  onChangeMasterPasswordClick,
+  onOpenRecoveryKeyClick,
 }: SettingsViewProps) {
   const [autoLock, setAutoLock] = React.useState(settings.autoLockMinutes);
   const [requireConfirmation, setRequireConfirmation] = React.useState(
@@ -170,6 +176,47 @@ export function SettingsView({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Account Recovery — Master Password & Recovery Key */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-6 space-y-4 shadow-xs">
+        <div className="flex items-center gap-2">
+          <KeyRound className="size-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Account Recovery</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Rotate your master password (re-wraps the vault key in place) or generate a fresh Emergency
+          Recovery Key if the current one is lost or compromised. Both actions re-key only their own
+          slot — your vault data stays untouched.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onChangeMasterPasswordClick}
+            disabled={!isUnlocked}
+            className="text-xs h-8 cursor-pointer"
+          >
+            <KeyRound className="size-3.5" />
+            <span>Change Master Password</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onOpenRecoveryKeyClick}
+            disabled={!isUnlocked}
+            className="text-xs h-8 cursor-pointer"
+          >
+            <FileKey className="size-3.5" />
+            <span>Regenerate Recovery Key</span>
+          </Button>
+        </div>
+        {!isUnlocked && (
+          <div className="p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>Unlock your vault first to rotate credentials.</span>
+          </div>
+        )}
       </div>
 
       {/* Genuine WebAuthn / Platform Authenticator Settings */}
