@@ -53,6 +53,14 @@ public/
 └── extension/            # Manifest V3 browser extension (background, content, popup, vault)
 ```
 
+The vault state lives in `src/context/` as five focused providers composed in
+`vault-provider.tsx` (dependency order: UI -> Navigation -> Security -> Data ->
+Backup), with shared types in `vault-types.ts`. `vault-context.tsx` is a
+backward-compatible façade exporting the merged `useVault()`; new code should
+prefer the narrow domain hooks (`useVaultUI`, `useVaultNavigation`,
+`useVaultSecurity`, `useVaultData`, `useVaultBackup`) to re-render only on
+relevant changes.
+
 Conventions:
 - All identifiers (entries, bookmarks, files, categories, toasts, sync/import IDs) are
   generated through `src/lib/id.ts`: `generateId(prefix)` (crypto.randomUUID) and
