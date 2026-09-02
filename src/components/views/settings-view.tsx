@@ -45,12 +45,20 @@ export function SettingsView({
   const [requireConfirmation, setRequireConfirmation] = React.useState(
     settings.requireConfirmationForAutofill ?? true
   );
-  const [webAuthnActive, setWebAuthnActive] = React.useState(!!settings.webAuthnEnabled);
+  const [webAuthnActive, setWebAuthnActive] = React.useState(!!isWebAuthnRegistered);
   const [webAuthnLoading, setWebAuthnLoading] = React.useState(false);
   const [webAuthnError, setWebAuthnError] = React.useState<string | null>(null);
 
   // Genuine WebAuthn platform authenticator detection
   const [hasPlatformAuth, setHasPlatformAuth] = React.useState<boolean | null>(null);
+
+  // Sync toggle state with the actual registration status using the
+  // render-adjust pattern (no setState inside an effect).
+  const [prevRegistered, setPrevRegistered] = React.useState(isWebAuthnRegistered);
+  if (prevRegistered !== isWebAuthnRegistered) {
+    setPrevRegistered(isWebAuthnRegistered);
+    setWebAuthnActive(!!isWebAuthnRegistered);
+  }
 
   React.useEffect(() => {
     let isMounted = true;
@@ -75,13 +83,6 @@ export function SettingsView({
       isMounted = false;
     };
   }, []);
-
-  // Sync toggle state with actual registration status
-  React.useEffect(() => {
-    if (isWebAuthnRegistered !== undefined) {
-      setWebAuthnActive(isWebAuthnRegistered);
-    }
-  }, [isWebAuthnRegistered]);
 
   const handleToggleWebAuthn = async (checked: boolean) => {
     setWebAuthnError(null);

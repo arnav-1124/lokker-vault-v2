@@ -97,12 +97,15 @@ export function CategoryManagerModal({
     onClose();
   }, [defaultParentId, onClose]);
 
-  // When defaultParentId changes (e.g. clicking "Add Nested" from sidebar), update the selector
-  React.useEffect(() => {
+  // When defaultParentId changes (e.g. clicking "Add Nested" from sidebar),
+  // update the selector using the render-adjust pattern (no setState in effects).
+  const [prevDefaultParentId, setPrevDefaultParentId] = React.useState(defaultParentId);
+  if (prevDefaultParentId !== defaultParentId) {
+    setPrevDefaultParentId(defaultParentId);
     if (defaultParentId) {
       setSelectedParentId(defaultParentId);
     }
-  }, [defaultParentId]);
+  }
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useVault } from "@/context/vault-context";
+import { generateId } from "@/lib/id";
 import { GeneratorView } from "@/components/views/generator-view";
 
 export default function GeneratorPage() {
@@ -15,7 +16,7 @@ export default function GeneratorPage() {
           vault.setIsMasterPasswordModalOpen(true);
         } else {
           vault.setEditingPassword({
-            id: "pwd-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+            id: generateId("pwd"),
             websiteName: "",
             websiteUrl: "",
             username: "",

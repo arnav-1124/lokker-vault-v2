@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category, EntryType, PasswordEntry, VaultSettings } from "@/types";
+import { generateId } from "@/lib/id";
 import {
   calculatePasswordStrength,
   generateSecurePassword,
@@ -128,7 +129,7 @@ export function PasswordModal({
     if (!websiteName.trim()) return;
 
     const newEntry: PasswordEntry = {
-      id: initialEntry?.id || "pwd-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+      id: initialEntry?.id || generateId("pwd"),
       websiteName: websiteName.trim(),
       websiteUrl: websiteUrl.trim(),
       username: username.trim(),

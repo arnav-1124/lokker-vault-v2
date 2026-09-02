@@ -48,10 +48,15 @@ src/
 │   └── theme-provider.tsx
 ├── lib/                  # Native Web Crypto, IndexedDB, Backup engine, CSV/JSON Importers, TOTP
 ├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings)
-└── test/                 # Test suites (crypto, backup, extension, importers, foundations)
+└── test/                 # Test suites (crypto, totp, backup, extension, importers, foundations)
 public/
 └── extension/            # Manifest V3 browser extension (background, content, popup, vault)
 ```
+
+Conventions:
+- All identifiers (entries, bookmarks, files, categories, toasts, sync/import IDs) are
+  generated through `src/lib/id.ts`: `generateId(prefix)` (crypto.randomUUID) and
+  `randomHex(length)`. `Date.now()`/`Math.random()` identifiers are forbidden.
 
 ## 4. Design system (IMPLEMENTED)
 
@@ -139,9 +144,9 @@ Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 - `src/test/extension.test.ts`: 11 tests verifying the trusted-origin allowlist, URL domain extraction, strict domain matching against squatting attacks, credential filtering, and V2 VEK unwrapping.
 - `src/test/importers.test.ts`: 6 tests verifying Chrome, Bitwarden, and 1Password CSV/JSON parsing and field mapping.
 - `src/test/product.test.ts`: 5 tests verifying password generator modes, entropy calculation, nested category parent mappings, and bidirectional credential/bookmark synchronization.
-- `src/test/foundations.test.ts`: 4 tests verifying design token foundations, theme switching, and app configuration.
+- `src/test/foundations.test.ts`: 8 tests verifying design token foundations, theme switching, app configuration, and the ID/random helpers.
 
-All 56 tests pass cleanly.
+All 60 tests pass cleanly.
 
 ## 8. Commands
 

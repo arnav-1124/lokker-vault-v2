@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordEntry, ViewMode } from "@/types";
+import { randomHex } from "@/lib/id";
 
 interface MaskedEmailsViewProps {
   passwords: PasswordEntry[];
@@ -70,7 +71,7 @@ export function MaskedEmailsView({
   const [copied, setCopied] = React.useState(false);
 
   const handleGenerate = () => {
-    const randomHex = Math.random().toString(36).substr(2, 6);
+    const aliasHex = randomHex(6);
     const cleanPrefix = prefix.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
     let domain = "duck.com";
@@ -81,7 +82,7 @@ export function MaskedEmailsView({
       if (match) domain = match.domain;
     }
 
-    const alias = cleanPrefix ? `${cleanPrefix}.${randomHex}@${domain}` : `lokker.${randomHex}@${domain}`;
+    const alias = cleanPrefix ? `${cleanPrefix}.${aliasHex}@${domain}` : `lokker.${aliasHex}@${domain}`;
     setGeneratedAlias(alias);
   };
 
