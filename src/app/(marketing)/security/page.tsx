@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -16,6 +17,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { MarketingNav } from "@/components/marketing-nav";
 import { MarketingFooter } from "@/components/marketing-footer";
+
+export const metadata: Metadata = {
+  title: "Security Architecture & Cryptography",
+  description:
+    "Explore Lokker's 3-tier Envelope Encryption (VEK/KEK), PBKDF2 key derivation, emergency recovery key unwrapping, and offline-first threat model.",
+  alternates: {
+    canonical: "/security",
+  },
+  openGraph: {
+    title: "Lokker Security Architecture — Zero-Knowledge Cryptography",
+    description:
+      "Deep dive into Lokker's cryptographic threat model, Web Crypto API envelope encryption, PBKDF2 key derivation, and local security guarantees.",
+    url: "/security",
+  },
+};
 
 export default function SecurityArchitecturePage() {
   return (

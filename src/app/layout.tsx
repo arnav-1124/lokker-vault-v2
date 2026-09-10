@@ -23,11 +23,62 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appConfig.url),
   title: {
-    default: "Lokker — Local-First Password Vault",
+    default: "Lokker — Local-First Zero-Knowledge Password Vault",
     template: `%s · Lokker`,
   },
   description: appConfig.description,
+  applicationName: "Lokker",
+  authors: [{ name: "Lokker Team", url: appConfig.url }],
+  creator: "Lokker",
+  publisher: "Lokker",
+  keywords: [
+    "password vault",
+    "local-first password manager",
+    "zero-knowledge encryption",
+    "AES-GCM 256-bit",
+    "offline password vault",
+    "PBKDF2 key derivation",
+    "TOTP authenticator",
+    "2FA code generator",
+    "secure bookmark manager",
+    "Manifest V3 autofill extension",
+    "encrypted file vault",
+    "privacy-first security workspace",
+  ],
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  alternates: {
+    canonical: "./",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: appConfig.url,
+    siteName: "Lokker Vault",
+    title: "Lokker — Local-First Zero-Knowledge Password Vault",
+    description: appConfig.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Lokker — Local-First Zero-Knowledge Password Vault",
+    description: appConfig.description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },

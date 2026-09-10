@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   KeyRound,
@@ -18,6 +19,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { MarketingNav } from "@/components/marketing-nav";
 import { MarketingFooter } from "@/components/marketing-footer";
+
+export const metadata: Metadata = {
+  title: "Features — Zero-Knowledge Vault & Security Suite",
+  description:
+    "Explore Lokker's local-first personal security features: 3-tier envelope encryption, multi-strategy password generator, RFC 6238 TOTP authenticator, encrypted file vault, and browser autofill.",
+  alternates: {
+    canonical: "/features",
+  },
+  openGraph: {
+    title: "Lokker Features — Local-First Personal Security & Utility",
+    description:
+      "Explore Lokker's local-first personal security features: 3-tier envelope encryption, password generator, TOTP authenticator, encrypted file vault, and browser autofill.",
+    url: "/features",
+  },
+};
 
 export default function FeaturesPage() {
   const featureList = [

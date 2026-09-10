@@ -114,3 +114,36 @@ Product context: PRODUCT.md. Architecture: DEVELOPER.md.
     product surface. If uncertain about scope: ask or stop — never guess
     into new features. If uncertain about a technical fact: verify against
     documentation.
+
+## SEO & Metadata rules (MANDATORY)
+
+27. **Public routes vs Private vault boundary**: All public marketing surfaces
+    (`/`, `/features`, `/security`, `/privacy`, `/docs`, `/download`) must
+    have complete discoverability, crawler permissions, and rich metadata.
+    All authenticated vault workspace surfaces (`/app/*`) MUST strictly
+    enforce `noindex, nofollow, nocache` in both `robots.ts` and route
+    metadata headers to guarantee privacy.
+28. **Metadata completeness**: Every public route MUST export a complete
+    `Metadata` object (directly or through a route layout) containing:
+    - Unique `title` adhering to `%s · Lokker` template.
+    - Compelling `description` between 120–160 characters.
+    - Explicit `alternates.canonical` pointing to the canonical path.
+    - `openGraph` object specifying title, description, and canonical url.
+29. **Client Component metadata decoupling**: If a page requires `"use client"`
+    for interactive state (e.g. `download/page.tsx` or landing interactions),
+    DO NOT rewrite or compromise client business logic. Wrap the route with a
+    server `layout.tsx` within that route directory to export `metadata`
+    cleanly.
+30. **Sitemap & Robots synchronization**: When adding, renaming, or removing
+    public marketing routes, simultaneously update `src/app/sitemap.ts`
+    (with priority and changeFrequency) and `src/app/robots.ts`.
+31. **Structured Data (Schema.org)**: Marketing layouts must maintain valid
+    JSON-LD schema (e.g., `SoftwareApplication`, `Organization`) adhering
+    to Schema.org standards to guarantee rich snippets and search engine
+    knowledge graph eligibility.
+32. **Semantic HTML & Accessibility**: Every page must contain exactly one
+    `<h1>` element, followed by logical heading hierarchy (`<h2>`, `<h3>`).
+    Interactive controls, icons, and image representations must include
+    descriptive `aria-label` or alt attributes to satisfy accessibility and
+    top-tier SEO audit scanners.
+

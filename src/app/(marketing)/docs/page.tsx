@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   BookOpen,
@@ -14,6 +15,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MarketingNav } from "@/components/marketing-nav";
 import { MarketingFooter } from "@/components/marketing-footer";
+
+export const metadata: Metadata = {
+  title: "Documentation & Architecture Guide",
+  description:
+    "Comprehensive guides and manuals for Lokker: vault initialization, master password setup, TOTP authenticator setup, biometric unlock, and extension installation.",
+  alternates: {
+    canonical: "/docs",
+  },
+  openGraph: {
+    title: "Lokker Documentation & Guides",
+    description:
+      "Comprehensive manuals for vault setup, emergency recovery key generation, TOTP authenticator, and browser extension autofill.",
+    url: "/docs",
+  },
+};
 
 export default function DocsPage() {
   const docSections = [

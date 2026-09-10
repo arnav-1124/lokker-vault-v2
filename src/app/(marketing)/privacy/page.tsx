@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -13,6 +14,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MarketingNav } from "@/components/marketing-nav";
 import { MarketingFooter } from "@/components/marketing-footer";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy & Local Data Sovereignty",
+  description:
+    "Lokker has zero cloud servers, zero analytics trackers, and zero telemetry. Learn how our local-first architecture keeps your data 100% on your device.",
+  alternates: {
+    canonical: "/privacy",
+  },
+  openGraph: {
+    title: "Lokker Privacy Policy — Local Data Sovereignty Guarantee",
+    description:
+      "Lokker has zero cloud servers, zero telemetry, and zero tracking cookies. Plaintext data never leaves your device.",
+    url: "/privacy",
+  },
+};
 
 export default function PrivacyPage() {
   return (
