@@ -49,10 +49,13 @@ export function MarketingNav() {
           <nav className="hidden md:flex items-center gap-6 text-label">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
+              const isDocs = link.href === "/docs";
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  target={isDocs ? "_blank" : undefined}
+                  rel={isDocs ? "noopener noreferrer" : undefined}
                   className={`transition-colors hover:text-foreground cursor-pointer ${
                     isActive ? "text-foreground font-medium" : "text-muted-foreground"
                   }`}
@@ -99,13 +102,21 @@ export function MarketingNav() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                {navLinks.map((link) => (
-                  <DropdownMenuItem key={link.href} asChild className="cursor-pointer">
-                    <Link href={link.href} className="w-full">
-                      {link.label}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
+                {navLinks.map((link) => {
+                  const isDocs = link.href === "/docs";
+                  return (
+                    <DropdownMenuItem key={link.href} asChild className="cursor-pointer">
+                      <Link
+                        href={link.href}
+                        target={isDocs ? "_blank" : undefined}
+                        rel={isDocs ? "noopener noreferrer" : undefined}
+                        className="w-full"
+                      >
+                        {link.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/design" className="w-full">
                     Design System

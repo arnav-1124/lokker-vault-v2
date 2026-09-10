@@ -64,8 +64,8 @@ export function MarketingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/docs" className="hover:text-foreground transition-colors">
-                  Technical Docs
+                <Link href="/docs" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                  Technical Docs ↗
                 </Link>
               </li>
             </ul>
