@@ -3,13 +3,15 @@ import {
   Category,
   EncryptedFile,
   EncryptedVaultData,
+  MaskedEmail,
+  PasskeyEntry,
   VaultMetadata,
   VaultSettings,
 } from "@/types";
 import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES } from "./sampleData";
 
 const DB_NAME = "LokkerLocalVaultDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -44,6 +46,14 @@ function getDB(): Promise<IDBDatabase> {
 
       if (!db.objectStoreNames.contains("encrypted_files")) {
         db.createObjectStore("encrypted_files", { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains("masked_emails")) {
+        db.createObjectStore("masked_emails", { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains("passkeys")) {
+        db.createObjectStore("passkeys", { keyPath: "id" });
       }
     };
 
@@ -302,9 +312,117 @@ export async function saveAllEncryptedFiles(files: EncryptedFile[]): Promise<voi
   });
 }
 
+// === MASKED EMAILS ===
+
+export async function getMaskedEmails(): Promise<MaskedEmail[]> {
+  try {
+    const db = await getDB();
+    if (!db.objectStoreNames.contains("masked_emails")) return [];
+    const tx = db.transaction("masked_emails", "readonly");
+    const store = tx.objectStore("masked_emails");
+    const req = store.getAll();
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve((req.result as MaskedEmail[]) || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function saveMaskedEmail(item: MaskedEmail): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("masked_emails", "readwrite");
+  tx.objectStore("masked_emails").put(item);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function deleteMaskedEmailDB(id: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("masked_emails", "readwrite");
+  tx.objectStore("masked_emails").delete(id);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function saveAllMaskedEmails(items: MaskedEmail[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("masked_emails", "readwrite");
+  const store = tx.objectStore("masked_emails");
+  store.clear();
+  items.forEach((item) => store.put(item));
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// === PASSKEYS ===
+
+export async function getPasskeys(): Promise<PasskeyEntry[]> {
+  try {
+    const db = await getDB();
+    if (!db.objectStoreNames.contains("passkeys")) return [];
+    const tx = db.transaction("passkeys", "readonly");
+    const store = tx.objectStore("passkeys");
+    const req = store.getAll();
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve((req.result as PasskeyEntry[]) || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function savePasskey(item: PasskeyEntry): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("passkeys", "readwrite");
+  tx.objectStore("passkeys").put(item);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function deletePasskeyDB(id: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("passkeys", "readwrite");
+  tx.objectStore("passkeys").delete(id);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function saveAllPasskeys(items: PasskeyEntry[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("passkeys", "readwrite");
+  const store = tx.objectStore("passkeys");
+  store.clear();
+  items.forEach((item) => store.put(item));
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function resetDatabase(): Promise<void> {
   const db = await getDB();
-  const stores = ["bookmarks", "categories", "vault_meta", "settings", "encrypted_files"];
+  const stores = [
+    "bookmarks",
+    "categories",
+    "vault_meta",
+    "settings",
+    "encrypted_files",
+    "masked_emails",
+    "passkeys",
+  ].filter((s) => db.objectStoreNames.contains(s));
   const tx = db.transaction(stores, "readwrite");
   stores.forEach((store) => tx.objectStore(store).clear());
   return new Promise((resolve, reject) => {

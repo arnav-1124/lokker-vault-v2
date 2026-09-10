@@ -94,12 +94,48 @@ export interface VaultMetadata {
   webauthnVerifier?: string;
 }
 
+export interface MaskedEmail {
+  id: string;
+  alias: string;
+  provider: "simplelogin" | "addy" | "duck" | "custom";
+  providerAliasId?: string; // remote ID in SimpleLogin / Addy.io for toggling
+  note?: string;
+  forwardToEmail?: string;
+  isEnabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RelayConfig {
+  simpleloginApiKey?: string;
+  simpleloginBaseUrl?: string; // default "https://app.simplelogin.io"
+  addyApiKey?: string;
+  addyBaseUrl?: string; // default "https://app.addy.io/api/v1"
+  duckToken?: string;
+  defaultProvider?: "simplelogin" | "addy" | "duck" | "custom";
+}
+
+export interface PasskeyEntry {
+  id: string;
+  websiteName: string;
+  rpId: string; // Relying Party ID, e.g. "github.com"
+  userName: string;
+  userDisplayName?: string;
+  credentialId: string; // Base64URL string
+  publicKey: string; // SPKI base64 string
+  privateKeyJwk?: string; // Encrypted or serialized JWK string
+  algorithm: number; // -7 for ES256 (P-256)
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface VaultSettings {
   autoLockMinutes: number;
   requireConfirmationForAutofill: boolean;
   trustedDomains: string[];
   duckEnabled?: boolean;
   duckToken?: string;
+  relayConfig?: RelayConfig;
   lastBackupTime?: number;
   webAuthnEnabled?: boolean;
 }
@@ -117,6 +153,8 @@ export interface LokkerBackupPayload {
   categories: Category[];
   settings: VaultSettings;
   files: EncryptedFile[];
+  maskedEmails?: MaskedEmail[];
+  passkeys?: PasskeyEntry[];
 }
 
 export interface LokkerEncryptedBackupFile {
@@ -144,6 +182,8 @@ export interface BackupSummary {
   nestedCategoryCount: number;
   totpCount: number;
   fileCount: number;
+  maskedEmailCount?: number;
+  passkeyCount?: number;
   hasSettings: boolean;
   hasVaultMeta: boolean;
   version: number;
@@ -160,6 +200,7 @@ export type ViewMode =
   | "import-export"
   | "files"
   | "masked-emails"
+  | "passkeys"
   | "favorites"
   | "guide"
   | "settings"
@@ -170,3 +211,4 @@ export interface ToastMessage {
   text: string;
   type: "success" | "error" | "info";
 }
+

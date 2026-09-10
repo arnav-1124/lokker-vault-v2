@@ -12,7 +12,15 @@ import {
   decryptFileWithVek,
   encryptFileWithVek,
 } from "../lib/crypto";
-import { Bookmark, Category, EncryptedFile, PasswordEntry, VaultSettings } from "../types";
+import {
+  Bookmark,
+  Category,
+  EncryptedFile,
+  MaskedEmail,
+  PasskeyEntry,
+  PasswordEntry,
+  VaultSettings,
+} from "../types";
 
 describe("Lokker Full Vault Backup & Portability Engine (24 Scenarios)", () => {
   const masterPassword = "TestVaultMasterPassword!123";
@@ -350,5 +358,69 @@ describe("Lokker Full Vault Backup & Portability Engine (24 Scenarios)", () => {
     expect(inspection.decryptedPayload?.passwords.length).toBe(1);
     expect(inspection.summary?.passwordCount).toBe(1);
     expect(inspection.summary?.bookmarkCount).toBe(1);
+  });
+
+  it("25: Full zero-knowledge export & import preserves all masked emails and passkeys with 100% fidelity", async () => {
+    const testMaskedEmails: MaskedEmail[] = [
+      {
+        id: "me-1",
+        alias: "newsletter.x9q@duck.com",
+        provider: "duck",
+        isEnabled: true,
+        note: "Tech newsletters",
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+      },
+      {
+        id: "me-2",
+        alias: "bank.secure@slmail.me",
+        provider: "simplelogin",
+        providerAliasId: "sl_456",
+        isEnabled: true,
+        note: "Online banking",
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+      },
+    ];
+
+    const testPasskeys: PasskeyEntry[] = [
+      {
+        id: "pk-1",
+        websiteName: "GitHub",
+        rpId: "github.com",
+        userName: "octocat",
+        credentialId: "cred_github_123",
+        publicKey: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...",
+        algorithm: -7,
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+      },
+    ];
+
+    const payload = createLokkerBackupPayload({
+      passwords: [],
+      bookmarks: [],
+      categories: [],
+      settings: { autoLockMinutes: 15, requireConfirmationForAutofill: true, trustedDomains: [] },
+      files: [],
+      maskedEmails: testMaskedEmails,
+      passkeys: testPasskeys,
+    });
+
+    const summary = summarizeBackupPayload(payload);
+    expect(summary.maskedEmailCount).toBe(2);
+    expect(summary.passkeyCount).toBe(1);
+
+    // Export encrypted
+    const encrypted = await exportEncryptedLokkerBackup(payload, masterPassword);
+
+    // Decrypt and validate
+    const { payload: restored } = await decryptAndValidateLokkerBackup(encrypted, masterPassword);
+    expect(restored.maskedEmails?.length).toBe(2);
+    expect(restored.maskedEmails?.[0].alias).toBe("newsletter.x9q@duck.com");
+    expect(restored.maskedEmails?.[1].providerAliasId).toBe("sl_456");
+    expect(restored.passkeys?.length).toBe(1);
+    expect(restored.passkeys?.[0].rpId).toBe("github.com");
+    expect(restored.passkeys?.[0].credentialId).toBe("cred_github_123");
   });
 });

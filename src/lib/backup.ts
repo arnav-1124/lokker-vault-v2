@@ -10,6 +10,8 @@ import {
   EncryptedFile,
   LokkerBackupPayload,
   LokkerEncryptedBackupFile,
+  MaskedEmail,
+  PasskeyEntry,
   PasswordEntry,
   VaultMetadata,
   VaultSettings,
@@ -36,9 +38,11 @@ export function createLokkerBackupPayload(params: {
   categories: Category[];
   settings: VaultSettings;
   files: EncryptedFile[];
+  maskedEmails?: MaskedEmail[];
+  passkeys?: PasskeyEntry[];
   vaultMeta?: VaultMetadata | null;
 }): LokkerBackupPayload {
-  const { passwords, bookmarks, categories, settings, files, vaultMeta } = params;
+  const { passwords, bookmarks, categories, settings, files, maskedEmails, passkeys, vaultMeta } = params;
 
   return {
     version: LOKKER_BACKUP_SCHEMA_VERSION,
@@ -57,6 +61,8 @@ export function createLokkerBackupPayload(params: {
       trustedDomains: [],
     },
     files: Array.isArray(files) ? files : [],
+    maskedEmails: Array.isArray(maskedEmails) ? maskedEmails : [],
+    passkeys: Array.isArray(passkeys) ? passkeys : [],
   };
 }
 
@@ -68,6 +74,8 @@ export function summarizeBackupPayload(payload: LokkerBackupPayload): BackupSumm
   const bookmarks = Array.isArray(payload.bookmarks) ? payload.bookmarks : [];
   const categories = Array.isArray(payload.categories) ? payload.categories : [];
   const files = Array.isArray(payload.files) ? payload.files : [];
+  const maskedEmails = Array.isArray(payload.maskedEmails) ? payload.maskedEmails : [];
+  const passkeys = Array.isArray(payload.passkeys) ? payload.passkeys : [];
 
   const totpCount = passwords.filter((p) => !!p.totpSecret && p.totpSecret.trim().length > 0).length;
   const nestedCategoryCount = categories.filter((c) => !!c.parentId && c.parentId.trim().length > 0).length;
@@ -79,6 +87,8 @@ export function summarizeBackupPayload(payload: LokkerBackupPayload): BackupSumm
     nestedCategoryCount,
     totpCount,
     fileCount: files.length,
+    maskedEmailCount: maskedEmails.length,
+    passkeyCount: passkeys.length,
     hasSettings: !!payload.settings,
     hasVaultMeta: !!payload.vaultMeta && !!payload.vaultMeta.isInitialized,
     version: payload.version || 1,
@@ -205,6 +215,8 @@ export function inspectBackupFileText(fileText: string): BackupInspectionResult 
         trustedDomains: [],
       },
       files: Array.isArray(data.files) ? data.files : [],
+      maskedEmails: Array.isArray(data.maskedEmails) ? data.maskedEmails : [],
+      passkeys: Array.isArray(data.passkeys) ? data.passkeys : [],
     };
 
     return {
@@ -273,6 +285,8 @@ export async function decryptAndValidateLokkerBackup(
       trustedDomains: [],
     },
     files: Array.isArray(decryptedRaw.files) ? decryptedRaw.files : [],
+    maskedEmails: Array.isArray(decryptedRaw.maskedEmails) ? decryptedRaw.maskedEmails : [],
+    passkeys: Array.isArray(decryptedRaw.passkeys) ? decryptedRaw.passkeys : [],
   };
 
   const summary = summarizeBackupPayload(payload);

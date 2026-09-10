@@ -16,6 +16,10 @@ import {
   resetDatabase,
   getEncryptedFiles,
   saveEncryptedFile,
+  getMaskedEmails,
+  saveAllMaskedEmails,
+  getPasskeys,
+  saveAllPasskeys,
 } from "@/lib/db";
 import { verifyMasterPassword } from "@/lib/crypto";
 import {
@@ -75,13 +79,19 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
     const isValid = await verifyMasterPassword(password, vaultMeta.salt, vaultMeta.verifier);
     if (!isValid) return false;
     try {
-      const files = await getEncryptedFiles();
+      const [files, maskedEmails, passkeys] = await Promise.all([
+        getEncryptedFiles(),
+        getMaskedEmails(),
+        getPasskeys(),
+      ]);
       const payload = createLokkerBackupPayload({
         passwords: decryptedPasswords,
         bookmarks,
         categories,
         settings,
         files,
+        maskedEmails,
+        passkeys,
         vaultMeta,
       });
       const encryptedBackup = await exportEncryptedLokkerBackup(payload, password);
@@ -112,16 +122,22 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
     }
     showConfirm(
       "Export Unencrypted Backup",
-      "WARNING: This file will contain your unencrypted passwords, bookmarks, and settings in plain JSON. Anyone with access to this file can read your secrets. Are you sure?",
+      "WARNING: This file will contain your unencrypted passwords, bookmarks, settings, masked emails, and passkeys in plain JSON. Anyone with access to this file can read your secrets. Are you sure?",
       async () => {
         try {
-          const files = await getEncryptedFiles();
+          const [files, maskedEmails, passkeys] = await Promise.all([
+            getEncryptedFiles(),
+            getMaskedEmails(),
+            getPasskeys(),
+          ]);
           const payload = createLokkerBackupPayload({
             passwords: decryptedPasswords,
             bookmarks,
             categories,
             settings,
             files,
+            maskedEmails,
+            passkeys,
             vaultMeta,
           });
           const jsonStr = JSON.stringify({ format: "lokker-unencrypted-backup", ...payload }, null, 2);
@@ -180,10 +196,16 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
       };
       const incomingFiles = Array.isArray(payload.files) ? payload.files : [];
       const incomingPasswords = Array.isArray(payload.passwords) ? payload.passwords : [];
+      const incomingMasked = Array.isArray(payload.maskedEmails) ? payload.maskedEmails : [];
+      const incomingPasskeys = Array.isArray(payload.passkeys) ? payload.passkeys : [];
+
       await saveAllBookmarks(incomingBookmarks);
       await saveAllCategories(incomingCategories);
       await saveSettings(incomingSettings);
       for (const f of incomingFiles) { await saveEncryptedFile(f); }
+      await saveAllMaskedEmails(incomingMasked);
+      await saveAllPasskeys(incomingPasskeys);
+
       setBookmarks(incomingBookmarks);
       setCategories(incomingCategories);
       setSettingsState(incomingSettings);
@@ -199,7 +221,7 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
         setIsMasterPasswordModalOpen(true);
       }
       addToast(
-        `Restored complete backup (${incomingPasswords.length} passwords, ${incomingBookmarks.length} bookmarks, ${incomingCategories.length} categories, ${incomingFiles.length} files).`,
+        `Restored complete backup (${incomingPasswords.length} passwords, ${incomingBookmarks.length} bookmarks, ${incomingCategories.length} categories, ${incomingFiles.length} files, ${incomingMasked.length} masked emails, ${incomingPasskeys.length} passkeys).`,
         "success"
       );
     } else {
@@ -227,8 +249,23 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
       await saveAllCategories(mergedCats);
       const incomingFiles = Array.isArray(payload.files) ? payload.files : [];
       for (const f of incomingFiles) { await saveEncryptedFile(f); }
+
+      const existingMasked = await getMaskedEmails();
+      const existingAliases = new Set(existingMasked.map((m) => m.alias.toLowerCase()));
+      const incomingMasked = Array.isArray(payload.maskedEmails) ? payload.maskedEmails : [];
+      const newMasked = incomingMasked.filter((m) => !existingAliases.has(m.alias.toLowerCase()));
+      const mergedMasked = [...existingMasked, ...newMasked];
+      await saveAllMaskedEmails(mergedMasked);
+
+      const existingPasskeys = await getPasskeys();
+      const existingCredIds = new Set(existingPasskeys.map((p) => p.credentialId));
+      const incomingPasskeys = Array.isArray(payload.passkeys) ? payload.passkeys : [];
+      const newPasskeys = incomingPasskeys.filter((p) => !existingCredIds.has(p.credentialId));
+      const mergedPasskeys = [...existingPasskeys, ...newPasskeys];
+      await saveAllPasskeys(mergedPasskeys);
+
       addToast(
-        `Merged ${newPwds.length} new credentials, ${newBms.length} bookmarks, and ${newCats.length} categories into your vault.`,
+        `Merged ${newPwds.length} new credentials, ${newBms.length} bookmarks, ${newCats.length} categories, ${newMasked.length} masked emails, and ${newPasskeys.length} passkeys into your vault.`,
         "success"
       );
     }
