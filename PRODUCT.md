@@ -81,18 +81,29 @@ maintain an integrated relationship across the workspace.
   key in place) and emergency recovery key regeneration with one-time display, copy,
   and offline download
 - WebAuthn / passkey unlock via the PRF extension (implemented; requires a PRF-capable authenticator — see DEVELOPER.md §5)
+- FIDO2 / WebAuthn Passkey Vault: client-side ES256 (ECDSA P-256) keypair generation,
+  Base64URL credential ID encoding, SPKI public key inspection/export, and challenge
+  assertion signing directly in the browser with zero external dependencies.
 
 ### D. Security health (IMPLEMENTED)
 
 Continuous, actionable insight into the security state of stored credentials:
-- Weak, reused, and missing password detection with live password strength entropy metrics
-- Credential-level findings and security health overview score
-- Have I Been Pwned dark web checks via privacy-preserving SHA-1 k-anonymity (5-char prefix search)
-- Direct remediation workflows
+- Automated Security Watchtower & 2FA Directory Intelligence: compares stored service
+  domains against a curated 2FA capability directory, immediately flagging credentials
+  lacking two-factor authentication with direct links to official setup documentation.
+- Stale password detection flagging credentials unrotated for >12 months.
+- Weak, reused, and missing password detection with live password strength entropy metrics.
+- Credential-level findings and composite 0–100 security health overview score.
+- Have I Been Pwned dark web checks via privacy-preserving SHA-1 k-anonymity (5-char prefix search).
+- 1-click direct remediation and audit filtering workflows.
 
-### E. Privacy utilities (FUTURE, carefully bounded)
+### E. Privacy utilities (IMPLEMENTED)
 
-- Masked email / privacy-friendly email workflows
+- Live Masked Email Relay Integration (Zero-Backend BYOK Model):
+  - Direct client-to-API communication with SimpleLogin (`app.simplelogin.io`) and Addy.io (`app.addy.io/api/v1`).
+  - Zero cloud intermediary or server proxy: user API keys are stored strictly inside their encrypted vault settings.
+  - Live alias generation, active/paused status toggling, and connection diagnostics.
+  - Offline privacy alias generator supporting DuckDuckGo Email Protection (`@duck.com`) and custom domain masks.
 
 ### F. Secure personal data & File Vault (IMPLEMENTED)
 
@@ -105,17 +116,17 @@ the active Vault Encryption Key (VEK).
 Portability is first-class and independent of browser/machine state:
 - **Full Encrypted Lokker Backup (`.lokker`):** Exports the ENTIRE vault (passwords,
   bookmarks, categories, nested hierarchies, TOTP secrets, favorites, settings,
-  encrypted file attachments, and envelope metadata) inside a PBKDF2 (100k iterations)
+  encrypted file attachments, masked email aliases, passkey credentials, and envelope metadata) inside a PBKDF2 (100k iterations)
   + AES-GCM-256 encrypted envelope.
 - **Safe Restore Flow:** Non-secret pre-restore summary inspection (passwords,
-  bookmarks, categories, nested tags, TOTP codes, encrypted files), password
+  bookmarks, categories, nested tags, TOTP codes, encrypted files, masked emails, passkeys), password
   decryption challenge, and selection between:
   1. **Safe Merge & Synchronize:** Adds non-duplicate records while preserving local items.
   2. **Complete Fresh Restore:** Replaces local vault state with the backup snapshot.
 - **External Password Manager Imports:** Dedicated parsers for Chrome, Bitwarden,
   and 1Password CSV/JSON exports with conflict preview and deduplication.
 - **Unencrypted JSON Export:** Available only as an explicit, high-friction,
-  warning-guarded operation for manual interoperability.
+  warning-guarded operation for manual interoperability, exporting 100% of all vault collections.
 
 ### H. Browser Extension & Autofill (IMPLEMENTED)
 

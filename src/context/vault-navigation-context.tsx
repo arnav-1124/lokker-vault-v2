@@ -22,6 +22,7 @@ const VIEW_TO_PATH: Record<ViewMode, string> = {
   "import-export": "/app/import-export",
   files: "/app/files",
   "masked-emails": "/app/masked-emails",
+  passkeys: "/app/passkeys",
   extension: "/app/extension",
   guide: "/app/guide",
   settings: "/app/settings",

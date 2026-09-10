@@ -38,17 +38,17 @@ Import alias: `@/*` → `src/*` (tsconfig.json).
 src/
 ├── app/                  # Next.js App Router
 │   ├── (marketing)/      # Public site boundary (/, /features, /security, /privacy, /docs, /download)
-│   ├── (app)/app/        # Product workspace under /app (passwords, bookmarks, totp, files, settings)
+│   ├── (app)/app/        # Product workspace under /app (passwords, bookmarks, totp, files, settings, masked-emails, passkeys)
 │   ├── globals.css       # Design tokens + theme definitions
 │   └── layout.tsx        # Root layout: fonts, ThemeProvider, metadata
 ├── components/
 │   ├── modals/           # App modals (import-backup-modal, add-password, add-file, etc.)
-│   ├── views/            # Workspace views (passwords, bookmarks, totp, security, files, settings, import-export)
+│   ├── views/            # Workspace views (passwords, bookmarks, totp, security-audit, files, settings, import-export, masked-emails, passkeys)
 │   ├── ui/               # shadcn primitives in TypeScript
 │   └── theme-provider.tsx
-├── lib/                  # Native Web Crypto, IndexedDB, Backup engine, CSV/JSON Importers, TOTP
-├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings)
-└── test/                 # Test suites (crypto, totp, backup, extension, importers, foundations)
+├── lib/                  # Native Web Crypto, IndexedDB, Backup engine, Importers, TOTP, Watchtower, Masked Emails, Passkeys
+├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings, Masked Emails, Passkeys)
+└── test/                 # Test suites (crypto, totp, backup, extension, importers, foundations, watchtower, masked-email, passkey)
 public/
 └── extension/            # Manifest V3 browser extension (background, content, popup, vault)
 ```
@@ -149,13 +149,16 @@ Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 
 - `src/test/crypto.test.ts`: 14 tests verifying VEK derivation, key wrapping, password rotation, recovery key rotation, emergency recovery unlock, file encryption, and tampering authentication.
 - `src/test/totp.test.ts`: 10 tests verifying RFC 6238 test vectors, base32 decoding, and fail-closed error behavior.
-- `src/test/backup.test.ts`: 8 composite tests covering 24 backup/restore requirements (export, encryption, inspection, schema validation, merge deduplication, tampering rejection).
+- `src/test/backup.test.ts`: 9 composite tests covering 25 backup/restore requirements (export, encryption, inspection, schema validation, merge deduplication, tampering rejection, and complete lossless roundtrip for all collections including masked emails and passkeys).
 - `src/test/extension.test.ts`: 11 tests verifying the trusted-origin allowlist, URL domain extraction, strict domain matching against squatting attacks, credential filtering, and V2 VEK unwrapping.
 - `src/test/importers.test.ts`: 6 tests verifying Chrome, Bitwarden, and 1Password CSV/JSON parsing and field mapping.
 - `src/test/product.test.ts`: 5 tests verifying password generator modes, entropy calculation, nested category parent mappings, and bidirectional credential/bookmark synchronization.
 - `src/test/foundations.test.ts`: 8 tests verifying design token foundations, theme switching, app configuration, and the ID/random helpers.
+- `src/test/watchtower.test.ts`: 3 tests verifying domain normalization, 2FA directory matching against curated catalog, and composite security audit scoring.
+- `src/test/masked-email.test.ts`: 6 tests verifying BYOK header construction, SimpleLogin / Addy.io API payloads, active/paused toggles, and offline DuckDuckGo/custom alias generation.
+- `src/test/passkey.test.ts`: 3 tests verifying Base64URL credential ID encoding, native Web Crypto ECDSA P-256 keypair generation, and challenge assertion signing.
 
-All 62 tests pass cleanly.
+All 75 tests across 10 test suites pass cleanly.
 
 ## 8. Commands
 

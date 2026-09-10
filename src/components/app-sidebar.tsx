@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   ShieldCheck,
   KeyRound,
+  Fingerprint,
   Bookmark as BookmarkIcon,
   QrCode,
   Star,
@@ -58,6 +59,7 @@ const VIEW_TO_PATH: Record<ViewMode, string> = {
   "import-export": "/app/import-export",
   files: "/app/files",
   "masked-emails": "/app/masked-emails",
+  passkeys: "/app/passkeys",
   extension: "/app/extension",
   guide: "/app/guide",
   settings: "/app/settings",
@@ -101,6 +103,7 @@ export function AppSidebar({
   const mainNavItems = [
     { id: "home" as ViewMode, label: "Dashboard", icon: ShieldCheck },
     { id: "passwords" as ViewMode, label: "Password Vault", icon: KeyRound, count: passwordCount },
+    { id: "passkeys" as ViewMode, label: "Passkeys (FIDO2)", icon: Fingerprint },
     { id: "bookmarks" as ViewMode, label: "Bookmarks", icon: BookmarkIcon, count: bookmarkCount },
     { id: "totp" as ViewMode, label: "2FA Authenticator", icon: QrCode },
     { id: "favorites" as ViewMode, label: "Favorites", icon: Star },
