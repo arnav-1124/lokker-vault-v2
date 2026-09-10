@@ -30,15 +30,15 @@ const USER_NAME = "lokker-user";
 
 /**
  * Guidance for users whose authenticator cannot derive PRF output.
- * Windows Hello, Touch ID / iCloud Keychain and most browser-built-in
- * passkeys do not implement the PRF extension; PRF-capable security keys
- * (e.g. YubiKey 5.3+) and PRF-capable passkey providers do.
+ * Windows Hello (prior to Windows 11 25H2), Touch ID / iCloud Keychain, and most
+ * standard built-in laptop biometrics only support authentication signatures, not
+ * deterministic key derivation via the PRF extension.
  */
 const PRF_UNSUPPORTED_USER_MESSAGE =
-  "This authenticator can't derive vault keys (no WebAuthn PRF support). " +
-  "Windows Hello, Touch ID / iCloud Keychain and most built-in browser passkeys don't support PRF. " +
-  "Use a PRF-capable security key (e.g. YubiKey with firmware 5.3+), a passkey provider that supports PRF (e.g. 1Password), " +
-  "or Chrome on Android with a Google Password Manager passkey — then register it here.";
+  "Your device authenticator (such as Windows Hello or Touch ID) verified your identity, but does not support the WebAuthn PRF extension needed to derive 256-bit encryption keys. " +
+  "Standard laptop biometrics can authenticate logins, but cannot derive vault encryption keys without PRF support. " +
+  "To enable hardware unlock, please use a PRF-capable FIDO2 security key (e.g. YubiKey 5.3+) or a PRF-compatible passkey provider (e.g. 1Password). " +
+  "You can continue unlocking your vault securely using your Master Password or Emergency Recovery Key.";
 
 /**
  * Check if WebAuthn PRF is available in this browser/environment.
@@ -85,14 +85,18 @@ interface PrfExtensionOutput {
 }
 
 /** Helper to read the PRF extension output from a PublicKeyCredential (create & get).
- *  clientExtensionResults is a getter in WebAuthn Level 3, but a method in Level 2. */
+ *  Standard WebAuthn exposes credential.getClientExtensionResults() on modern browsers. */
 function getPrfResults(credential: PublicKeyCredential): PrfExtensionOutput | undefined {
   let extResults: unknown;
-  const raw = (credential as unknown as { clientExtensionResults: unknown }).clientExtensionResults;
-  if (typeof raw === "function") {
-    extResults = (raw as () => unknown).call(credential);
-  } else {
-    extResults = raw;
+  if (typeof credential.getClientExtensionResults === "function") {
+    extResults = credential.getClientExtensionResults();
+  } else if ("clientExtensionResults" in credential) {
+    const raw = (credential as unknown as { clientExtensionResults?: unknown }).clientExtensionResults;
+    if (typeof raw === "function") {
+      extResults = (raw as () => unknown).call(credential);
+    } else {
+      extResults = raw;
+    }
   }
   if (!extResults) return undefined;
   return (extResults as { prf?: PrfExtensionOutput }).prf;

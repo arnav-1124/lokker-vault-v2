@@ -16,6 +16,8 @@ integration, and secure personal data into one coherent local-first product.
 
 **Positioning:** *Your vault. Your device. Your keys. Your data. Your control.*
 
+**Live Production Deployment:** [https://lokker-vault.vercel.app](https://lokker-vault.vercel.app)
+
 Privacy is not a marketing claim — it is a core architectural principle.
 Lokker is designed so the user's sensitive data never depends on a centralized
 cloud credential authority. Any future backend is an **optional** encrypted
@@ -198,10 +200,20 @@ Full tokens: `src/app/globals.css`; rules: AGENTS.md; details: DEVELOPER.md §4.
   `prefers-reduced-motion`.
 
 ## 12. Current development stage
-
-**Full Application Workspace + Complete Portability & Extension Engine (IMPLEMENTED).**
+ 
+**Full Application Workspace + Complete Portability & Extension Engine (IMPLEMENTED & DEPLOYED).**
 The full interactive local-first workspace `/app`, 3-tier VEK/KEK envelope
 encryption, emergency recovery key unlock, full `.lokker` encrypted backup/restore,
 Manifest V3 browser extension autofill, encrypted file vault, RFC 6238
 TOTP authenticator, password generator, bookmarks manager, and marketing
-suite exist and operate locally in the browser with IndexedDB persistence.
+suite exist, operate locally in the browser with IndexedDB persistence, and are
+deployed live at [https://lokker-vault.vercel.app](https://lokker-vault.vercel.app).
+
+## 13. Evolution roadmap: Optional Zero-Knowledge Cloud & Team Collaboration (PLANNED)
+
+For users and teams requiring multi-device synchronization and password sharing:
+- **Zero-Knowledge Backend:** An optional encrypted relay and storage layer that never sees plaintext credentials, master passwords, or private keys.
+- **Asymmetric Key Exchange:** Team sharing implemented using public-key cryptography (e.g. RSA-OAEP / ECDH), where shared vault keys are encrypted per recipient.
+- **E2EE Ephemeral Sharing:** One-time self-destructing secret share links with client-side decryption keys passed in URL hash fragments.
+- **Local-First Precedence:** Cloud sync remains purely opt-in; the local vault is fully functional offline without any account registration or backend connectivity.
+

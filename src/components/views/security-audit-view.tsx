@@ -40,6 +40,7 @@ export function SecurityAuditView({
   addToast,
 }: SecurityAuditViewProps) {
   const [checkingBreaches, setCheckingBreaches] = React.useState(false);
+  const [checkingProgress, setCheckingProgress] = React.useState<{ current: number; total: number } | null>(null);
   const [breachResults, setBreachResults] = React.useState<Record<string, { breached: boolean; count: number }>>({});
 
   // Analysis: Weak, Reused, Empty, and Duplicates
@@ -106,16 +107,56 @@ export function SecurityAuditView({
     setCheckingBreaches(true);
     addToast("Running k-Anonymity breach check on stored credentials...", "info");
 
+    // 1. Collect unique non-empty passwords to avoid redundant external calls
+    const uniquePasswords = Array.from(
+      new Set(passwords.map((p) => p.password).filter((pw): pw is string => !!pw && pw.trim().length > 0))
+    );
+
+    const passwordResultMap = new Map<string, { breached: boolean; count: number; error?: string }>();
+    const total = uniquePasswords.length;
+    let completed = 0;
+    setCheckingProgress({ current: 0, total });
+
+    // 2. Process in batches with concurrency limit of 4 to prevent network starvation or rate limits
+    const BATCH_SIZE = 4;
+    for (let i = 0; i < uniquePasswords.length; i += BATCH_SIZE) {
+      const batch = uniquePasswords.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (pwd) => {
+        const res = await checkPasswordBreached(pwd);
+        passwordResultMap.set(pwd, res);
+      });
+      await Promise.all(batchPromises);
+      completed += batch.length;
+      setCheckingProgress({ current: Math.min(completed, total), total });
+
+      // Gentle pause between batches
+      if (i + BATCH_SIZE < uniquePasswords.length) {
+        await new Promise((r) => setTimeout(r, 60));
+      }
+    }
+
+    // 3. Map results back to individual credential IDs
+    let rateLimitedCount = 0;
     const results: Record<string, { breached: boolean; count: number }> = {};
     for (const item of passwords) {
       if (item.password) {
-        const res = await checkPasswordBreached(item.password);
-        results[item.id] = res;
+        const res = passwordResultMap.get(item.password);
+        if (res) {
+          if (res.error?.includes("429")) rateLimitedCount++;
+          results[item.id] = { breached: res.breached, count: res.count };
+        }
       }
     }
+
     setBreachResults(results);
     setCheckingBreaches(false);
-    addToast("Breach check complete (0 plaintext leaked).", "success");
+    setCheckingProgress(null);
+
+    if (rateLimitedCount > 0) {
+      addToast("Breach check complete (some requests were rate-limited; please retry shortly).", "info");
+    } else {
+      addToast("Breach check complete (0 plaintext leaked).", "success");
+    }
   };
 
   if (!isUnlocked) {
@@ -180,7 +221,13 @@ export function SecurityAuditView({
           className="h-8 text-xs gap-1.5 self-start sm:self-auto cursor-pointer"
         >
           <RefreshCw className={`size-3.5 ${checkingBreaches ? "animate-spin" : ""}`} />
-          <span>{checkingBreaches ? "Checking Dark Web..." : "Run Breach Check"}</span>
+          <span>
+            {checkingBreaches
+              ? checkingProgress
+                ? `Checking ${checkingProgress.current}/${checkingProgress.total}...`
+                : "Checking Dark Web..."
+              : "Run Breach Check"}
+          </span>
         </Button>
       </div>
 

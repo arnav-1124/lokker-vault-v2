@@ -183,3 +183,8 @@ Environment-specific values (URLs, origins) live in exactly two places — one p
    - It is loaded before `popup.js` (popup.html) and injected first into every
      content script (manifest.json). Content scripts run in Chrome's isolated
      world, so page scripts cannot override these values.
+
+## 10. Operations & Deployment Runbook
+
+For a simplified step-by-step guide on deploying to Vercel, managing DNS, packaging the browser extension, routine maintenance, and required external subscriptions for future backend services, refer to **[`INTERNAL_DEV_GUIDE.md`](INTERNAL_DEV_GUIDE.md)**.
+

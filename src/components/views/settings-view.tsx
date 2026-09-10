@@ -55,8 +55,9 @@ export function SettingsView({
   const [webAuthnLoading, setWebAuthnLoading] = React.useState(false);
   const [webAuthnError, setWebAuthnError] = React.useState<string | null>(null);
 
-  // Genuine WebAuthn platform authenticator detection
+  // Genuine WebAuthn platform authenticator & browser support detection
   const [hasPlatformAuth, setHasPlatformAuth] = React.useState<boolean | null>(null);
+  const [isWebAuthnSupported, setIsWebAuthnSupported] = React.useState<boolean | null>(null);
 
   // Sync toggle state with the actual registration status using the
   // render-adjust pattern (no setState inside an effect).
@@ -69,19 +70,23 @@ export function SettingsView({
   React.useEffect(() => {
     let isMounted = true;
     async function checkWebAuthn() {
-      if (
-        typeof window !== "undefined" &&
-        window.PublicKeyCredential &&
-        typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
-      ) {
-        try {
-          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-          if (isMounted) setHasPlatformAuth(available);
-        } catch {
+      if (typeof window !== "undefined" && window.PublicKeyCredential) {
+        if (isMounted) setIsWebAuthnSupported(true);
+        if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function") {
+          try {
+            const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+            if (isMounted) setHasPlatformAuth(available);
+          } catch {
+            if (isMounted) setHasPlatformAuth(false);
+          }
+        } else {
           if (isMounted) setHasPlatformAuth(false);
         }
       } else {
-        if (isMounted) setHasPlatformAuth(false);
+        if (isMounted) {
+          setIsWebAuthnSupported(false);
+          setHasPlatformAuth(false);
+        }
       }
     }
     checkWebAuthn();
@@ -226,20 +231,24 @@ export function SettingsView({
             <div className="flex items-center gap-2">
               <Fingerprint className="size-4 text-primary" />
               <h3 className="text-sm font-semibold text-foreground">
-                Hardware Passkey & Biometric Unlock
+                Hardware Security Key & Passkey Unlock (WebAuthn PRF)
               </h3>
-              {hasPlatformAuth ? (
+              {webAuthnActive ? (
                 <Badge className="bg-success/15 text-success border-success/30 text-[10px]">
-                  Hardware Detected
+                  Registered & Active
+                </Badge>
+              ) : isWebAuthnSupported ? (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  FIDO2 / YubiKey 5.3+ Required
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                  {hasPlatformAuth === null ? "Checking..." : "Hardware Unavailable"}
+                  WebAuthn Unavailable
                 </Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground max-w-xl">
-              Uses the WebAuthn PRF extension to derive your encryption key on-device — your biometrics never leave the device and no secret is stored. Requires a PRF-capable authenticator: FIDO2 security keys (YubiKey 5.3+), PRF-capable passkey providers (e.g. 1Password), or Chrome on Android. Note: Windows Hello and Touch ID / iCloud Keychain do not support PRF.
+              Uses the WebAuthn PRF extension to derive your 256-bit vault encryption key on-device — no secrets are stored. Requires an authenticator that supports cryptographic key derivation: FIDO2 security keys (YubiKey 5.3+), PRF-capable passkey providers (e.g. 1Password), or Chrome on Android. Standard laptop biometrics (Windows Hello on older builds, macOS Touch ID) only support login signatures and cannot derive encryption keys.
             </p>
           </div>
 
@@ -248,7 +257,7 @@ export function SettingsView({
               id="webauthn-toggle"
               checked={webAuthnActive}
               onCheckedChange={handleToggleWebAuthn}
-              disabled={hasPlatformAuth === false || webAuthnLoading || !isUnlocked}
+              disabled={isWebAuthnSupported === false || webAuthnLoading || !isUnlocked}
               className="cursor-pointer"
             />
             {webAuthnLoading && (
@@ -260,9 +269,21 @@ export function SettingsView({
         </div>
 
         {webAuthnError && (
-          <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
-            <AlertCircle className="size-4 shrink-0" />
-            <span>{webAuthnError}</span>
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-1">
+            <div className="flex items-center justify-between font-semibold">
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>Authenticator Lacks PRF Support</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWebAuthnError(null)}
+                className="text-destructive/70 hover:text-destructive cursor-pointer text-xs"
+              >
+                Dismiss
+              </button>
+            </div>
+            <p className="text-[11px] leading-relaxed opacity-90">{webAuthnError}</p>
           </div>
         )}
 
@@ -273,21 +294,13 @@ export function SettingsView({
           </div>
         )}
 
-        <div className="p-3 rounded-xl bg-background border border-border-subtle text-xs space-y-1">
+        <div className="p-3 rounded-xl bg-background border border-border-subtle text-xs space-y-1.5">
           <div className="flex items-center gap-2 text-foreground font-medium">
-            {hasPlatformAuth ? (
-              <CheckCircle2 className="size-4 text-success shrink-0" />
-            ) : (
-              <AlertCircle className="size-4 text-warning shrink-0" />
-            )}
-            <span>
-              {hasPlatformAuth
-                ? "Platform authenticator detected. If registration fails, this device's biometrics may not support PRF — use a FIDO2 security key instead."
-                : "No platform biometric hardware detected in current environment. A FIDO2 security key can still be used."}
-            </span>
+            <KeyRound className="size-4 text-primary shrink-0" />
+            <span>Why standard laptop biometrics (Windows Hello / Touch ID) may fail here</span>
           </div>
-          <p className="text-[11px] text-muted-foreground pl-6">
-            Lokker uses native Web Crypto PBKDF2-SHA256 (600,000 iterations) with 3-tier VEK envelope encryption across all platforms.
+          <p className="text-[11px] text-muted-foreground leading-relaxed pl-6">
+            Logging into a website only requires your laptop to sign a challenge. Unlocking Lokker’s zero-knowledge vault requires the authenticator to deterministically calculate an AES-256 encryption key from hardware via the WebAuthn PRF extension. If your device biometrics do not support PRF, you can use a FIDO2 security key (such as a YubiKey 5.3+) or continue using your Master Password and Emergency Recovery Key.
           </p>
         </div>
       </div>

@@ -666,7 +666,7 @@ export function calculatePasswordStrength(password: string): {
 // Check if password has been exposed in public breaches using k-Anonymity SHA-1 prefix
 export async function checkPasswordBreached(
   password: string
-): Promise<{ breached: boolean; count: number }> {
+): Promise<{ breached: boolean; count: number; error?: string }> {
   if (!password) return { breached: false, count: 0 };
   try {
     const enc = new TextEncoder();
@@ -681,11 +681,21 @@ export async function checkPasswordBreached(
     const prefix = hashHex.substring(0, 5);
     const suffix = hashHex.substring(5);
 
-    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    let res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
       headers: { "Add-Padding": "true" },
     });
 
-    if (!res.ok) return { breached: false, count: 0 };
+    // If rate-limited (HTTP 429), back off 1.2s and retry once
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1200));
+      res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        headers: { "Add-Padding": "true" },
+      });
+    }
+
+    if (!res.ok) {
+      return { breached: false, count: 0, error: `HTTP ${res.status}` };
+    }
 
     const text = await res.text();
     const lines = text.split("\n");
@@ -699,6 +709,7 @@ export async function checkPasswordBreached(
 
     return { breached: false, count: 0 };
   } catch {
-    return { breached: false, count: 0 };
+    return { breached: false, count: 0, error: "Network error" };
   }
 }
+

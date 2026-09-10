@@ -30,8 +30,8 @@ Product context: PRODUCT.md. Architecture: DEVELOPER.md.
 5. The local-first application workspace `/app`, 3-tier VEK/KEK envelope
    cryptography (`src/lib/crypto.ts`), IndexedDB storage (`src/lib/db.ts`),
    and public marketing routes (`/`, `/features`, `/security`, `/privacy`,
-   `/docs`, `/download`) are IMPLEMENTED. Do not document or reference
-   systems that do not exist. WebAuthn PRF and cloud sync remain FUTURE boundaries.
+   `/docs`, `/download`) are IMPLEMENTED. WebAuthn PRF unlock is IMPLEMENTED
+   (authenticator-dependent). Cloud sync and team collaboration remain PLANNED/FUTURE boundaries.
 
 ## Conventions
 
