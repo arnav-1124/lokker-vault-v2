@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  BookOpen,
   Terminal,
   ArrowRight,
   ArrowLeft,
@@ -15,41 +14,29 @@ import {
   AlertTriangle,
   Info,
   CheckCircle2,
-  Compass,
-  ChevronDown,
-  Layers,
   Sparkles,
   Lock,
   Database,
-  KeyRound,
-  Fingerprint,
-  Mail,
-  Cpu,
-  Boxes,
   ArrowUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarketingNav } from "@/components/marketing-nav";
 import { MarketingFooter } from "@/components/marketing-footer";
 
-type DocProductMode = "vault" | "platform";
-
 interface DocTopic {
   id: string;
-  productMode: DocProductMode;
   category: string;
   title: string;
   badge?: string;
-  badgeColor?: "sky" | "emerald" | "purple" | "amber";
+  badgeColor?: "sky" | "emerald" | "purple" | "amber" | "rose";
   description: string;
   headings: { id: string; title: string }[];
   renderContent: (pm: "pnpm" | "npm" | "yarn" | "bun", setPm: (p: "pnpm" | "npm" | "yarn" | "bun") => void) => React.ReactNode;
 }
 
 /**
- * Colorful syntax-highlighted code block with interactive package manager tabs
+ * Colorful syntax-highlighted code block with copy button
  */
 function CodeBlock({
   filename,
@@ -245,16 +232,12 @@ function Callout({
 }
 
 // ---------------------------------------------------------
-// DOC TOPICS DATA: CURRENT PRODUCT VS FUTURE PLATFORM
+// DOC TOPICS DATA: 100% FOCUSED ON LOKKER VAULT APP
 // ---------------------------------------------------------
 const DOC_TOPICS: DocTopic[] = [
-  // ==========================================
-  // 1. CURRENT PRODUCT (LOKKER VAULT - LOCAL FIRST)
-  // ==========================================
   {
     id: "vault-overview",
-    productMode: "vault",
-    category: "Current Product: Lokker Vault",
+    category: "Architecture & Foundations",
     title: "Architecture & Zero-Knowledge Invariants",
     badge: "Local-First Core",
     badgeColor: "emerald",
@@ -311,8 +294,7 @@ const DOC_TOPICS: DocTopic[] = [
   },
   {
     id: "envelope-encryption",
-    productMode: "vault",
-    category: "Current Product: Lokker Vault",
+    category: "Architecture & Foundations",
     title: "3-Tier Envelope Encryption & Key Derivation",
     badge: "VEK / KEK Hierarchy",
     badgeColor: "sky",
@@ -377,8 +359,7 @@ const DOC_TOPICS: DocTopic[] = [
   },
   {
     id: "webauthn-passkeys",
-    productMode: "vault",
-    category: "Current Product: Lokker Vault",
+    category: "Authentication & Hardware Keys",
     title: "WebAuthn PRF Biometrics & Passkey Vault",
     badge: "FIDO2 / WebAuthn",
     badgeColor: "purple",
@@ -422,17 +403,16 @@ const DOC_TOPICS: DocTopic[] = [
     ),
   },
   {
-    id: "privacy-watchtower",
-    productMode: "vault",
-    category: "Current Product: Lokker Vault",
-    title: "Privacy Relays & Automated Watchtower",
+    id: "privacy-relays",
+    category: "Privacy & Intelligence",
+    title: "Privacy Relays & Masked Emails (BYOK)",
     badge: "Zero-Backend BYOK",
     badgeColor: "amber",
     description:
-      "Direct client-to-API masked email integration (SimpleLogin, Addy.io, DuckDuckGo) and automated 2FA intelligence.",
+      "Direct client-to-API masked email integration (SimpleLogin, Addy.io, DuckDuckGo) with zero cloud intermediaries.",
     headings: [
       { id: "byok-relays", title: "BYOK Masked Email Relay" },
-      { id: "watchtower-audit", title: "Security Watchtower & 2FA Directory" },
+      { id: "offline-duck", title: "DuckDuckGo Zero-Config Generation" },
     ],
     renderContent: () => (
       <>
@@ -443,202 +423,146 @@ const DOC_TOPICS: DocTopic[] = [
           Lokker runs zero intermediate relay servers. Your API tokens are stored strictly in your encrypted vault. Browser calls communicate directly with <Pill color="sky">SimpleLogin</Pill> (<code className="text-sky-300">app.simplelogin.io</code>) and <Pill color="emerald">Addy.io</Pill> (<code className="text-emerald-300">app.addy.io/api/v1</code>), or generate offline aliases via <Pill color="purple">DuckDuckGo (@duck.com)</Pill>.
         </p>
 
-        <h3 id="watchtower-audit" className="text-base font-semibold text-white mt-6 mb-2">
-          Automated Watchtower & 2FA Directory Intelligence
+        <h3 id="offline-duck" className="text-base font-semibold text-white mt-6 mb-2">
+          DuckDuckGo Zero-Config Generation
+        </h3>
+        <p className="text-neutral-300 text-sm leading-relaxed mb-4">
+          When DuckDuckGo mode is selected, Lokker generates a cryptographically random 6-character hex token and formats an alias with optional service prefixes without calling any network API:
+        </p>
+
+        <CodeBlock filename="src/lib/masked-email.ts" language="TypeScript">
+          <pre>
+            <span className="text-pink-400 font-semibold">const</span> <span className="text-amber-300">hex</span> = <span className="text-amber-300">randomHex</span>(<span className="text-orange-400 font-mono">6</span>);{"\n"}
+            <span className="text-pink-400 font-semibold">const</span> <span className="text-amber-300">cleanPrefix</span> = options.prefix?.<span className="text-amber-300">trim</span>().<span className="text-amber-300">toLowerCase</span>().<span className="text-amber-300">replace</span>(/[^a-z0-9]/g, <span className="text-emerald-300">&quot;&quot;</span>);{"\n"}
+            <span className="text-pink-400 font-semibold">const</span> <span className="text-amber-300">alias</span> = cleanPrefix ? <span className="text-emerald-300">{"`" + "${cleanPrefix}.${hex}@duck.com" + "`"}</span> : <span className="text-emerald-300">{"`" + "lokker.${hex}@duck.com" + "`"}</span>;
+          </pre>
+        </CodeBlock>
+      </>
+    ),
+  },
+  {
+    id: "security-watchtower",
+    category: "Privacy & Intelligence",
+    title: "Security Watchtower & 2FA Directory",
+    badge: "Threat Intelligence",
+    badgeColor: "rose",
+    description:
+      "Automated evaluation of stored accounts against curated 2FA directories, stale credentials, and Have I Been Pwned breach records.",
+    headings: [
+      { id: "two-factor-directory", title: "2FA Directory Catalog" },
+      { id: "k-anonymity", title: "Privacy-Preserving Breach Checks" },
+    ],
+    renderContent: () => (
+      <>
+        <h3 id="two-factor-directory" className="text-base font-semibold text-white mb-2">
+          Curated 2FA Capability Catalog
+        </h3>
+        <p className="text-neutral-300 text-sm leading-relaxed mb-4">
+          Lokker bundles a database of major internet services (Google, GitHub, AWS, Microsoft, Discord, Twitter, Cloudflare, Proton, etc.) specifying supported 2FA methods (TOTP, Hardware Keys, SMS) and direct documentation setup URLs. When a stored credential lacks TOTP, Watchtower flags it and links directly to the service&apos;s 2FA setup page.
+        </p>
+
+        <h3 id="k-anonymity" className="text-base font-semibold text-white mt-6 mb-2">
+          k-Anonymity Dark Web Checks
         </h3>
         <p className="text-neutral-300 text-sm leading-relaxed">
-          Compares stored service domains against a curated 2FA capability catalog, flagging accounts that lack two-factor authentication and linking directly to setup manuals. Dark web breach checks execute client-side via <Pill color="rose">SHA-1 k-Anonymity</Pill> (5-character prefix search).
+          Passwords are never sent across the network. Lokker computes the SHA-1 hash of the password, takes the first 5 characters (e.g. <Pill color="rose">21BD1</Pill>), and queries the Have I Been Pwned API with the header <code className="text-sky-300">Add-Padding: true</code>. Matching is completed entirely client-side.
         </p>
       </>
     ),
   },
-
-  // ==========================================
-  // 2. FUTURE PLATFORM (LOKKER PLATFORM - DECOUPLED HEADLESS BACKEND)
-  // ==========================================
   {
-    id: "platform-architecture",
-    productMode: "platform",
-    category: "Future Platform: Decoupled Backend",
-    title: "Decoupled Zero-Knowledge Platform Vision",
-    badge: "Platform Engine",
-    badgeColor: "purple",
-    description:
-      "A headless zero-knowledge and cryptographic data platform allowing external developers to bring their own frontend and database.",
-    headings: [
-      { id: "decoupled-model", title: "The Decoupled Architecture" },
-      { id: "medusa-parallel", title: "Why Decoupling Works" },
-      { id: "byod-storage", title: "Bring Your Own Database (BYOD)" },
-    ],
-    renderContent: () => (
-      <>
-        <Callout type="tip" title="Independent Platform Boundary">
-          The future Lokker Platform is completely decoupled from the Lokker Vault frontend. External developers do not adopt our UI or store data in our cloud. They connect Lokker&apos;s security engine to their own PostgreSQL and frontend.
-        </Callout>
-
-        <h3 id="decoupled-model" className="text-base font-semibold text-white mt-6 mb-2">
-          Architecture Separation Diagram
-        </h3>
-
-        <DiagramCard title="Platform Contract Boundary">
-          <div className="space-y-3 font-mono text-xs">
-            <div className="p-3 rounded-xl border border-sky-500/40 bg-sky-500/10 flex items-center justify-between">
-              <span className="text-sky-300 font-semibold">1. Developer Application (Next.js / React Native / Mobile)</span>
-              <span className="text-[10px] text-sky-400 px-2 py-0.5 rounded bg-black/40 border border-sky-500/30">Frontend</span>
-            </div>
-            <div className="text-center text-neutral-500">↓ consumes <code className="text-sky-300">@lokker/client</code> (Client Envelope Encryption)</div>
-            <div className="p-3 rounded-xl border border-purple-500/40 bg-purple-500/10 flex items-center justify-between">
-              <span className="text-purple-300 font-semibold">2. Lokker Platform Daemon (Headless Sync & Key Slots)</span>
-              <span className="text-[10px] text-purple-400 px-2 py-0.5 rounded bg-black/40 border border-purple-500/30">Engine</span>
-            </div>
-            <div className="text-center text-neutral-500">↓ connects via <code className="text-purple-300">@lokker/adapter-postgres</code></div>
-            <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 flex items-center justify-between">
-              <span className="text-emerald-300 font-semibold">3. Developer Database (PostgreSQL / SQLite / R2 / S3)</span>
-              <span className="text-[10px] text-emerald-400 px-2 py-0.5 rounded bg-black/40 border border-emerald-500/30">BYOD</span>
-            </div>
-          </div>
-        </DiagramCard>
-      </>
-    ),
-  },
-  {
-    id: "byod-schema",
-    productMode: "platform",
-    category: "Future Platform: Decoupled Backend",
-    title: "Bring Your Own Database (BYOD) PostgreSQL Schema",
-    badge: "Relational Specification",
-    badgeColor: "emerald",
-    description:
-      "Universal zero-knowledge relational schema allowing developers to persist encrypted state in their own PostgreSQL or SQLite databases.",
-    headings: [
-      { id: "universal-schema", title: "Universal Storage Schema" },
-      { id: "blind-indexes", title: "Searchable Blind Indexing" },
-    ],
-    renderContent: () => (
-      <>
-        <p className="text-neutral-300 text-sm leading-relaxed mb-4">
-          Because the server only stores opaque ciphertext envelopes and key-wrapping slots, the required PostgreSQL schema is compact, fast, and does not require understanding application business fields:
-        </p>
-
-        <CodeBlock filename="migrations/0001_lokker_core.sql" language="SQL">
-          <pre>
-            <span className="text-pink-400 font-semibold">CREATE TABLE</span> <span className="text-amber-300">lokker_key_slots</span> ({"\n"}
-            {"  "}id <span className="text-sky-300">UUID PRIMARY KEY</span>,{"\n"}
-            {"  "}tenant_id <span className="text-sky-300">UUID NOT NULL</span>,{"\n"}
-            {"  "}slot_type <span className="text-sky-300">VARCHAR(32) NOT NULL</span>, <span className="text-neutral-500 italic">{"-- 'password', 'passkey_prf', 'recovery'"}</span>{"\n"}
-            {"  "}wrapped_vek <span className="text-sky-300">TEXT NOT NULL</span>,{"\n"}
-            {"  "}salt <span className="text-sky-300">VARCHAR(64) NOT NULL</span>,{"\n"}
-            {"  "}created_at <span className="text-sky-300">TIMESTAMPTZ DEFAULT NOW()</span>{"\n"}
-            );{"\n\n"}
-            <span className="text-pink-400 font-semibold">CREATE TABLE</span> <span className="text-amber-300">lokker_encrypted_records</span> ({"\n"}
-            {"  "}id <span className="text-sky-300">UUID PRIMARY KEY</span>,{"\n"}
-            {"  "}tenant_id <span className="text-sky-300">UUID NOT NULL</span>,{"\n"}
-            {"  "}collection <span className="text-sky-300">VARCHAR(64) NOT NULL</span>,{"\n"}
-            {"  "}blind_index <span className="text-sky-300">VARCHAR(128)</span>, <span className="text-neutral-500 italic">{"-- HMAC-SHA-256 for exact match search"}</span>{"\n"}
-            {"  "}ciphertext <span className="text-sky-300">TEXT NOT NULL</span>,{"\n"}
-            {"  "}iv <span className="text-sky-300">VARCHAR(64) NOT NULL</span>,{"\n"}
-            {"  "}updated_at <span className="text-sky-300">TIMESTAMPTZ DEFAULT NOW()</span>{"\n"}
-            );
-          </pre>
-        </CodeBlock>
-      </>
-    ),
-  },
-  {
-    id: "developer-sdk",
-    productMode: "platform",
-    category: "Future Platform: Decoupled Backend",
-    title: "@lokker/client & Developer Experience (DX)",
-    badge: "SDK Contract",
+    id: "storage-backup",
+    category: "Storage & Portability",
+    title: "IndexedDB V3 & Encrypted Backup Spec (.lokker v2)",
+    badge: "Portability Spec",
     badgeColor: "sky",
     description:
-      "Interactive conceptual developer experience for integrating zero-knowledge envelope encryption and passkeys in 5 lines of code.",
+      "IndexedDB Schema V3 storage engine and formal specification for the .lokker encrypted backup container format.",
     headings: [
-      { id: "install-sdk", title: "Installation" },
-      { id: "client-integration", title: "Frontend Client Integration" },
-      { id: "server-integration", title: "Backend API Route" },
+      { id: "backup-format", title: "Container Format (.lokker)" },
+      { id: "restore-strategies", title: "Restore Strategies (Merge vs Replace)" },
     ],
-    renderContent: (packageManager, setPackageManager) => (
+    renderContent: () => (
       <>
-        <h3 id="install-sdk" className="text-base font-semibold text-white mb-2">
-          Install Developer SDK
+        <h3 id="backup-format" className="text-base font-semibold text-white mb-2">
+          Full-Vault Encrypted Backup Envelope
         </h3>
+        <p className="text-neutral-300 text-sm leading-relaxed mb-4">
+          Lokker exports 100% of all vault collections (credentials, bookmarks, categories, files, settings, masked emails, and passkeys) in an encrypted container:
+        </p>
 
-        <CodeBlock
-          filename="terminal"
-          language="Bash"
-          packageTabs={["pnpm", "npm", "yarn", "bun"]}
-          activeTab={packageManager}
-          onTabChange={setPackageManager}
-        >
+        <CodeBlock filename="backup.lokker (Encrypted Envelope)" language="JSON">
           <pre>
-            <span className="text-sky-400 font-semibold">{packageManager}</span>{" "}
-            <span className="text-pink-400 font-semibold">
-              {packageManager === "pnpm" ? "add" : packageManager === "yarn" ? "add" : "install"}
-            </span>{" "}
-            <span className="text-emerald-300 font-medium">@lokker/client @lokker/crypto</span>
+            {"{\n"}
+            {"  "}&quot;format&quot;: <span className="text-emerald-300">&quot;lokker-encrypted-backup&quot;</span>,{"\n"}
+            {"  "}&quot;version&quot;: <span className="text-orange-400 font-mono">2</span>,{"\n"}
+            {"  "}&quot;kdf&quot;: {"{"} &quot;algorithm&quot;: <span className="text-emerald-300">&quot;PBKDF2&quot;</span>, &quot;iterations&quot;: <span className="text-orange-400 font-mono">100000</span> {"}"},{"\n"}
+            {"  "}&quot;encryption&quot;: {"{"} &quot;algorithm&quot;: <span className="text-emerald-300">&quot;AES-GCM&quot;</span>, &quot;length&quot;: <span className="text-orange-400 font-mono">256</span> {"}"},{"\n"}
+            {"  "}&quot;summary&quot;: {"{"} &quot;itemCount&quot;: <span className="text-orange-400 font-mono">42</span>, &quot;maskedEmailCount&quot;: <span className="text-orange-400 font-mono">7</span>, &quot;passkeyCount&quot;: <span className="text-orange-400 font-mono">4</span> {"}"},{"\n"}
+            {"  "}&quot;ciphertext&quot;: <span className="text-emerald-300">&quot;&lt;base64-aes-gcm-encrypted-payload&gt;&quot;</span>{"\n"}
+            {"}"}
           </pre>
         </CodeBlock>
 
-        <h3 id="client-integration" className="text-base font-semibold text-white mt-6 mb-2">
-          Client-Side Zero-Knowledge Encryption
+        <h3 id="restore-strategies" className="text-base font-semibold text-white mt-6 mb-2">
+          Restore Strategies
         </h3>
-
-        <CodeBlock filename="app/components/secure-vault.tsx" language="TypeScript">
-          <pre>
-            <span className="text-pink-400 font-semibold">import</span> {"{"} <span className="text-sky-300">LokkerClient</span> {"}"} <span className="text-pink-400 font-semibold">from</span> <span className="text-emerald-300">&quot;@lokker/client&quot;</span>;{"\n\n"}
-            <span className="text-pink-400 font-semibold">const</span> <span className="text-amber-300">lokker</span> = <span className="text-pink-400 font-semibold">new</span> <span className="text-sky-300">LokkerClient</span>();{"\n\n"}
-            <span className="text-neutral-500 italic">{"// 1. Unlock session with Hardware Passkey or Master Secret"}</span>{"\n"}
-            <span className="text-pink-400 font-semibold">const</span> <span className="text-amber-300">session</span> = <span className="text-pink-400 font-semibold">await</span> lokker.auth.<span className="text-amber-300">unlockWithPasskey</span>();{"\n\n"}
-            <span className="text-neutral-500 italic">{"// 2. Encrypt record on device (Server NEVER sees plaintext)"}</span>{"\n"}
-            <span className="text-pink-400 font-semibold">const</span> <span className="text-amber-300">encryptedRecord</span> = <span className="text-pink-400 font-semibold">await</span> session.<span className="text-amber-300">encrypt</span>({"{"}{"\n"}
-            {"  "}collection: <span className="text-emerald-300">&quot;patient_notes&quot;</span>,{"\n"}
-            {"  "}payload: {"{"} patientId: <span className="text-emerald-300">&quot;P-1092&quot;</span>, diagnosis: <span className="text-emerald-300">&quot;Confidential chart&quot;</span> {"}"},{"\n"}
-            {"  "}searchableFields: {"{"} patientId: <span className="text-emerald-300">&quot;P-1092&quot;</span> {"}"},{"\n"}
-            {"}"});{"\n\n"}
-            <span className="text-neutral-500 italic">{"// 3. Send ONLY ciphertext to developer database"}</span>{"\n"}
-            <span className="text-pink-400 font-semibold">await</span> <span className="text-amber-300">fetch</span>(<span className="text-emerald-300">&quot;/api/records&quot;</span>, {"{"} method: <span className="text-emerald-300">&quot;POST&quot;</span>, body: <span className="text-amber-300">JSON</span>.<span className="text-amber-300">stringify</span>(encryptedRecord) {"}"});
-          </pre>
-        </CodeBlock>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-3">
+          <div className="p-3.5 rounded-xl border border-neutral-800 bg-[#121212] space-y-1">
+            <span className="text-xs font-semibold text-white">Safe Merge & Synchronize</span>
+            <p className="text-[11px] text-neutral-400">
+              Adds non-duplicate credentials, bookmarks, masked emails, and passkeys while keeping your existing local items intact.
+            </p>
+          </div>
+          <div className="p-3.5 rounded-xl border border-neutral-800 bg-[#121212] space-y-1">
+            <span className="text-xs font-semibold text-white">Complete Fresh Restore</span>
+            <p className="text-[11px] text-neutral-400">
+              Completely overwrites local IndexedDB stores with the exact snapshot from the backup file.
+            </p>
+          </div>
+        </div>
       </>
     ),
   },
 ];
 
 export default function DocsPage() {
-  const [productMode, setProductMode] = React.useState<DocProductMode>("vault");
   const [selectedTopicId, setSelectedTopicId] = React.useState<string>("vault-overview");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [packageManager, setPackageManager] = React.useState<"pnpm" | "npm" | "yarn" | "bun">("pnpm");
 
-  // Filter topics for the active product mode
-  const modeTopics = React.useMemo(() => {
-    return DOC_TOPICS.filter((t) => t.productMode === productMode);
-  }, [productMode]);
-
-  // Derive active topic purely without synchronous setState in effect
-  const isSelectedInMode = modeTopics.some((t) => t.id === selectedTopicId);
-  const activeTopicId = isSelectedInMode ? selectedTopicId : (modeTopics[0]?.id || "vault-overview");
   const selectedTopic =
-    modeTopics.find((t) => t.id === activeTopicId) || modeTopics[0] || DOC_TOPICS[0];
+    DOC_TOPICS.find((t) => t.id === selectedTopicId) || DOC_TOPICS[0];
 
   const filteredTopics = React.useMemo(() => {
-    if (!searchQuery.trim()) return modeTopics;
+    if (!searchQuery.trim()) return DOC_TOPICS;
     const q = searchQuery.toLowerCase();
-    return modeTopics.filter(
+    return DOC_TOPICS.filter(
       (t) =>
         t.title.toLowerCase().includes(q) ||
         t.description.toLowerCase().includes(q) ||
         t.category.toLowerCase().includes(q) ||
         t.headings.some((h) => h.title.toLowerCase().includes(q))
     );
-  }, [modeTopics, searchQuery]);
+  }, [searchQuery]);
+
+  // Group topics by category
+  const categories = React.useMemo(() => {
+    const map = new Map<string, DocTopic[]>();
+    for (const topic of filteredTopics) {
+      if (!map.has(topic.category)) {
+        map.set(topic.category, []);
+      }
+      map.get(topic.category)!.push(topic);
+    }
+    return Array.from(map.entries());
+  }, [filteredTopics]);
 
   // Find prev/next topic
-  const currentIndex = modeTopics.findIndex((t) => t.id === selectedTopic.id);
-  const prevTopic = currentIndex > 0 ? modeTopics[currentIndex - 1] : null;
+  const currentIndex = DOC_TOPICS.findIndex((t) => t.id === selectedTopic.id);
+  const prevTopic = currentIndex > 0 ? DOC_TOPICS[currentIndex - 1] : null;
   const nextTopic =
-    currentIndex < modeTopics.length - 1 ? modeTopics[currentIndex + 1] : null;
+    currentIndex < DOC_TOPICS.length - 1 ? DOC_TOPICS[currentIndex + 1] : null;
 
   return (
     <div className="min-h-dvh bg-black text-neutral-100 flex flex-col font-sans">
@@ -650,47 +574,18 @@ export default function DocsPage() {
         {/* SEGMENT 1: LEFT NAVIGATION SIDEBAR (FIXED / INDEPENDENT) */}
         {/* ======================================================== */}
         <aside className="w-full lg:w-72 shrink-0 space-y-6">
-          {/* Top Switcher 1: Product Mode Dropdown Card */}
-          <div className="space-y-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1">
-              Select Documentation Domain
+          {/* Top Product Header Card */}
+          <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-xs text-white">
+              <Lock className="size-3.5 text-sky-400" />
+              <span>Lokker Vault Guide</span>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-neutral-900 border border-neutral-800">
-              <button
-                type="button"
-                onClick={() => setProductMode("vault")}
-                className={`flex flex-col items-start p-2 rounded-lg text-left transition-colors cursor-pointer ${
-                  productMode === "vault"
-                    ? "bg-sky-500/15 border border-sky-500/40 text-white"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
-                  <Lock className="size-3 text-sky-400" />
-                  <span>Lokker Vault</span>
-                </div>
-                <span className="text-[10px] text-neutral-400">Current Local-First</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setProductMode("platform")}
-                className={`flex flex-col items-start p-2 rounded-lg text-left transition-colors cursor-pointer ${
-                  productMode === "platform"
-                    ? "bg-purple-500/15 border border-purple-500/40 text-white"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
-                  <Cpu className="size-3 text-purple-400" />
-                  <span>Lokker Platform</span>
-                </div>
-                <span className="text-[10px] text-neutral-400">Future Backend</span>
-              </button>
-            </div>
+            <p className="text-[11px] text-neutral-400">
+              100% Local-First Zero-Knowledge Architecture
+            </p>
           </div>
 
-          {/* Top Switcher 2: Version Pill */}
+          {/* Version Pill */}
           <div className="flex items-center justify-between p-2 rounded-xl bg-neutral-900/60 border border-neutral-800 text-xs">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-4 text-emerald-400" />
@@ -715,37 +610,42 @@ export default function DocsPage() {
             />
           </div>
 
-          {/* Navigation Items List */}
-          <nav className="space-y-1.5">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 px-2 pt-2">
-              {productMode === "vault" ? "Lokker Vault Architecture" : "Platform & SDK Contracts"}
-            </div>
-
-            {filteredTopics.map((t) => {
-              const isSelected = t.id === selectedTopic.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedTopicId(t.id);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between cursor-pointer ${
-                    isSelected
-                      ? "border border-sky-500/80 bg-sky-500/10 text-sky-400 font-semibold shadow-[0_0_12px_rgba(14,165,233,0.15)]"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-900"
-                  }`}
-                >
-                  <span className="truncate">{t.title}</span>
-                  {t.badge && (
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-neutral-800 border border-neutral-700 text-neutral-300 shrink-0 ml-1.5 font-mono">
-                      {t.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Navigation Items Grouped by Category */}
+          <nav className="space-y-5">
+            {categories.map(([category, topics]) => (
+              <div key={category} className="space-y-1.5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 px-2">
+                  {category}
+                </div>
+                <div className="space-y-0.5">
+                  {topics.map((t) => {
+                    const isSelected = t.id === selectedTopic.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTopicId(t.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between cursor-pointer ${
+                          isSelected
+                            ? "border border-sky-500/80 bg-sky-500/10 text-sky-400 font-semibold shadow-[0_0_12px_rgba(14,165,233,0.15)]"
+                            : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                        }`}
+                      >
+                        <span className="truncate">{t.title}</span>
+                        {t.badge && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-neutral-800 border border-neutral-700 text-neutral-300 shrink-0 ml-1.5 font-mono">
+                            {t.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
         </aside>
 
@@ -758,9 +658,7 @@ export default function DocsPage() {
             <div className="flex items-center gap-2 text-xs font-mono text-neutral-400">
               <span>Lokker Docs</span>
               <span>/</span>
-              <span className="text-sky-400 font-medium">
-                {productMode === "vault" ? "Local-First Vault" : "Platform Engine"}
-              </span>
+              <span className="text-sky-400 font-medium">{selectedTopic.category}</span>
               <span>/</span>
               <span className="text-white font-semibold">{selectedTopic.title}</span>
             </div>
