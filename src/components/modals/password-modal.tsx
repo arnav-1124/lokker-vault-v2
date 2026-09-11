@@ -10,13 +10,14 @@ import {
   Eye,
   EyeOff,
   QrCode,
+  Cloud,
+  HardDrive,
 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,12 +31,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Category, EntryType, PasswordEntry, VaultSettings } from "@/types";
+import { Category, EntryType, PasswordEntry, StorageScope, VaultSettings } from "@/types";
 import { generateId } from "@/lib/id";
 import {
   calculatePasswordStrength,
   generateSecurePassword,
 } from "@/lib/crypto";
+import { SaveScopeWarningModal } from "./save-scope-warning-modal";
 
 interface PasswordModalProps {
   isOpen: boolean;
@@ -66,6 +68,17 @@ export function PasswordModal({
   const [totpSecret, setTotpSecret] = React.useState(initialEntry?.totpSecret || "");
   const [isFavorite, setIsFavorite] = React.useState(!!initialEntry?.isFavorite);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [hasCloudSession, setHasCloudSession] = React.useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lokker_cloud_session");
+      setHasCloudSession(!!raw);
+    } catch {
+      setHasCloudSession(false);
+    }
+  }, [isOpen]);
 
   // Credit card specific fields
   const [cardNumber, setCardNumber] = React.useState(initialEntry?.cardDetails?.cardNumber || "");
@@ -124,11 +137,8 @@ export function PasswordModal({
     setPassword(generated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!websiteName.trim()) return;
-
-    const newEntry: PasswordEntry = {
+  const buildEntry = (scope?: StorageScope): PasswordEntry => {
+    return {
       id: initialEntry?.id || generateId("pwd"),
       websiteName: websiteName.trim(),
       websiteUrl: websiteUrl.trim(),
@@ -137,6 +147,7 @@ export function PasswordModal({
       notes: notes.trim(),
       category: category || "General",
       isFavorite,
+      storageScope: scope || initialEntry?.storageScope || (hasCloudSession ? "cloud" : "local"),
       totpSecret: totpSecret.trim().toUpperCase(),
       entryType,
       createdAt: initialEntry?.createdAt || Date.now(),
@@ -152,14 +163,45 @@ export function PasswordModal({
             }
           : undefined,
     };
+  };
 
-    onSave(newEntry);
+  const handleInitiateSave = (scope: StorageScope) => {
+    if (!websiteName.trim()) return;
+    if (hasCloudSession && scope === "local") {
+      setIsWarningModalOpen(true);
+      return;
+    }
+    const entry = buildEntry(scope);
+    onSave(entry);
     onClose();
+  };
+
+  const handleConfirmSaveLocally = () => {
+    setIsWarningModalOpen(false);
+    const entry = buildEntry("local");
+    onSave(entry);
+    onClose();
+  };
+
+  const handleConfirmSaveToCloud = () => {
+    setIsWarningModalOpen(false);
+    const entry = buildEntry("cloud");
+    onSave(entry);
+    onClose();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (hasCloudSession) {
+      handleInitiateSave("cloud");
+    } else {
+      handleInitiateSave("local");
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg bg-surface border-border-subtle p-6 max-h-[90vh]">
+      <DialogContent className="sm:max-w-2xl w-full bg-surface border-border-subtle p-6 max-h-[90vh]">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-base font-semibold">
             {initialEntry ? "Edit Credential Entry" : "Add New Credential"}
@@ -270,7 +312,9 @@ export function PasswordModal({
                         {c.name}
                       </SelectItem>
                     ))}
-                    <SelectItem value="General">General</SelectItem>
+                    {!categories.some((c) => c.name.toLowerCase() === "general") && (
+                      <SelectItem value="General">General</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -445,16 +489,55 @@ export function PasswordModal({
 
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="text-xs cursor-pointer">
+          <div className="-mx-6 -mb-6 mt-6 px-6 py-4 border-t border-border-subtle bg-surface-elevated/40 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 rounded-b-xl shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button type="submit" size="sm" className="text-xs font-medium cursor-pointer">
-              {initialEntry ? "Update Entry" : "Save Credential"}
-            </Button>
-          </DialogFooter>
+
+            {hasCloudSession ? (
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleInitiateSave("local")}
+                  className="text-xs gap-1.5 cursor-pointer border-border-subtle hover:bg-surface-elevated"
+                >
+                  <HardDrive className="size-3.5 text-muted-foreground" />
+                  <span>Save Locally</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleInitiateSave("cloud")}
+                  className="text-xs font-medium gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Cloud className="size-3.5" />
+                  <span>{initialEntry ? "Update in Cloud" : "Save to Cloud"}</span>
+                </Button>
+              </div>
+            ) : (
+              <Button type="submit" size="sm" className="text-xs font-medium cursor-pointer">
+                {initialEntry ? "Update Entry" : "Save Credential"}
+              </Button>
+            )}
+          </div>
         </form>
       </DialogContent>
+
+      <SaveScopeWarningModal
+        isOpen={isWarningModalOpen}
+        onClose={() => setIsWarningModalOpen(false)}
+        onSaveLocally={handleConfirmSaveLocally}
+        onSaveToCloud={handleConfirmSaveToCloud}
+        itemType="credential"
+      />
     </Dialog>
   );
 }

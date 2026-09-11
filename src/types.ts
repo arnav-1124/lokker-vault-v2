@@ -1,3 +1,5 @@
+export type StorageScope = "cloud" | "local";
+
 export interface Bookmark {
   id: string;
   title: string;
@@ -6,6 +8,7 @@ export interface Bookmark {
   description?: string;
   tags?: string[];
   isFavorite?: boolean;
+  storageScope?: StorageScope;
   createdAt: number;
   updatedAt: number;
 }
@@ -43,6 +46,7 @@ export interface PasswordEntry {
   category: string;
   tags?: string[];
   isFavorite: boolean;
+  storageScope?: StorageScope;
   createdAt: number;
   updatedAt: number;
   history?: PasswordHistoryItem[];

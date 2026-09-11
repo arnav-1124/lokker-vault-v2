@@ -135,7 +135,7 @@ export function CategoryManagerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md bg-surface border-border-subtle p-6">
+      <DialogContent className="sm:max-w-lg w-full bg-surface border-border-subtle p-6">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Tag className="size-4 text-primary" />

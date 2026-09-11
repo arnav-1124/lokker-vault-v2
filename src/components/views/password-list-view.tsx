@@ -19,6 +19,8 @@ import {
   User,
   Bookmark as BookmarkIcon,
   Link2,
+  Cloud,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -224,6 +226,17 @@ export function PasswordListView({
                           {item.category}
                         </Badge>
                       )}
+                      {item.storageScope === "cloud" ? (
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary bg-primary/5 gap-1 inline-flex items-center">
+                          <Cloud className="size-2.5" />
+                          <span>Cloud</span>
+                        </Badge>
+                      ) : item.storageScope === "local" ? (
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-border-subtle text-muted-foreground bg-muted/20 gap-1 inline-flex items-center">
+                          <HardDrive className="size-2.5" />
+                          <span>Local Only</span>
+                        </Badge>
+                      ) : null}
                       {item.isFavorite && (
                         <Star className="size-3 text-amber-400 fill-amber-400 shrink-0" />
                       )}

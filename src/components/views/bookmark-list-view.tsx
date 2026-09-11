@@ -11,6 +11,8 @@ import {
   Trash2,
   Globe,
   KeyRound,
+  Cloud,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -215,9 +217,22 @@ export function BookmarkListView({
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-border-subtle text-xs">
-                <Badge variant="outline" className="text-[10px] bg-background border-border-subtle">
-                  {bm.category || "General"}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px] bg-background border-border-subtle">
+                    {bm.category || "General"}
+                  </Badge>
+                  {bm.storageScope === "cloud" ? (
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary bg-primary/5 gap-1 inline-flex items-center">
+                      <Cloud className="size-2.5" />
+                      <span>Cloud</span>
+                    </Badge>
+                  ) : bm.storageScope === "local" ? (
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-border-subtle text-muted-foreground bg-muted/20 gap-1 inline-flex items-center">
+                      <HardDrive className="size-2.5" />
+                      <span>Local Only</span>
+                    </Badge>
+                  ) : null}
+                </div>
                 <a
                   href={bm.url}
                   target="_blank"

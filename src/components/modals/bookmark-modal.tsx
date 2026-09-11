@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark as BookmarkIcon } from "lucide-react";
+import { Bookmark as BookmarkIcon, Cloud, HardDrive } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bookmark, Category } from "@/types";
+import { Bookmark, Category, StorageScope } from "@/types";
 import { generateId } from "@/lib/id";
+import { SaveScopeWarningModal } from "./save-scope-warning-modal";
 
 interface BookmarkModalProps {
   isOpen: boolean;
@@ -47,6 +47,17 @@ export function BookmarkModal({
   const [category, setCategory] = React.useState(initialBookmark?.category || defaultCategoryId || (categories[0]?.name || "General"));
   const [description, setDescription] = React.useState(initialBookmark?.description || "");
   const [isFavorite, setIsFavorite] = React.useState(!!initialBookmark?.isFavorite);
+  const [hasCloudSession, setHasCloudSession] = React.useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lokker_cloud_session");
+      setHasCloudSession(!!raw);
+    } catch {
+      setHasCloudSession(false);
+    }
+  }, [isOpen]);
 
   if (prevBookmark !== initialBookmark) {
     setPrevBookmark(initialBookmark);
@@ -65,33 +76,62 @@ export function BookmarkModal({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !url.trim()) return;
-
+  const buildBookmark = (scope?: StorageScope): Bookmark => {
     let cleanUrl = url.trim();
     if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
       cleanUrl = `https://${cleanUrl}`;
     }
 
-    const newBookmark: Bookmark = {
+    return {
       id: initialBookmark?.id || generateId("bm"),
       title: title.trim(),
       url: cleanUrl,
       category: category || "General",
       description: description.trim(),
       isFavorite,
+      storageScope: scope || initialBookmark?.storageScope || (hasCloudSession ? "cloud" : "local"),
       createdAt: initialBookmark?.createdAt || Date.now(),
       updatedAt: Date.now(),
     };
+  };
 
-    onSave(newBookmark);
+  const handleInitiateSave = (scope: StorageScope) => {
+    if (!title.trim() || !url.trim()) return;
+    if (hasCloudSession && scope === "local") {
+      setIsWarningModalOpen(true);
+      return;
+    }
+    const bm = buildBookmark(scope);
+    onSave(bm);
     onClose();
+  };
+
+  const handleConfirmSaveLocally = () => {
+    setIsWarningModalOpen(false);
+    const bm = buildBookmark("local");
+    onSave(bm);
+    onClose();
+  };
+
+  const handleConfirmSaveToCloud = () => {
+    setIsWarningModalOpen(false);
+    const bm = buildBookmark("cloud");
+    onSave(bm);
+    onClose();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (hasCloudSession) {
+      handleInitiateSave("cloud");
+    } else {
+      handleInitiateSave("local");
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-surface border-border-subtle p-6">
+      <DialogContent className="sm:max-w-xl w-full bg-surface border-border-subtle p-6">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <BookmarkIcon className="size-4 text-primary" />
@@ -142,7 +182,9 @@ export function BookmarkModal({
                     {c.name}
                   </SelectItem>
                 ))}
-                <SelectItem value="General">General</SelectItem>
+                {!categories.some((c) => c.name.toLowerCase() === "general") && (
+                  <SelectItem value="General">General</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -172,16 +214,55 @@ export function BookmarkModal({
             </Label>
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="text-xs cursor-pointer">
+          <div className="-mx-6 -mb-6 mt-6 px-6 py-4 border-t border-border-subtle bg-surface-elevated/40 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 rounded-b-xl shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button type="submit" size="sm" className="text-xs font-medium cursor-pointer">
-              {initialBookmark ? "Update Bookmark" : "Save Bookmark"}
-            </Button>
-          </DialogFooter>
+
+            {hasCloudSession ? (
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleInitiateSave("local")}
+                  className="text-xs gap-1.5 cursor-pointer border-border-subtle hover:bg-surface-elevated"
+                >
+                  <HardDrive className="size-3.5 text-muted-foreground" />
+                  <span>Save Locally</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleInitiateSave("cloud")}
+                  className="text-xs font-medium gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Cloud className="size-3.5" />
+                  <span>{initialBookmark ? "Update in Cloud" : "Save to Cloud"}</span>
+                </Button>
+              </div>
+            ) : (
+              <Button type="submit" size="sm" className="text-xs font-medium cursor-pointer">
+                {initialBookmark ? "Update Bookmark" : "Save Bookmark"}
+              </Button>
+            )}
+          </div>
         </form>
       </DialogContent>
+
+      <SaveScopeWarningModal
+        isOpen={isWarningModalOpen}
+        onClose={() => setIsWarningModalOpen(false)}
+        onSaveLocally={handleConfirmSaveLocally}
+        onSaveToCloud={handleConfirmSaveToCloud}
+        itemType="bookmark"
+      />
     </Dialog>
   );
 }

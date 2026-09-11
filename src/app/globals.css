@@ -190,6 +190,7 @@
   --z-sticky: 200;
   --z-drawer: 250; /* mobile sidebar drawer — always below modals */
   --z-modal: 300;
+  --z-modal-dropdown: 350; /* popovers, selects, and dropdowns opened inside modals */
   --z-toast: 400;
 }
 
