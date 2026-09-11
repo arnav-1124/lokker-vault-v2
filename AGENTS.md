@@ -70,41 +70,54 @@ Product context: PRODUCT.md. Architecture: DEVELOPER.md.
 16. Do not restyle shadcn primitives wholesale; adjust via tokens or small
     variant edits, and document the reason in the file.
 
+## Plain English & UX Standards (No Developer Jargon)
+
+17. **NO DEVELOPER OR TECHNICAL JARGON ON CLIENT UI/UX**:
+    - The client UI/UX must never expose developer, development, or technical words to end-users (e.g. "IndexedDB", "Neon Postgres Relay", "Fastify", "E2EE Protocol v2", "Vector clocks", "API endpoints", "PBKDF2 iterations", "Payloads", "Schema", "Relay", "TTL", "JWT").
+    - Always use plain English, reassuring language, and catchy product phrasing:
+      - Instead of "IndexedDB" → "Your Device Storage" or "Local Device"
+      - Instead of "Neon Postgres Relay" → "Secure Cloud Vault" or "Encrypted Cloud"
+      - Instead of "FIDO2 / PRF" → "Passkey & Biometrics"
+      - Instead of "E2EE Protocol v2" → "Zero-Knowledge Protection"
+      - Instead of "AES-256-GCM Envelope" → "Bank-Grade Encryption"
+      - Instead of "Argon2id + KDF" → "Master Password Shield"
+      - Instead of "Packets Processed" → "Vault Items Protected"
+
 ## Security rules
 
-17. Never implement homemade cryptography, XOR "encryption",
+18. Never implement homemade cryptography, XOR "encryption",
     `Math.random()` for security, hardcoded secrets, static IVs, fake
     WebAuthn/PRF fallbacks, or silent security downgrades. If a required
     primitive is unavailable: FAIL CLOSED.
-18. Never log passwords, master passwords, recovery keys, or key material.
+19. Never log passwords, master passwords, recovery keys, or key material.
     Never expose secrets in URLs, DOM attributes, or error messages.
-19. Do not implement vault storage, crypto, extension, or backend code
+20. Do not implement vault storage, crypto, extension, or backend code
     unless the current instruction explicitly asks for that move.
 
 ## Dependencies
 
-20. Decision order: existing dependency → framework capability → platform
+21. Decision order: existing dependency → framework capability → platform
     API → established external package → custom code (last resort, justify).
-21. Before adding any package: check maintenance, security, bundle size,
+22. Before adding any package: check maintenance, security, bundle size,
     compatibility (Babel 7 constraint — see DEVELOPER.md §6), and whether
     something already installed solves it. Justify additions in the change
     report.
 
 ## Documentation & process
 
-22. Consult version-matched official documentation for Next.js, React,
+23. Consult version-matched official documentation for Next.js, React,
     shadcn/ui, Tailwind, Web Crypto, browser APIs before using them.
     Documentation wins over model knowledge; if ambiguous, STOP AND VERIFY.
     Never invent APIs or assume old-version behavior.
-23. Keep PRODUCT.md / DEVELOPER.md / AGENTS.md truthful in the same change
+24. Keep PRODUCT.md / DEVELOPER.md / AGENTS.md truthful in the same change
     that alters architecture, scope, or rules.
-24. Test behavior with Vitest; security-sensitive code requires tests before
+25. Test behavior with Vitest; security-sensitive code requires tests before
     merge. Run `npm run lint`, `npm test`, `npm run build` before reporting
     done; report real results only.
-25. Definition of done: code consistent with this rulebook, documentation
+26. Definition of done: code consistent with this rulebook, documentation
     updated, lint/test/build green, no unrelated changes, no leftover
     debug code, no unused dependencies.
-26. No blind refactoring, no speculative abstractions, no feature creep.
+27. No blind refactoring, no speculative abstractions, no feature creep.
     New product capabilities must strengthen the scope boundary defined in
     PRODUCT.md §9 (personal security, credential management, privacy
     utilities, secure personal data, browser productivity) — reject

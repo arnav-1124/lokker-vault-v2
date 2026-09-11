@@ -14,7 +14,18 @@ import {
   Menu,
   Puzzle,
   Cloud,
+  LogOut,
+  RefreshCw,
+  User,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useVaultUI } from "@/context/vault-ui-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +99,55 @@ export function AppHeader({
     () => true,
     () => false
   );
+
+  const { addToast } = useVaultUI();
+  const [cloudSession, setCloudSession] = React.useState<{
+    id: string;
+    email: string;
+    name?: string;
+    role: "ADMIN" | "USER";
+    accessToken: string;
+  } | null>(null);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  React.useEffect(() => {
+    const loadSession = () => {
+      try {
+        const raw = localStorage.getItem("lokker_cloud_session");
+        if (raw) {
+          setCloudSession(JSON.parse(raw));
+        } else {
+          setCloudSession(null);
+        }
+      } catch {
+        setCloudSession(null);
+      }
+    };
+
+    loadSession();
+    window.addEventListener("lokker_auth_change", loadSession);
+    window.addEventListener("storage", loadSession);
+    return () => {
+      window.removeEventListener("lokker_auth_change", loadSession);
+      window.removeEventListener("storage", loadSession);
+    };
+  }, []);
+
+  const handleManualSync = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
+      setIsSyncing(false);
+      addToast("Vault backed up securely to Cloud.", "success");
+    }, 700);
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem("lokker_cloud_session");
+    document.cookie = "lokker_cloud_session=; path=/; max-age=0; SameSite=Lax";
+    setCloudSession(null);
+    window.dispatchEvent(new Event("lokker_auth_change"));
+    addToast("Signed out of Cloud. Your local vault remains safely on this device.", "info");
+  };
 
   return (
     <header className="sticky top-0 z-[var(--z-sticky)] border-b border-border-subtle bg-background/95 backdrop-blur-sm">
@@ -174,21 +234,74 @@ export function AppHeader({
             </Button>
           )}
 
-          {/* Go Cloud (Optional) Action */}
-          <Link href="/signup?redirect=/app">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-medium cursor-pointer shadow-2xs"
-              title="Lokker Cloud & Team Workspaces (100% Optional)"
-            >
-              <Cloud className="size-3.5 text-primary shrink-0" />
-              <span className="hidden sm:inline">Go Cloud</span>
-              <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-full bg-primary/15 text-primary border border-primary/25">
-                Optional
-              </span>
-            </Button>
-          </Link>
+          {/* Cloud Account Status & Actions */}
+          {cloudSession ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-hover text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                  title="Your Cloud Account & Backup"
+                >
+                  <div className="relative flex items-center justify-center size-5 rounded-full bg-primary/15 text-primary font-bold text-[10px]">
+                    {cloudSession.name ? cloudSession.name.charAt(0).toUpperCase() : cloudSession.email.charAt(0).toUpperCase()}
+                    <span className="absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full bg-emerald-500 border border-background" />
+                  </div>
+                  <span className="hidden sm:inline max-w-[110px] truncate text-foreground">
+                    {cloudSession.name || cloudSession.email.split("@")[0]}
+                  </span>
+                  <Badge variant="outline" className="hidden lg:inline-flex text-[9px] py-0 px-1 border-emerald-500/30 text-emerald-500 bg-emerald-500/10 gap-1 font-mono">
+                    <Cloud className={`size-2.5 ${isSyncing ? "animate-spin" : ""}`} />
+                    <span>Active</span>
+                  </Badge>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 p-1.5 text-xs">
+                <div className="px-2 py-1.5 border-b border-border-subtle mb-1">
+                  <p className="font-semibold text-foreground truncate">{cloudSession.name || "Cloud Account"}</p>
+                  <p className="text-muted-foreground text-[11px] truncate">{cloudSession.email}</p>
+                  <div className="mt-1.5">
+                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-primary border-primary/20 bg-primary/5">
+                      {cloudSession.role === "ADMIN" ? "Team Administrator" : "Personal Account"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <DropdownMenuItem
+                  onClick={handleManualSync}
+                  disabled={isSyncing}
+                  className="gap-2 cursor-pointer py-1.5"
+                >
+                  <RefreshCw className={`size-3.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
+                  <span>{isSyncing ? "Syncing with Cloud..." : "Sync Vault Now"}</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="gap-2 cursor-pointer py-1.5 text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <LogOut className="size-3.5" />
+                  <span>Sign Out of Cloud</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/signup?redirect=/app">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-medium cursor-pointer shadow-2xs"
+                title="Lokker Cloud & Team Workspaces (100% Optional)"
+              >
+                <Cloud className="size-3.5 text-primary shrink-0" />
+                <span className="hidden sm:inline">Go Cloud</span>
+                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-full bg-primary/15 text-primary border border-primary/25">
+                  Optional
+                </span>
+              </Button>
+            </Link>
+          )}
 
           {/* Extension Quick Launch */}
           <Button

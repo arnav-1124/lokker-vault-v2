@@ -51,15 +51,15 @@ export function AuthVaultAnimation() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
             </span>
-            <span className="font-semibold text-foreground">RELAY ONLINE</span>
+            <span className="font-semibold text-foreground">CLOUD SYNC READY</span>
             <span className="text-muted-foreground/50">•</span>
-            <span>{latency}ms</span>
+            <span>Ultra Fast</span>
           </div>
         </div>
 
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 backdrop-blur-md border border-border-subtle text-[11px] font-mono text-muted-foreground">
           <Radio className="size-3 text-primary animate-pulse" />
-          <span>E2EE PROTOCOL V2</span>
+          <span>END-TO-END ENCRYPTED</span>
         </div>
       </div>
 
@@ -154,36 +154,36 @@ export function AuthVaultAnimation() {
               <Database className="size-5" />
             </div>
             <span className="mt-1.5 text-[10px] font-mono font-medium text-foreground bg-background/70 px-2 py-0.5 rounded border border-border-subtle">
-              IndexedDB
+              Your Device
             </span>
             <span className="text-[9px] font-mono text-emerald-500 font-semibold mt-0.5">
-              LOCAL
+              PRIVATE STORAGE
             </span>
           </div>
 
-          {/* Node 2: Neon Cloud Relay (Top Right) */}
+          {/* Node 2: Cloud Backup (Top Right) */}
           <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex flex-col items-center">
             <div className="size-12 rounded-xl bg-background/80 backdrop-blur-md border border-border-subtle shadow-lg flex items-center justify-center text-emerald-500 hover:border-emerald-500/50 transition-colors">
               <Cloud className="size-5" />
             </div>
             <span className="mt-1.5 text-[10px] font-mono font-medium text-foreground bg-background/70 px-2 py-0.5 rounded border border-border-subtle">
-              Neon Cloud
+              Encrypted Cloud
             </span>
             <span className="text-[9px] font-mono text-primary font-semibold mt-0.5">
-              RELAY
+              AUTO BACKUP
             </span>
           </div>
 
-          {/* Node 3: Passkey / Hardware FIDO2 (Bottom Center) */}
+          {/* Node 3: Passkey / Hardware Biometrics (Bottom Center) */}
           <div className="absolute bottom-2 sm:bottom-4 flex flex-col items-center">
             <div className="size-12 rounded-xl bg-background/80 backdrop-blur-md border border-border-subtle shadow-lg flex items-center justify-center text-indigo-400 hover:border-indigo-400/50 transition-colors">
               <Fingerprint className="size-5" />
             </div>
             <span className="mt-1.5 text-[10px] font-mono font-medium text-foreground bg-background/70 px-2 py-0.5 rounded border border-border-subtle">
-              FIDO2 / PRF
+              Passkey & Touch ID
             </span>
             <span className="text-[9px] font-mono text-muted-foreground mt-0.5">
-              HARDWARE
+              BIOMETRIC LOCK
             </span>
           </div>
         </div>
@@ -195,9 +195,9 @@ export function AuthVaultAnimation() {
             <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
               <span className="text-muted-foreground flex items-center gap-1.5">
                 <Cpu className="size-3 text-primary" />
-                <span>AES-256-GCM ENVELOPE</span>
+                <span>BANK-GRADE ENCRYPTION</span>
               </span>
-              <span className="text-emerald-500 font-bold">CLIENT SIGNED</span>
+              <span className="text-emerald-500 font-bold">100% PRIVATE</span>
             </div>
             <div className="font-mono text-[11px] text-foreground/80 tracking-wider bg-surface/80 px-2 py-1 rounded border border-border-subtle truncate">
               {cipherDigest}
@@ -210,15 +210,15 @@ export function AuthVaultAnimation() {
               <Shield className="size-3.5 text-emerald-500 shrink-0" />
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-foreground truncate">Zero-Knowledge</div>
-                <div className="text-[9px] font-mono text-muted-foreground truncate">No Plaintext Sent</div>
+                <div className="text-[9px] font-mono text-muted-foreground truncate">Only You Hold The Key</div>
               </div>
             </div>
 
             <div className="p-2.5 rounded-xl bg-background/50 backdrop-blur-md border border-border-subtle flex items-center gap-2">
               <Zap className="size-3.5 text-primary shrink-0" />
               <div className="min-w-0">
-                <div className="text-[10px] font-bold text-foreground truncate">Argon2id + KDF</div>
-                <div className="text-[9px] font-mono text-muted-foreground truncate">64MB Memory Cost</div>
+                <div className="text-[10px] font-bold text-foreground truncate">Master Key Shield</div>
+                <div className="text-[9px] font-mono text-muted-foreground truncate">Brute-Force Immune</div>
               </div>
             </div>
           </div>
@@ -229,12 +229,12 @@ export function AuthVaultAnimation() {
       <div className="relative z-10 flex items-center justify-between pt-4 border-t border-border-subtle text-[11px] font-mono text-muted-foreground">
         <div className="flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-          <span>Packets Processed:</span>
+          <span>Items Protected:</span>
           <span className="text-foreground font-semibold font-mono">{packetCount.toLocaleString()}</span>
         </div>
         <div className="flex items-center gap-1 text-emerald-500 font-semibold">
           <CheckCircle2 className="size-3" />
-          <span>100% Client-Side Privacy</span>
+          <span>100% Zero-Knowledge Privacy</span>
         </div>
       </div>
     </div>

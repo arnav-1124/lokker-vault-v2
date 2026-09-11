@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { appConfig } from "@/config/app";
+import { PublicRouteGuard } from "@/components/public-route-guard";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   const jsonLd = {
@@ -54,7 +55,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {children}
+      <PublicRouteGuard>{children}</PublicRouteGuard>
     </>
   );
 }

@@ -54,6 +54,9 @@ their data to a cloud provider.
     deliver a trustworthy, useful, maintainable product and ship. Avoid
     endless hardening, speculative abstractions, premature optimization,
     and feature creep.
+11. **Plain English & Human-Friendly Language (Zero Developer Jargon)**:
+    - End-users must NEVER see developer, development, or technical jargon on the client UI/UX (e.g. "IndexedDB", "Neon Postgres Relay", "Fastify", "E2EE Protocol v2", "Vector clocks", "API endpoints", "PBKDF2 iterations", "Payloads", "Schema", "Relay", "TTL", "JWT").
+    - Always use plain English, reassuring language, and catchy, premium product phrasing (e.g., "Your Device Storage", "Encrypted Cloud Backup", "Ultra-Fast Sync", "Bank-Grade Encryption", "Private & Zero-Knowledge", "Connected", "All devices updated").
 
 ## 5. Product areas
 

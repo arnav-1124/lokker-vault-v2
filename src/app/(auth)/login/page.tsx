@@ -32,6 +32,19 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
+  // Redirect if already logged in
+  React.useEffect(() => {
+    try {
+      const session = localStorage.getItem(STORAGE_KEY);
+      if (session) {
+        document.cookie = "lokker_cloud_session=1; path=/; max-age=604800; SameSite=Lax";
+        router.replace("/app");
+      }
+    } catch {
+      // Ignore during SSR
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -61,6 +74,8 @@ export default function LoginPage() {
           accessToken: data.accessToken,
         })
       );
+      document.cookie = "lokker_cloud_session=1; path=/; max-age=604800; SameSite=Lax";
+      window.dispatchEvent(new Event("lokker_auth_change"));
 
       router.push(redirectPath);
     } catch (err: any) {

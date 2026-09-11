@@ -102,6 +102,36 @@ export function AppSidebar({
   const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
   const [editingCatName, setEditingCatName] = React.useState("");
 
+  const [cloudSession, setCloudSession] = React.useState<{
+    id: string;
+    email: string;
+    name?: string;
+    role: "ADMIN" | "USER";
+  } | null>(null);
+
+  React.useEffect(() => {
+    const loadSession = () => {
+      try {
+        const raw = localStorage.getItem("lokker_cloud_session");
+        if (raw) {
+          setCloudSession(JSON.parse(raw));
+        } else {
+          setCloudSession(null);
+        }
+      } catch {
+        setCloudSession(null);
+      }
+    };
+
+    loadSession();
+    window.addEventListener("lokker_auth_change", loadSession);
+    window.addEventListener("storage", loadSession);
+    return () => {
+      window.removeEventListener("lokker_auth_change", loadSession);
+      window.removeEventListener("storage", loadSession);
+    };
+  }, []);
+
   const mainNavItems = [
     { id: "home" as ViewMode, label: "Dashboard", icon: ShieldCheck },
     { id: "passwords" as ViewMode, label: "Password Vault", icon: KeyRound, count: passwordCount },
@@ -458,43 +488,77 @@ export function AppSidebar({
 
           {/* Cloud Sync Callout */}
           {!isCollapsed ? (
-            <div className="p-2.5 mx-1 my-2 rounded-lg border border-primary/20 bg-primary/5 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
-                  <Cloud className="size-3.5 text-primary" />
-                  <span>Cloud Sync</span>
-                </span>
-                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
-                  Optional
-                </span>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                Encrypted multi-device sync & upcoming Team Workspaces.
-              </p>
-              <Link href="/signup?redirect=/app" className="block w-full">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full h-6 text-[10px] gap-1 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
-                >
-                  <span>Go Cloud</span>
-                  <ArrowRight className="size-2.5" />
-                </Button>
-              </Link>
+            <div className="p-3 rounded-xl bg-surface/70 border border-border-subtle space-y-2">
+              {cloudSession ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                      <Cloud className="size-3.5 text-emerald-500" />
+                      <span>Cloud Active</span>
+                    </span>
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      Online
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                    {cloudSession.email}
+                  </p>
+                  <div className="text-[9px] font-mono text-emerald-500 flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Auto Backup Active</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                      <Cloud className="size-3.5 text-primary" />
+                      <span>Cloud Sync</span>
+                    </span>
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                      Optional
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Encrypted multi-device sync & team workspaces.
+                  </p>
+                  <Link href="/signup?redirect=/app" className="block w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-6 text-[10px] gap-1 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+                    >
+                      <span>Go Cloud</span>
+                      <ArrowRight className="size-2.5" />
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <div className="flex justify-center my-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link
-                    href="/signup?redirect=/app"
-                    className="p-2 rounded-lg text-primary hover:bg-primary/10 border border-primary/20 cursor-pointer flex items-center justify-center"
-                    title="Go Cloud (Optional)"
-                  >
-                    <Cloud className="size-3.5" />
-                  </Link>
+                  {cloudSession ? (
+                    <div
+                      className="p-2 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center cursor-default"
+                      title={`Cloud Sync Active (${cloudSession.email})`}
+                    >
+                      <Cloud className="size-3.5" />
+                    </div>
+                  ) : (
+                    <Link
+                      href="/signup?redirect=/app"
+                      className="p-2 rounded-lg text-primary hover:bg-primary/10 border border-primary/20 cursor-pointer flex items-center justify-center"
+                      title="Go Cloud (Optional)"
+                    >
+                      <Cloud className="size-3.5" />
+                    </Link>
+                  )}
                 </TooltipTrigger>
-                <TooltipContent side="right">Go Cloud (Optional)</TooltipContent>
+                <TooltipContent side="right">
+                  {cloudSession ? `Cloud Sync: ${cloudSession.email}` : "Go Cloud (Optional)"}
+                </TooltipContent>
               </Tooltip>
             </div>
           )}
