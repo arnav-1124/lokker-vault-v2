@@ -18,10 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { appConfig } from "@/config/app";
+import { getVaultMeta, saveVaultMeta } from "@/lib/db";
+import { generateRecoveryKey, initializeEnvelopeVault } from "@/lib/crypto";
+import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
 
 const STORAGE_KEY = "lokker_cloud_session";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect") || "/app";
@@ -31,6 +34,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [hasLocalVault, setHasLocalVault] = React.useState(false);
 
   // Redirect if already logged in
   React.useEffect(() => {
@@ -44,6 +48,21 @@ export default function LoginPage() {
       // Ignore during SSR
     }
   }, [router]);
+
+  // Check if user has initialized local vault
+  React.useEffect(() => {
+    async function checkVault() {
+      try {
+        const meta = await getVaultMeta();
+        if (meta && meta.isInitialized) {
+          setHasLocalVault(true);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    checkVault();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +95,14 @@ export default function LoginPage() {
       );
       document.cookie = "lokker_cloud_session=1; path=/; max-age=604800; SameSite=Lax";
       window.dispatchEvent(new Event("lokker_auth_change"));
+
+      // If local device does not have an initialized vault yet, initialize it with this unified password
+      const meta = await getVaultMeta();
+      if (!meta || !meta.isInitialized) {
+        const recoveryKey = generateRecoveryKey();
+        const { meta: newMeta } = await initializeEnvelopeVault(password, recoveryKey, INITIAL_DEMO_VAULT_ITEMS);
+        await saveVaultMeta(newMeta);
+      }
 
       router.push(redirectPath);
     } catch (err: any) {
@@ -160,11 +187,13 @@ export default function LoginPage() {
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Password</Label>
+              <Label className="text-xs font-medium">
+                {hasLocalVault ? "Master Password" : "Password"}
+              </Label>
               <button
                 type="button"
                 onClick={() => {
-                  setErrorMsg("Password recovery uses your local Master Recovery Key inside the workspace.");
+                  setErrorMsg("To recover access, use your 32-character Emergency Recovery Key inside the workspace.");
                 }}
                 className="text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
@@ -175,7 +204,7 @@ export default function LoginPage() {
               <Input
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="••••••••••••"
+                placeholder={hasLocalVault ? "Enter your Master Password..." : "••••••••••••"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-9 text-xs pr-9 bg-surface border-border-subtle focus-visible:border-border-strong font-mono"
@@ -189,6 +218,11 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
               </button>
             </div>
+            {hasLocalVault && (
+              <p className="text-[11px] text-muted-foreground pt-0.5 leading-normal">
+                Your vault Master Password is your cloud account sign-in password.
+              </p>
+            )}
           </div>
 
           {/* Primary Supabase-styled Green Button */}
@@ -217,5 +251,13 @@ export default function LoginPage() {
         </div>
       </div>
     </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <LoginContent />
+    </React.Suspense>
   );
 }

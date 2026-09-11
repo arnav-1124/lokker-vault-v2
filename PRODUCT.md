@@ -227,6 +227,10 @@ deployed live at [https://lokker-vault.vercel.app](https://lokker-vault.vercel.a
 
 For users and teams requiring multi-device synchronization and password sharing:
 - **Zero-Knowledge Backend (IMPLEMENTED):** `lokker-server` built with Fastify v5, Neon Serverless Postgres, and Drizzle ORM. Implements Argon2id password hashing, rotating JWT/refresh tokens, and strict Role-Based Access Control (`ADMIN` & `USER`). Operates strictly as an encrypted coordination relay, never holding plaintext credentials or master passwords.
+- **Unified Master Password Strategy (IMPLEMENTED):** Users maintain a single unified master password for both their local vault and optional cloud account.
+  - **Local to Cloud Transition**: Centered minimal modal clearly informs existing vault users that their previously chosen master password automatically serves as their cloud account sign-in password.
+  - **Cloud-First Registration**: Centered minimal modal explains that the registration password acts as their master password to unlock their vault after inactivity timeouts, and generates a 32-character Emergency Recovery Key.
+  - **Synchronized Password Rotation**: Changing the master password in settings displays a confirmation popup and synchronizes the change with `lokker-server` via `PATCH /api/auth/change-password`.
 - **Optional Account Creation (IMPLEMENTED):** Frontend provides opt-in cloud account connection via `CloudSyncModal` without forcing signup or compromising local-first offline operation.
 - **Team Workspaces & Shared Vaults (IN DEVELOPMENT):** Multi-user shared vaults with role-based access control, allowing organizations and families to share items securely.
 - **Asymmetric Key Exchange (PLANNED):** Team sharing implemented using public-key cryptography (e.g. RSA-OAEP / ECDH), where shared vault keys are encrypted per recipient.

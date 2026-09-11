@@ -34,6 +34,7 @@ import {
   clearWebAuthnSlot,
 } from "@/lib/webauthn";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
+import { appConfig } from "@/config/app";
 import { useVaultUI } from "./vault-ui-context";
 import type { VaultSecurityContextType } from "./vault-types";
 
@@ -144,7 +145,7 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
         setDecryptedPasswords(INITIAL_DEMO_VAULT_ITEMS);
         setIsUnlocked(true);
         setIsMasterPasswordModalOpen(false);
-        addToast("Local vault initialized with 3-tier AES-GCM envelope encryption!", "success");
+        addToast("Your secure vault is ready and protected.", "success");
         return true;
       } catch (err) {
         console.error("Setup error:", err);
@@ -247,6 +248,34 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
       await saveVaultMeta(updatedMeta);
       setVaultMeta(updatedMeta);
       setDerivedKey(vek);
+
+      // Synchronize cloud password if active cloud session exists
+      if (typeof window !== "undefined") {
+        const sessionStr = localStorage.getItem("lokker_cloud_session");
+        if (sessionStr) {
+          try {
+            const session = JSON.parse(sessionStr);
+            if (session?.accessToken) {
+              const res = await fetch(`${appConfig.apiUrl}/api/auth/change-password`, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.accessToken}`,
+                },
+                body: JSON.stringify({ currentPassword, newPassword }),
+              });
+
+              if (res.ok) {
+                addToast("Master password and cloud account password updated in sync!", "success");
+                return true;
+              }
+            }
+          } catch (cloudErr) {
+            console.warn("Cloud password sync warning:", cloudErr);
+          }
+        }
+      }
+
       addToast("Master password changed. Use the new password to unlock from now on.", "success");
       return true;
     } catch {
