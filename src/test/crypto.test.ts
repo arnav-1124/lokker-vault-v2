@@ -12,7 +12,9 @@ import {
   initializeEnvelopeVault,
   unwrapVekWithPassword,
   unwrapVekWithRecoveryKey,
+  verifyMasterPassword,
   rotateMasterPassword,
+  resetMasterPasswordWithRecoveryKey,
   rotateRecoveryKey,
   encryptFileWithVek,
   decryptFileWithVek,
@@ -306,5 +308,42 @@ describe("P0 Cryptographic Architecture & Regression Suite", () => {
 
     // Incorrect password throws error
     await expect(unwrapVekWithPassword("WrongPassword!2026", meta)).rejects.toThrow();
+  });
+
+  // 8. Reset Master Password with Recovery Key works and re-keys vault
+  it("8. Resets Master Password using Emergency Recovery Key when password is forgotten", async () => {
+    const originalPassword = "OriginalPass!2026";
+    const recoveryKey = generateRecoveryKey();
+    const newPassword = "ResetViaRecovery!2026";
+
+    const { meta: initialMeta } = await initializeEnvelopeVault(originalPassword, recoveryKey, sampleItems);
+
+    // Verify original password matches
+    const originalMatches = await verifyMasterPassword(originalPassword, initialMeta.salt, initialMeta.verifier!);
+    expect(originalMatches).toBe(true);
+
+    // Verify arbitrary wrong password does NOT match
+    const wrongMatches = await verifyMasterPassword("CompletelyDifferentPass!", initialMeta.salt, initialMeta.verifier!);
+    expect(wrongMatches).toBe(false);
+
+    // Reset master password using recovery key
+    const { updatedMeta } = await resetMasterPasswordWithRecoveryKey(recoveryKey, newPassword, initialMeta);
+
+    // Original password should NO LONGER verify or unlock
+    const oldMatchesNow = await verifyMasterPassword(originalPassword, updatedMeta.salt, updatedMeta.verifier!);
+    expect(oldMatchesNow).toBe(false);
+    await expect(unwrapVekWithPassword(originalPassword, updatedMeta)).rejects.toThrow();
+
+    // New password verifies and unlocks the vault
+    const newMatches = await verifyMasterPassword(newPassword, updatedMeta.salt, updatedMeta.verifier!);
+    expect(newMatches).toBe(true);
+
+    const { passwords } = await unwrapVekWithPassword(newPassword, updatedMeta);
+    expect(passwords).toHaveLength(2);
+    expect(passwords[0].websiteName).toBe("GitHub");
+
+    // Emergency recovery key still works
+    const { passwords: recUnlocked } = await unwrapVekWithRecoveryKey(recoveryKey, updatedMeta);
+    expect(recUnlocked).toHaveLength(2);
   });
 });

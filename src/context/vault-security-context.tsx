@@ -26,6 +26,7 @@ import {
   encryptPayloadWithVek,
   verifyMasterPassword,
   rotateMasterPassword,
+  resetMasterPasswordWithRecoveryKey,
   rotateRecoveryKey,
 } from "@/lib/crypto";
 import {
@@ -284,6 +285,48 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
     }
   };
 
+  const handleResetMasterPasswordWithRecoveryKey = async (
+    recoveryKey: string,
+    newPassword: string
+  ): Promise<boolean> => {
+    if (!vaultMeta) return false;
+    try {
+      const { updatedMeta, vek } = await resetMasterPasswordWithRecoveryKey(recoveryKey, newPassword, vaultMeta);
+      await saveVaultMeta(updatedMeta);
+      setVaultMeta(updatedMeta);
+      setDerivedKey(vek);
+      setIsUnlocked(true);
+
+      // If user has active cloud session, sync the new password using the authenticated reset endpoint!
+      if (typeof window !== "undefined") {
+        const sessionStr = localStorage.getItem("lokker_cloud_session");
+        if (sessionStr) {
+          try {
+            const session = JSON.parse(sessionStr);
+            if (session?.accessToken) {
+              await fetch(`${appConfig.apiUrl}/api/auth/reset-password`, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.accessToken}`,
+                },
+                body: JSON.stringify({ newPassword }),
+              });
+            }
+          } catch (cloudErr) {
+            console.warn("Cloud password reset sync warning:", cloudErr);
+          }
+        }
+      }
+
+      addToast("Master password reset successfully with your Emergency Recovery Key.", "success");
+      return true;
+    } catch {
+      addToast("Invalid recovery key or failed to reset master password.", "error");
+      return false;
+    }
+  };
+
   const handleRegenerateRecoveryKey = async (newRecoveryKey: string): Promise<boolean> => {
     if (!vaultMeta || !isUnlocked || !derivedKey) return false;
     try {
@@ -336,7 +379,7 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
     lockVault,
     handleMasterPasswordSubmit, handleUnlockWithRecoveryKey, handleUnlockWithWebAuthn,
     handleRegisterWebAuthn, handleUnregisterWebAuthn,
-    handleVerifyMasterPassword, handleChangeMasterPassword, handleRegenerateRecoveryKey,
+    handleVerifyMasterPassword, handleChangeMasterPassword, handleResetMasterPasswordWithRecoveryKey, handleRegenerateRecoveryKey,
     saveAndEncryptPasswords,
   };
 

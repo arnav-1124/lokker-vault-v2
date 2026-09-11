@@ -141,6 +141,7 @@ export interface VaultSecurityContextType {
   handleUnregisterWebAuthn: () => Promise<void>;
   handleVerifyMasterPassword: (password: string) => Promise<boolean>;
   handleChangeMasterPassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
+  handleResetMasterPasswordWithRecoveryKey: (recoveryKey: string, newPassword: string) => Promise<boolean>;
   handleRegenerateRecoveryKey: (newRecoveryKey: string) => Promise<boolean>;
 
   // Re-encrypt helper shared with the data layer

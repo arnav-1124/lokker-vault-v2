@@ -409,6 +409,43 @@ export async function rotateMasterPassword(
 }
 
 /**
+ * Resets Master Password using the Emergency Recovery Key without re-encrypting the vault payload.
+ * Unwraps VEK with Recovery Key, derives a new Password KEK from newPassword,
+ * and re-wraps the VEK.
+ */
+export async function resetMasterPasswordWithRecoveryKey(
+  recoveryKey: string,
+  newPassword: string,
+  meta: VaultMetadata
+): Promise<{ updatedMeta: VaultMetadata; vek: CryptoKey }> {
+  const { vek } = await unwrapVekWithRecoveryKey(recoveryKey, meta);
+
+  const newSalt = generateRandomSalt();
+  const newSaltBase64 = bufferToBase64(newSalt);
+  const newPasswordKek = await deriveKeyFromPassword(newPassword, newSalt);
+
+  const newWrappedVek = await wrapVek(vek, newPasswordKek);
+  const newVerifier = await createVerifierToken(newPasswordKek);
+
+  const updatedMeta: VaultMetadata = {
+    ...meta,
+    version: 2,
+    salt: newSaltBase64,
+    verifier: newVerifier,
+    wrappedVekByPassword: newWrappedVek,
+    encryptedVault: meta.encryptedVault
+      ? {
+          ...meta.encryptedVault,
+          salt: newSaltBase64,
+          updatedAt: Date.now(),
+        }
+      : undefined,
+  };
+
+  return { updatedMeta, vek };
+}
+
+/**
  * Rotates the Emergency Recovery Key without re-encrypting the vault payload
  * and without touching the password or WebAuthn slots. The previous recovery
  * key stops working immediately (its slot is re-wrapped under a new KEK).

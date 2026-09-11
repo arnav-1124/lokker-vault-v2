@@ -36,6 +36,7 @@ export default function SettingsPage() {
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
         onSubmit={vault.handleChangeMasterPassword}
+        onSubmitWithRecoveryKey={vault.handleResetMasterPasswordWithRecoveryKey}
       />
 
       <RecoveryKeyModal
