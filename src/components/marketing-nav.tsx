@@ -4,8 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { ShieldCheck, Moon, Sun, ArrowRight, Menu } from "lucide-react";
+import { ShieldCheck, Moon, Sun, ArrowRight, Menu, Cloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,13 @@ export function MarketingNav() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Link href="/features#cloud-sync" className="hidden lg:inline-flex">
+            <Badge variant="outline" className="text-[10px] text-primary border-primary/30 bg-primary/10 py-0.5 px-2 gap-1.5 cursor-pointer hover:bg-primary/15 transition-colors">
+              <Cloud className="size-3" />
+              <span>Cloud & Teams (Coming Soon)</span>
+            </Badge>
+          </Link>
+
           <Link href="/design" className="hidden sm:inline-block">
             <Button variant="ghost" size="sm" className="text-muted-foreground text-caption cursor-pointer">
               Design Preview
@@ -122,9 +130,25 @@ export function MarketingNav() {
                     Design System
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/login" className="w-full">
+                    Sign In
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/signup" className="w-full">
+                    Sign Up (Cloud)
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          <Link href="/login">
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground cursor-pointer hidden sm:inline-flex">
+              Sign In
+            </Button>
+          </Link>
 
           <Link href="/app">
             <Button size="sm" className="gap-1.5 shadow-xs cursor-pointer">

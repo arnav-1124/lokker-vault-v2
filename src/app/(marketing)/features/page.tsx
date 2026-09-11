@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   Clock,
   Compass,
+  Cloud,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -189,6 +191,40 @@ export default function FeaturesPage() {
               <p className="font-sans text-xs font-semibold">Touch ID / Passkey Active</p>
               <p className="text-[11px] text-muted-foreground font-sans">Hardware key ready</p>
             </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      num: "07",
+      title: "Optional Cloud Sync & Team Workspaces",
+      tagline: "Encrypted Relay on Neon Postgres (In Active Development)",
+      desc: "Need cross-device synchronization or team collaboration? Lokker offers an optional, end-to-end encrypted cloud relay powered by Fastify v5 and Neon Serverless Postgres. Zero-knowledge guarantees ensure the server only stores encrypted blobs.",
+      points: [
+        "100% Optional: Lokker never mandates cloud signup — offline mode works forever",
+        "Zero-Knowledge Boundary: PBKDF2 keys remain strictly on client devices",
+        "Neon Serverless Postgres: Enterprise SQL backend with instant autoscaling",
+        "Team Workspaces (Coming Soon): Role-based access control (Admin & Member) for shared organization vaults",
+      ],
+      icon: Cloud,
+      preview: (
+        <div className="rounded-lg border border-border-subtle bg-surface p-4 space-y-3 font-mono text-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <Cloud className="size-3 text-primary" /> https://api.lokker.dev
+            </span>
+            <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+              Optional Cloud
+            </Badge>
+          </div>
+          <div className="p-3 rounded bg-background border border-border-subtle space-y-2 font-sans">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold">Cloud Sync Status</span>
+              <span className="text-[10px] text-success font-mono">100% Zero-Knowledge</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Local Vault (AES-GCM) ⟷ Fastify / Neon Cloud Relay ⟷ Team Workspaces (RBAC)
+            </p>
           </div>
         </div>
       ),

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import {
@@ -12,6 +13,7 @@ import {
   Sun,
   Menu,
   Puzzle,
+  Cloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +62,7 @@ interface AppHeaderProps {
   onOpenCommandPalette: () => void;
   onToggleMobileSidebar: () => void;
   onOpenExtensionGuide: () => void;
+  onOpenCloudSyncModal?: () => void;
 }
 
 const emptySubscribe = () => () => {};
@@ -74,6 +77,7 @@ export function AppHeader({
   onOpenCommandPalette,
   onToggleMobileSidebar,
   onOpenExtensionGuide,
+  onOpenCloudSyncModal,
 }: AppHeaderProps) {
   const pathname = usePathname();
   const viewTitle = PATH_TITLE[pathname] || "Security Workspace";
@@ -169,6 +173,22 @@ export function AppHeader({
               <span className="sm:hidden">Add</span>
             </Button>
           )}
+
+          {/* Go Cloud (Optional) Action */}
+          <Link href="/signup?redirect=/app">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-medium cursor-pointer shadow-2xs"
+              title="Lokker Cloud & Team Workspaces (100% Optional)"
+            >
+              <Cloud className="size-3.5 text-primary shrink-0" />
+              <span className="hidden sm:inline">Go Cloud</span>
+              <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-full bg-primary/15 text-primary border border-primary/25">
+                Optional
+              </span>
+            </Button>
+          </Link>
 
           {/* Extension Quick Launch */}
           <Button

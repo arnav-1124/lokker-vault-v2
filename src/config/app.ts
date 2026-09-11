@@ -7,6 +7,7 @@
  * - Production sets it in the host's environment (e.g. Vercel project settings).
  */
 const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
 
 export const appConfig = {
   name: "Lokker",
@@ -14,6 +15,7 @@ export const appConfig = {
   description:
     "Lokker is a privacy-first, local-first password vault and browser security utility. Your secrets stay on your device.",
   url: envUrl && envUrl.length > 0 ? envUrl : "http://localhost:3000",
+  apiUrl: envApiUrl && envApiUrl.length > 0 ? envApiUrl : "http://localhost:4000",
 } as const;
 
 export type AppConfig = typeof appConfig;

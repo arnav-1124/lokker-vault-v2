@@ -236,6 +236,85 @@ function Callout({
 // ---------------------------------------------------------
 const DOC_TOPICS: DocTopic[] = [
   {
+    id: "backend-cloud-sync",
+    category: "Architecture & Foundations",
+    title: "Optional Cloud & Team Workspaces",
+    badge: "Backend Live",
+    badgeColor: "sky",
+    description:
+      "Lokker's optional coordination backend (lokker-server) built with Fastify v5, Neon Serverless Postgres, and Drizzle ORM.",
+    headings: [
+      { id: "cloud-principles", title: "Zero-Knowledge Cloud Relay" },
+      { id: "rbac-architecture", title: "Auth & RBAC Specification" },
+      { id: "team-roadmap", title: "Team Workspaces Roadmap" },
+    ],
+    renderContent: () => (
+      <>
+        <p className="text-neutral-300 text-sm leading-relaxed">
+          Lokker includes an optional cloud backend (<code className="text-sky-300 font-mono">lokker-server</code>)
+          designed to provide cross-device synchronization and upcoming Team Workspaces without violating
+          our zero-knowledge principles. The backend is an <span className="text-white font-semibold">optional coordination layer</span>,
+          never the plaintext authority over your vault.
+        </p>
+
+        <h3 id="cloud-principles" className="text-base font-semibold text-white mt-6 mb-2">
+          Zero-Knowledge Cloud Relay
+        </h3>
+        <p className="text-neutral-300 text-xs sm:text-sm leading-relaxed mb-4">
+          All vault records are encrypted locally with AES-GCM 256-bit keys before leaving the device. The server
+          stores only opaque ciphertext blobs, rotating refresh tokens, and role assignments in Neon Serverless Postgres.
+        </p>
+
+        <DiagramCard title="Cloud Coordination Architecture">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-mono">
+            <div className="w-full md:w-auto flex-1 p-3 rounded-xl border border-neutral-800 bg-[#121212] text-center space-y-1">
+              <span className="text-emerald-400 font-semibold">Local Client Vault</span>
+              <p className="text-[11px] text-neutral-400">IndexedDB + Native Web Crypto</p>
+            </div>
+            <span className="text-sky-400 font-bold hidden md:inline">⟷</span>
+            <span className="text-sky-400 font-bold md:hidden">▼</span>
+            <div className="w-full md:w-auto flex-1 p-3 rounded-xl border border-sky-500/40 bg-sky-500/10 text-center space-y-1">
+              <span className="text-sky-300 font-semibold">Fastify v5 + Neon DB</span>
+              <p className="text-[11px] text-neutral-400">JWT Auth + Encrypted Relay</p>
+            </div>
+            <span className="text-sky-400 font-bold hidden md:inline">⟷</span>
+            <span className="text-sky-400 font-bold md:hidden">▼</span>
+            <div className="w-full md:w-auto flex-1 p-3 rounded-xl border border-purple-500/40 bg-purple-500/10 text-center space-y-1">
+              <span className="text-purple-300 font-semibold">Team Workspaces</span>
+              <p className="text-[11px] text-neutral-400">Role-Based Access Control</p>
+            </div>
+          </div>
+        </DiagramCard>
+
+        <h3 id="rbac-architecture" className="text-base font-semibold text-white mt-6 mb-2">
+          Authentication & RBAC Specification
+        </h3>
+        <ul className="space-y-2 text-xs text-neutral-300">
+          <li className="flex items-start gap-2">
+            <span className="text-sky-400 font-bold">1.</span>
+            <span><strong className="text-white">Password Hashing:</strong> Argon2id with 64MB memory cost, 3 iterations.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-sky-400 font-bold">2.</span>
+            <span><strong className="text-white">Dual-Token Flow:</strong> 15-minute JWT access tokens + 7-day SHA-256 hashed refresh tokens with automatic rotation on reuse.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-sky-400 font-bold">3.</span>
+            <span><strong className="text-white">RBAC Hierarchy:</strong> Admin and Member roles enforced via Fastify route preHandler hooks.</span>
+          </li>
+        </ul>
+
+        <h3 id="team-roadmap" className="text-base font-semibold text-white mt-6 mb-2">
+          Team Workspaces Roadmap
+        </h3>
+        <p className="text-neutral-300 text-xs sm:text-sm leading-relaxed">
+          Currently in active development: multi-user shared vaults, organization administration, and member role assignment
+          allowing teams to securely share credentials while maintaining zero-knowledge guarantees.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "vault-overview",
     category: "Architecture & Foundations",
     title: "Architecture & Zero-Knowledge Invariants",

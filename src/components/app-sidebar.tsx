@@ -28,6 +28,8 @@ import {
   Pencil,
   Trash2,
   FolderPlus,
+  Cloud,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -453,6 +455,49 @@ export function AppSidebar({
             )}
             {systemNavItems.map(renderNavItem)}
           </div>
+
+          {/* Cloud Sync Callout */}
+          {!isCollapsed ? (
+            <div className="p-2.5 mx-1 my-2 rounded-lg border border-primary/20 bg-primary/5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                  <Cloud className="size-3.5 text-primary" />
+                  <span>Cloud Sync</span>
+                </span>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                  Optional
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Encrypted multi-device sync & upcoming Team Workspaces.
+              </p>
+              <Link href="/signup?redirect=/app" className="block w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-6 text-[10px] gap-1 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+                >
+                  <span>Go Cloud</span>
+                  <ArrowRight className="size-2.5" />
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex justify-center my-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/signup?redirect=/app"
+                    className="p-2 rounded-lg text-primary hover:bg-primary/10 border border-primary/20 cursor-pointer flex items-center justify-center"
+                    title="Go Cloud (Optional)"
+                  >
+                    <Cloud className="size-3.5" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">Go Cloud (Optional)</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Footer */}

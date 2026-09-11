@@ -82,6 +82,8 @@ export interface VaultUIContextType {
   setIsImportBackupModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isBackupPasswordModalOpen: boolean;
   setIsBackupPasswordModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isCloudSyncModalOpen: boolean;
+  setIsCloudSyncModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   pendingEncryptedBackup: LokkerEncryptedBackupFile | null;
   setPendingEncryptedBackup: React.Dispatch<React.SetStateAction<LokkerEncryptedBackupFile | null>>;
   pendingUnencryptedBackup: LokkerBackupPayload | null;

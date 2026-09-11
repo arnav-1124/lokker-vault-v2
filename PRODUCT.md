@@ -220,11 +220,13 @@ TOTP authenticator, password generator, bookmarks manager, and marketing
 suite exist, operate locally in the browser with IndexedDB persistence, and are
 deployed live at [https://lokker-vault.vercel.app](https://lokker-vault.vercel.app).
 
-## 13. Evolution roadmap: Optional Zero-Knowledge Cloud & Team Collaboration (PLANNED)
+## 13. Evolution roadmap: Optional Zero-Knowledge Cloud & Team Collaboration (IN PROGRESS)
 
 For users and teams requiring multi-device synchronization and password sharing:
-- **Zero-Knowledge Backend:** An optional encrypted relay and storage layer that never sees plaintext credentials, master passwords, or private keys.
-- **Asymmetric Key Exchange:** Team sharing implemented using public-key cryptography (e.g. RSA-OAEP / ECDH), where shared vault keys are encrypted per recipient.
-- **E2EE Ephemeral Sharing:** One-time self-destructing secret share links with client-side decryption keys passed in URL hash fragments.
-- **Local-First Precedence:** Cloud sync remains purely opt-in; the local vault is fully functional offline without any account registration or backend connectivity.
+- **Zero-Knowledge Backend (IMPLEMENTED):** `lokker-server` built with Fastify v5, Neon Serverless Postgres, and Drizzle ORM. Implements Argon2id password hashing, rotating JWT/refresh tokens, and strict Role-Based Access Control (`ADMIN` & `USER`). Operates strictly as an encrypted coordination relay, never holding plaintext credentials or master passwords.
+- **Optional Account Creation (IMPLEMENTED):** Frontend provides opt-in cloud account connection via `CloudSyncModal` without forcing signup or compromising local-first offline operation.
+- **Team Workspaces & Shared Vaults (IN DEVELOPMENT):** Multi-user shared vaults with role-based access control, allowing organizations and families to share items securely.
+- **Asymmetric Key Exchange (PLANNED):** Team sharing implemented using public-key cryptography (e.g. RSA-OAEP / ECDH), where shared vault keys are encrypted per recipient.
+- **E2EE Ephemeral Sharing (PLANNED):** One-time self-destructing secret share links with client-side decryption keys passed in URL hash fragments.
+- **Local-First Precedence:** Cloud sync remains purely opt-in; the local vault is fully functional offline forever without any account registration or backend connectivity.
 

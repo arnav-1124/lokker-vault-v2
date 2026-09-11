@@ -15,6 +15,7 @@ import { CommandPalette } from "@/components/modals/command-palette";
 import { ExtensionGuideModal } from "@/components/modals/extension-guide-modal";
 import { ConfirmationModal } from "@/components/modals/confirmation-modal";
 import { ImportBackupModal } from "@/components/modals/import-backup-modal";
+import { CloudSyncModal } from "@/components/modals/cloud-sync-modal";
 import { ToastContainer } from "@/components/toast-container";
 
 function AppShell({ children }: { children: React.ReactNode }) {
@@ -68,6 +69,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           }}
           onToggleMobileSidebar={() => vault.setIsMobileSidebarOpen(!vault.isMobileSidebarOpen)}
           onOpenExtensionGuide={() => vault.setIsExtensionGuideOpen(true)}
+          onOpenCloudSyncModal={() => vault.setIsCloudSyncModalOpen(true)}
         />
 
         {/* Route content renders here */}
@@ -171,6 +173,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <ExtensionGuideModal
         isOpen={vault.isExtensionGuideOpen}
         onClose={() => vault.setIsExtensionGuideOpen(false)}
+      />
+
+      <CloudSyncModal
+        isOpen={vault.isCloudSyncModalOpen}
+        onClose={() => vault.setIsCloudSyncModalOpen(false)}
       />
 
       <ImportBackupModal

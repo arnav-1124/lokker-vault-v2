@@ -9,6 +9,7 @@ import {
   HardDrive,
   CheckCircle2,
   XCircle,
+  Cloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +91,20 @@ export default function PrivacyPage() {
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 The Lokker Chrome/Edge Manifest V3 extension communicates with website forms through isolated Shadow DOM containers. It checks credentials against target domain origins locally.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border-subtle bg-surface p-6 space-y-3 md:col-span-2">
+              <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+                <Cloud className="size-4" />
+                <span>5. Optional Cloud Sync & Team Workspaces Policy</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Cloud account creation and remote synchronization are 100% voluntary and strictly opt-in.
+                If you choose to enable cloud synchronization, our Fastify v5 + Neon Serverless Postgres backend
+                only receives and coordinates end-to-end encrypted ciphertext blobs. Your master password and
+                encryption keys never leave your device. If you choose not to create an account, Lokker remains
+                100% offline, local, and functional forever.
               </p>
             </div>
           </div>

@@ -175,11 +175,11 @@ npm start          # Serve production build
 
 Environment-specific values (URLs, origins) live in exactly two places — one per runtime:
 
-1. **Web app — `NEXT_PUBLIC_APP_URL` (.env):**
-   - Read only through `src/config/app.ts` (`appConfig.url`), with an `http://localhost:3000` fallback.
+1. **Web app — `NEXT_PUBLIC_APP_URL` & `NEXT_PUBLIC_API_URL` (.env):**
+   - `NEXT_PUBLIC_APP_URL`: Read through `src/config/app.ts` (`appConfig.url`), with an `http://localhost:3000` fallback.
+   - `NEXT_PUBLIC_API_URL`: Backend API origin for optional cloud synchronization and accounts (`appConfig.apiUrl`), fallback to `http://localhost:4000`.
    - Local development: copy `.env.example` to `.env.local` (`.env*` is gitignored).
-   - Production: set `NEXT_PUBLIC_APP_URL` in the Vercel project environment settings
-     (current deployment origin: `https://lokker-vault.vercel.app`).
+   - Production: set `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_API_URL` in host environment settings.
 2. **Browser extension — `public/extension/config.js`:**
    - The extension ships without a build step, so this file is its environment:
      `appOrigin` (the vault the popup opens) and the trusted vault-sync hosts/suffixes.

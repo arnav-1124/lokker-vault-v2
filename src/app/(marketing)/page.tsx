@@ -24,6 +24,8 @@ import {
   XCircle,
   HardDrive,
   Cpu,
+  Cloud,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -772,6 +774,91 @@ export default function MarketingHomePage() {
               <Link href="/security">
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                   <span>View Technical Cryptographic Details</span>
+                  <ArrowRight className="size-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* OPTIONAL ZERO-KNOWLEDGE CLOUD & TEAM WORKSPACES */}
+        <section id="cloud-sync" className="py-20 border-t border-border-subtle bg-gradient-to-b from-surface/40 to-background">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 mb-3">
+                <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5 gap-1 text-xs">
+                  <Cloud className="size-3" />
+                  <span>Optional Cloud Coordination</span>
+                </Badge>
+                <Badge variant="outline" className="text-amber-500 border-amber-500/20 bg-amber-500/5 text-xs">
+                  Backend Live • Teams Coming Soon
+                </Badge>
+              </div>
+              <h2 className="text-heading text-2xl sm:text-3xl font-semibold mb-3">
+                Zero-Knowledge Cloud Sync & Team Workspaces
+              </h2>
+              <p className="text-caption sm:text-sm text-muted-foreground leading-relaxed">
+                Prefer seamless cross-device synchronization? Lokker now features an optional, end-to-end encrypted
+                coordination backend powered by Fastify v5 and Neon Serverless Postgres.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              <Card className="bg-surface border-border-subtle">
+                <CardHeader>
+                  <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
+                    <Cloud className="size-4.5" />
+                  </div>
+                  <CardTitle className="text-base">100% Optional By Design</CardTitle>
+                  <CardDescription className="text-xs leading-relaxed">
+                    Unlike commercial password managers, Lokker never mandates accounts or remote logins. Your vault remains
+                    fully functional offline on your local device forever. Cloud accounts are strictly opt-in.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-surface border-border-subtle">
+                <CardHeader>
+                  <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
+                    <ShieldCheck className="size-4.5" />
+                  </div>
+                  <CardTitle className="text-base">Zero-Knowledge Relay</CardTitle>
+                  <CardDescription className="text-xs leading-relaxed">
+                    Your encryption keys are derived locally from your master password using PBKDF2. Our Neon Postgres backend
+                    only stores encrypted ciphertext payloads and rotating refresh tokens — never plaintext secrets.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-surface border-border-subtle">
+                <CardHeader>
+                  <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
+                    <Users className="size-4.5" />
+                  </div>
+                  <CardTitle className="text-base">Team Workspaces (Coming Soon)</CardTitle>
+                  <CardDescription className="text-xs leading-relaxed">
+                    Collaborative shared vaults with Role-Based Access Control (Admins and Members) to securely share credentials,
+                    masked emails, and API keys across organizations without compromising personal zero-knowledge boundaries.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+
+            <div className="mt-10 p-4 rounded-xl border border-border-subtle bg-surface/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="size-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="size-4.5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Backend Service Ready</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Fastify v5 + Neon Database backend with Argon2 password hashing and rotating JWTs is online.
+                  </p>
+                </div>
+              </div>
+              <Link href="/app">
+                <Button size="sm" className="gap-1.5 text-xs shadow-xs font-medium cursor-pointer">
+                  <span>Open Local Vault Free</span>
                   <ArrowRight className="size-3.5" />
                 </Button>
               </Link>

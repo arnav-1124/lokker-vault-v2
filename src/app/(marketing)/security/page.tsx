@@ -11,6 +11,7 @@ import {
   Cpu,
   ArrowRight,
   Database,
+  Cloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -223,6 +224,52 @@ export default function SecurityArchitecturePage() {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        {/* ZERO-KNOWLEDGE CLOUD & RBAC ARCHITECTURE */}
+        <section className="mx-auto max-w-5xl px-6 pb-20 space-y-8">
+          <div className="rounded-2xl border border-border-subtle bg-surface p-6 sm:p-8 space-y-6">
+            <div className="border-b border-border-subtle pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold flex items-center gap-2">
+                  <Cloud className="size-4 text-primary" />
+                  <span>Zero-Knowledge Boundary: Optional Cloud & Teams</span>
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  How our Fastify + Neon DB backend provides sync without compromising local-first privacy
+                </p>
+              </div>
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs w-fit">
+                Optional Layer
+              </Badge>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 text-xs text-muted-foreground leading-relaxed">
+              <div className="p-4 rounded-xl bg-background border border-border-subtle space-y-2">
+                <h3 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                  <Lock className="size-3.5 text-success" />
+                  <span>Client-Side Key Isolation</span>
+                </h3>
+                <p>
+                  When you enable optional cloud sync, your device encrypts the vault locally using AES-GCM 256
+                  prior to network transmission. The backend receives only opaque ciphertext blobs. Your master password
+                  and derived keys (KEK/VEK) are never transmitted.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-background border border-border-subtle space-y-2">
+                <h3 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                  <ShieldCheck className="size-3.5 text-primary" />
+                  <span>RBAC & Team Workspaces</span>
+                </h3>
+                <p>
+                  The upcoming team workspace layer enforces Role-Based Access Control (Admins, Managers, Members)
+                  at the server API level via Fastify middleware. Even with administrative rights, the server can only
+                  coordinate sharing of encrypted keys — plaintext remains strictly zero-knowledge.
+                </p>
+              </div>
             </div>
           </div>
         </section>

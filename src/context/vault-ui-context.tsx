@@ -37,6 +37,7 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
   const [isImportBackupModalOpen, setIsImportBackupModalOpen] = React.useState(false);
   const [isBackupPasswordModalOpen, setIsBackupPasswordModalOpen] = React.useState(false);
+  const [isCloudSyncModalOpen, setIsCloudSyncModalOpen] = React.useState(false);
   const [pendingEncryptedBackup, setPendingEncryptedBackup] = React.useState<LokkerEncryptedBackupFile | null>(null);
   const [pendingUnencryptedBackup, setPendingUnencryptedBackup] = React.useState<LokkerBackupPayload | null>(null);
 
@@ -127,6 +128,7 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
     isMobileSidebarOpen, setIsMobileSidebarOpen,
     isImportBackupModalOpen, setIsImportBackupModalOpen,
     isBackupPasswordModalOpen, setIsBackupPasswordModalOpen,
+    isCloudSyncModalOpen, setIsCloudSyncModalOpen,
     pendingEncryptedBackup, setPendingEncryptedBackup,
     pendingUnencryptedBackup, setPendingUnencryptedBackup,
     confirmDialog, deleteTransferDialog, setDeleteTransferDialog,
