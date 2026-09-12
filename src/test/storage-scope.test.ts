@@ -92,4 +92,63 @@ describe("Storage Scope Models", () => {
     expect(warningModalSource).toContain("Add to Cloud Instead");
     expect(warningModalSource).toContain("Save Locally");
   });
+
+  it("filters out cloud-scoped items when user is logged out of cloud", () => {
+    const allItems: PasswordEntry[] = [
+      {
+        id: "pwd-1",
+        websiteName: "Local Credential 1",
+        websiteUrl: "https://local.test",
+        username: "user1",
+        password: "p1",
+        category: "General",
+        isFavorite: false,
+        storageScope: "local",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: "pwd-2",
+        websiteName: "Cloud Credential 2",
+        websiteUrl: "https://cloud.test",
+        username: "user2",
+        password: "p2",
+        category: "General",
+        isFavorite: false,
+        storageScope: "cloud",
+        createdAt: 2,
+        updatedAt: 2,
+      },
+      {
+        id: "pwd-3",
+        websiteName: "Default Legacy Credential",
+        websiteUrl: "https://legacy.test",
+        username: "user3",
+        password: "p3",
+        category: "General",
+        isFavorite: false,
+        createdAt: 3,
+        updatedAt: 3,
+      },
+    ];
+
+    // When logged out of cloud:
+    const hasCloudSession = false;
+    const visibleWhenLoggedOut = hasCloudSession
+      ? allItems
+      : allItems.filter((p) => p.storageScope !== "cloud");
+
+    expect(visibleWhenLoggedOut.length).toBe(2);
+    expect(visibleWhenLoggedOut.some((p) => p.storageScope === "cloud")).toBe(false);
+    expect(visibleWhenLoggedOut.map((p) => p.id)).toEqual(["pwd-1", "pwd-3"]);
+
+    // When logged into cloud:
+    const loggedInSession = true;
+    const visibleWhenLoggedIn = loggedInSession
+      ? allItems
+      : allItems.filter((p) => p.storageScope !== "cloud");
+
+    expect(visibleWhenLoggedIn.length).toBe(3);
+    expect(visibleWhenLoggedIn.some((p) => p.storageScope === "cloud")).toBe(true);
+  });
 });

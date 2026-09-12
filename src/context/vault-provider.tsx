@@ -40,7 +40,47 @@ function VaultContextBridge({ children }: { children: React.ReactNode }) {
   const data = useVaultData();
   const backup = useVaultBackup();
 
-  const value: VaultContextType = { ...navigation, ...ui, ...security, ...data, ...backup };
+  const [hasCloudSession, setHasCloudSession] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkSession = () => {
+      try {
+        const raw = localStorage.getItem("lokker_cloud_session");
+        setHasCloudSession(!!raw);
+      } catch {
+        setHasCloudSession(false);
+      }
+    };
+    checkSession();
+    window.addEventListener("lokker_auth_change", checkSession);
+    window.addEventListener("storage", checkSession);
+    return () => {
+      window.removeEventListener("lokker_auth_change", checkSession);
+      window.removeEventListener("storage", checkSession);
+    };
+  }, []);
+
+  // When logged out of cloud, items marked as 'cloud' are hidden from the offline view
+  // to preserve isolation between cloud account entries and local-only device entries.
+  const visiblePasswords = React.useMemo(() => {
+    if (hasCloudSession) return security.decryptedPasswords;
+    return security.decryptedPasswords.filter((p) => p.storageScope !== "cloud");
+  }, [hasCloudSession, security.decryptedPasswords]);
+
+  const visibleBookmarks = React.useMemo(() => {
+    if (hasCloudSession) return data.bookmarks;
+    return data.bookmarks.filter((b) => b.storageScope !== "cloud");
+  }, [hasCloudSession, data.bookmarks]);
+
+  const value: VaultContextType = {
+    ...navigation,
+    ...ui,
+    ...security,
+    decryptedPasswords: visiblePasswords,
+    ...data,
+    bookmarks: visibleBookmarks,
+    ...backup,
+  };
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;
 }
