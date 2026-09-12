@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category } from "@/types";
+import { buildCategoryTree } from "@/lib/category-tree";
 
 interface CategoryManagerModalProps {
   isOpen: boolean;
@@ -41,43 +42,6 @@ const PRESET_COLORS = [
   "#64748b", // Slate
 ];
 
-// Build a flat tree-ordered list with depth info
-interface TreeItem {
-  category: Category;
-  depth: number;
-}
-
-function buildCategoryTree(categories: Category[]): TreeItem[] {
-  const rootCats = categories.filter((c) => !c.parentId);
-  const childrenMap = new Map<string, Category[]>();
-  categories.forEach((c) => {
-    if (c.parentId) {
-      const arr = childrenMap.get(c.parentId) || [];
-      arr.push(c);
-      childrenMap.set(c.parentId, arr);
-    }
-  });
-
-  const result: TreeItem[] = [];
-  const walk = (cat: Category, depth: number) => {
-    result.push({ category: cat, depth });
-    const children = childrenMap.get(cat.id) || [];
-    children.forEach((child) => walk(child, depth + 1));
-  };
-  rootCats.forEach((root) => walk(root, 0));
-
-  // Append orphaned children (parent doesn't exist in list) as root
-  categories.forEach((c) => {
-    if (c.parentId && !categories.some((p) => p.id === c.parentId)) {
-      if (!result.some((r) => r.category.id === c.id)) {
-        result.push({ category: c, depth: 0 });
-      }
-    }
-  });
-
-  return result;
-}
-
 export function CategoryManagerModal({
   isOpen,
   onClose,
@@ -97,7 +61,7 @@ export function CategoryManagerModal({
     onClose();
   }, [defaultParentId, onClose]);
 
-  // When defaultParentId changes (e.g. clicking "Add Nested" from sidebar),
+  // When defaultParentId changes (e.g. clicking "Add Subcategory" from sidebar),
   // update the selector using the render-adjust pattern (no setState in effects).
   const [prevDefaultParentId, setPrevDefaultParentId] = React.useState(defaultParentId);
   if (prevDefaultParentId !== defaultParentId) {
@@ -117,21 +81,6 @@ export function CategoryManagerModal({
   };
 
   const tree = React.useMemo(() => buildCategoryTree(categories), [categories]);
-
-  // Hierarchical options for parent selector
-  const parentOptions = React.useMemo(() => {
-    const items: { id: string; name: string; depth: number }[] = [];
-    const walk = (cat: Category, depth: number) => {
-      items.push({ id: cat.id, name: cat.name, depth });
-      categories
-        .filter((c) => c.parentId === cat.id)
-        .forEach((child) => walk(child, depth + 1));
-    };
-    categories
-      .filter((c) => !c.parentId)
-      .forEach((root) => walk(root, 0));
-    return items;
-  }, [categories]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -172,18 +121,23 @@ export function CategoryManagerModal({
                 </Label>
                 <Select value={selectedParentId} onValueChange={setSelectedParentId}>
                   <SelectTrigger id="cat-parent" size="sm" className="h-8 text-xs bg-surface">
-                    <SelectValue placeholder="Root Level (No Parent)" />
+                    <SelectValue placeholder="Top Level (No Parent)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Root Level (No Parent)</SelectItem>
-                    {parentOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
+                    <SelectItem value="none">Top Level (No Parent)</SelectItem>
+                    {tree.map((opt) => (
+                      <SelectItem key={opt.category.id} value={opt.category.id}>
                         <span
                           className="flex items-center gap-1.5"
                           style={{ paddingLeft: `${opt.depth * 12}px` }}
                         >
                           {opt.depth > 0 && <CornerDownRight className="size-3 text-muted-foreground shrink-0" />}
-                          {opt.name}
+                          <span>{opt.category.name}</span>
+                          {opt.depth > 0 && (
+                            <span className="text-[10px] text-muted-foreground/60 font-mono ml-1">
+                              ({opt.path})
+                            </span>
+                          )}
                         </span>
                       </SelectItem>
                     ))}
@@ -220,42 +174,44 @@ export function CategoryManagerModal({
                   No categories yet. Create one above.
                 </p>
               )}
-              {tree.map(({ category: cat, depth }) => {
-                const hasChildren = categories.some((c) => c.parentId === cat.id);
-                return (
-                  <div
-                    key={cat.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-background border border-border-subtle text-xs"
-                    style={{ marginLeft: `${depth * 16}px` }}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {depth > 0 ? (
-                        <CornerDownRight className="size-3 text-muted-foreground/60 shrink-0" />
-                      ) : (
-                        <span
-                          className="size-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                      )}
-                      <span className="font-medium text-foreground truncate">{cat.name}</span>
-                      {hasChildren && (
-                        <span className="text-[9px] text-muted-foreground font-mono shrink-0">
-                          {categories.filter((c) => c.parentId === cat.id).length}
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => onDeleteCategory(cat.id)}
-                      className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0"
-                      title="Delete category"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+              {tree.map(({ category: cat, depth, hasChildren, childCount, path }) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between p-2 rounded-lg bg-background border border-border-subtle text-xs"
+                  style={{ marginLeft: `${depth * 16}px` }}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {depth > 0 ? (
+                      <CornerDownRight className="size-3 text-muted-foreground/60 shrink-0" />
+                    ) : (
+                      <span
+                        className="size-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                    )}
+                    <span className="font-medium text-foreground truncate">{cat.name}</span>
+                    {depth > 0 && (
+                      <span className="text-[10px] text-muted-foreground/60 truncate max-w-[140px]" title={path}>
+                        ({path})
+                      </span>
+                    )}
+                    {hasChildren && (
+                      <span className="text-[9px] text-muted-foreground font-mono shrink-0">
+                        {childCount} subcategories
+                      </span>
+                    )}
                   </div>
-                );
-              })}
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onDeleteCategory(cat.id)}
+                    className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0"
+                    title="Delete category"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>

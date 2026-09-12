@@ -18,6 +18,7 @@ import {
   saveAllCategories,
 } from "@/lib/db";
 import { generateId } from "@/lib/id";
+import { reconcileMissingCategories } from "@/lib/category-tree";
 import { useVaultUI } from "./vault-ui-context";
 import { useVaultSecurity } from "./vault-security-context";
 import type { VaultDataContextType } from "./vault-types";
@@ -72,6 +73,20 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
     }
     loadData();
   }, []);
+
+  // Auto-heal missing categories (e.g. when signing in with cloud-saved entries)
+  React.useEffect(() => {
+    if (categories.length === 0) return;
+    const entriesToCheck = [
+      ...decryptedPasswords.map((p) => ({ category: p.category })),
+      ...bookmarks.map((b) => ({ category: b.category })),
+    ];
+    const { updatedCategories, addedCount } = reconcileMissingCategories(entriesToCheck, categories);
+    if (addedCount > 0) {
+      setCategories(updatedCategories);
+      saveAllCategories(updatedCategories).catch(() => {});
+    }
+  }, [decryptedPasswords, bookmarks, categories]);
 
   // ==========================================
   // Bookmark Handlers
@@ -297,43 +312,51 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
     const target = categories.find((c) => c.id === id);
     if (!target) return;
     const catName = target.name;
-    const pwCount = decryptedPasswords.filter((p) => p.category === catName).length;
-    const bmCount = bookmarks.filter((b) => b.category === catName).length;
+    const pwCount = decryptedPasswords.filter((p) => p.category.toLowerCase() === catName.toLowerCase()).length;
+    const bmCount = bookmarks.filter((b) => (b.category || "").toLowerCase() === catName.toLowerCase()).length;
     const childCount = categories.filter((c) => c.parentId === id).length;
-    if (pwCount > 0 || bmCount > 0 || childCount > 0) {
-      setDeleteTransferDialog({ categoryId: id, categoryName: catName, passwordCount: pwCount, bookmarkCount: bmCount, childCount });
-      return;
-    }
-    showConfirm(
-      "Delete Category",
-      `Delete empty category "${catName}"?`,
-      async () => {
-        const updated = categories.filter((c) => c.id !== id);
-        setCategories(updated);
-        await saveAllCategories(updated);
-        if (selectedCategory === catName) setSelectedCategory(null);
-        addToast("Category deleted.", "info");
-      },
-      true
-    );
+    // Always open the Transfer & Delete dialog to prevent any accidental data loss
+    setDeleteTransferDialog({
+      categoryId: id,
+      categoryName: catName,
+      passwordCount: pwCount,
+      bookmarkCount: bmCount,
+      childCount,
+    });
   };
 
   const handleTransferAndDelete = async (targetCategoryId: string, transferToCatName: string) => {
-    const catName = categories.find((c) => c.id === targetCategoryId)?.name;
-    if (!catName) return;
-    const updatedPws = decryptedPasswords.map((p) => (p.category === catName ? { ...p, category: transferToCatName } : p));
+    const targetCat = categories.find((c) => c.id === targetCategoryId);
+    if (!targetCat) return;
+    const catName = targetCat.name;
+    const destinationCat = categories.find((c) => c.name === transferToCatName);
+    const destCatId = destinationCat ? destinationCat.id : undefined;
+
+    // 1. Transfer passwords
+    const updatedPws = decryptedPasswords.map((p) =>
+      p.category.toLowerCase() === catName.toLowerCase() ? { ...p, category: transferToCatName } : p
+    );
     await saveAndEncryptPasswords(updatedPws);
-    const updatedBms = bookmarks.map((b) => (b.category === catName ? { ...b, category: transferToCatName } : b));
+
+    // 2. Transfer bookmarks
+    const updatedBms = bookmarks.map((b) =>
+      (b.category || "").toLowerCase() === catName.toLowerCase() ? { ...b, category: transferToCatName } : b
+    );
     setBookmarks(updatedBms);
     await saveAllBookmarks(updatedBms);
+
+    // 3. Transfer subcategories: re-parent to the destination category!
     const updatedCats = categories
-      .map((c) => (c.parentId === targetCategoryId ? { ...c, parentId: undefined } : c))
+      .map((c) => (c.parentId === targetCategoryId ? { ...c, parentId: destCatId } : c))
       .filter((c) => c.id !== targetCategoryId);
     setCategories(updatedCats);
     await saveAllCategories(updatedCats);
-    if (selectedCategory === catName) setSelectedCategory(null);
+
+    if (selectedCategory?.toLowerCase() === catName.toLowerCase()) {
+      setSelectedCategory(transferToCatName);
+    }
     setDeleteTransferDialog(null);
-    addToast(`Items transferred to "${transferToCatName}" and category deleted.`, "success");
+    addToast(`All items safely moved to "${transferToCatName}" and category removed.`, "success");
   };
 
   const handleRenameCategory = async (id: string, newName: string) => {

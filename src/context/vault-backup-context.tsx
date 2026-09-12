@@ -29,6 +29,7 @@ import {
 } from "@/lib/backup";
 import { parseCSVToEntries, parseJSONBackupText } from "@/lib/importers";
 import { downloadTextFile } from "@/lib/download";
+import { reconcileMissingCategories } from "@/lib/category-tree";
 import { useVaultUI } from "./vault-ui-context";
 import { useVaultSecurity } from "./vault-security-context";
 import { useVaultData, normalizeHost } from "./vault-data-context";
@@ -84,9 +85,11 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
         getMaskedEmails(),
         getPasskeys(),
       ]);
+      const localPasswords = decryptedPasswords.filter((p) => p.storageScope !== "cloud");
+      const localBookmarks = bookmarks.filter((b) => b.storageScope !== "cloud");
       const payload = createLokkerBackupPayload({
-        passwords: decryptedPasswords,
-        bookmarks,
+        passwords: localPasswords,
+        bookmarks: localBookmarks,
         categories,
         settings,
         files,
@@ -130,9 +133,11 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
             getMaskedEmails(),
             getPasskeys(),
           ]);
+          const localPasswords = decryptedPasswords.filter((p) => p.storageScope !== "cloud");
+          const localBookmarks = bookmarks.filter((b) => b.storageScope !== "cloud");
           const payload = createLokkerBackupPayload({
-            passwords: decryptedPasswords,
-            bookmarks,
+            passwords: localPasswords,
+            bookmarks: localBookmarks,
             categories,
             settings,
             files,
@@ -188,7 +193,7 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
     if (strategy === "replace") {
       await resetDatabase();
       const incomingBookmarks = Array.isArray(payload.bookmarks) ? payload.bookmarks : [];
-      const incomingCategories = Array.isArray(payload.categories) ? payload.categories : [];
+      let incomingCategories = Array.isArray(payload.categories) ? payload.categories : [];
       const incomingSettings = payload.settings || {
         autoLockMinutes: 15,
         requireConfirmationForAutofill: true,
@@ -198,6 +203,12 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
       const incomingPasswords = Array.isArray(payload.passwords) ? payload.passwords : [];
       const incomingMasked = Array.isArray(payload.maskedEmails) ? payload.maskedEmails : [];
       const incomingPasskeys = Array.isArray(payload.passkeys) ? payload.passkeys : [];
+
+      const { updatedCategories } = reconcileMissingCategories(
+        [...incomingPasswords, ...incomingBookmarks],
+        incomingCategories
+      );
+      incomingCategories = updatedCategories;
 
       await saveAllBookmarks(incomingBookmarks);
       await saveAllCategories(incomingCategories);
@@ -245,8 +256,12 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
       const incomingCats = Array.isArray(payload.categories) ? payload.categories : [];
       const newCats = incomingCats.filter((c) => !existingCatNames.has(c.name.toLowerCase()));
       const mergedCats = [...categories, ...newCats];
-      setCategories(mergedCats);
-      await saveAllCategories(mergedCats);
+      const { updatedCategories } = reconcileMissingCategories(
+        [...mergedPwds, ...mergedBms],
+        mergedCats
+      );
+      setCategories(updatedCategories);
+      await saveAllCategories(updatedCategories);
       const incomingFiles = Array.isArray(payload.files) ? payload.files : [];
       for (const f of incomingFiles) { await saveEncryptedFile(f); }
 
@@ -276,12 +291,13 @@ export function VaultBackupProvider({ children }: { children: React.ReactNode })
   // ==========================================
 
   const handleExportCSV = () => {
-    if (!isUnlocked || decryptedPasswords.length === 0) {
-      addToast("No decrypted passwords to export. Unlock vault first.", "error");
+    const localPasswords = decryptedPasswords.filter((p) => p.storageScope !== "cloud");
+    if (!isUnlocked || localPasswords.length === 0) {
+      addToast("No local decrypted passwords to export. Unlock vault first.", "error");
       return;
     }
     const headers = ["title", "url", "username", "password", "notes", "category"];
-    const rows = decryptedPasswords.map((p) => [
+    const rows = localPasswords.map((p) => [
       `"${(p.websiteName || "").replace(/"/g, '""')}"`,
       `"${(p.websiteUrl || "").replace(/"/g, '""')}"`,
       `"${(p.username || "").replace(/"/g, '""')}"`,

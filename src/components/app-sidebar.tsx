@@ -30,6 +30,8 @@ import {
   FolderPlus,
   Cloud,
   ArrowRight,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +52,7 @@ import { Category, ViewMode } from "@/types";
 import { appConfig } from "@/config/app";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT, type CloudSessionUser } from "@/lib/auth-session";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
+import { buildCategoryTree, formatCategoryPath } from "@/lib/category-tree";
 
 const VIEW_TO_PATH: Record<ViewMode, string> = {
   home: "/app",
@@ -102,6 +105,17 @@ export function AppSidebar({
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
   const [editingCatName, setEditingCatName] = React.useState("");
+  const [collapsedCatIds, setCollapsedCatIds] = React.useState<Set<string>>(new Set());
+
+  const toggleCategoryCollapse = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsedCatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
 
@@ -142,40 +156,9 @@ export function AppSidebar({
     { id: "settings" as ViewMode, label: "Settings", icon: SettingsIcon },
   ];
 
-  // Organize categories into hierarchical tree
+  // Organize categories into arbitrary-depth hierarchical tree
   const categoryTree = React.useMemo(() => {
-    const rootCats: Category[] = [];
-    const childMap = new Map<string, Category[]>();
-
-    categories.forEach((cat) => {
-      if (cat.parentId) {
-        const existing = childMap.get(cat.parentId) || [];
-        existing.push(cat);
-        childMap.set(cat.parentId, existing);
-      } else {
-        rootCats.push(cat);
-      }
-    });
-
-    const ordered: { category: Category; isChild: boolean }[] = [];
-    rootCats.forEach((root) => {
-      ordered.push({ category: root, isChild: false });
-      const children = childMap.get(root.id) || [];
-      children.forEach((child) => {
-        ordered.push({ category: child, isChild: true });
-      });
-    });
-
-    // Also include any orphan children whose parents don't exist
-    categories.forEach((cat) => {
-      if (cat.parentId && !categories.some((c) => c.id === cat.parentId)) {
-        if (!ordered.some((o) => o.category.id === cat.id)) {
-          ordered.push({ category: cat, isChild: false });
-        }
-      }
-    });
-
-    return ordered;
+    return buildCategoryTree(categories);
   }, [categories]);
 
   const renderNavItem = (item: { id: ViewMode; label: string; icon: React.ElementType; count?: number }) => {
@@ -334,7 +317,13 @@ export function AppSidebar({
                 </button>
               </div>
 
-              {categoryTree.map(({ category: cat, isChild }) => {
+              {categoryTree.map((item) => {
+                const { category: cat, depth, hasChildren, childCount, ancestors } = item;
+                // If any ancestor is collapsed, hide this item
+                const isHiddenByAncestor = ancestors.some((a) => collapsedCatIds.has(a.id));
+                if (isHiddenByAncestor) return null;
+
+                const isCollapsedFolder = collapsedCatIds.has(cat.id);
                 const isCatActive = selectedCategory === cat.name;
                 const isEditing = editingCatId === cat.id;
 
@@ -345,6 +334,8 @@ export function AppSidebar({
                   setEditingCatId(null);
                   setEditingCatName("");
                 };
+
+                const paddingLeft = depth * 14 + 10;
 
                 return (
                   <div key={cat.id} className="group relative">
@@ -358,23 +349,40 @@ export function AppSidebar({
                           onCloseMobile();
                         }
                       }}
-                      className={`w-full flex items-center justify-between py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                        isChild ? "pl-5 pr-2" : "pl-2.5 pr-7"
-                      } ${
+                      style={{ paddingLeft: `${paddingLeft}px` }}
+                      className={`w-full flex items-center justify-between py-1.5 pr-7 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                         isCatActive
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                       }`}
+                      title={item.path}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        {isChild ? (
-                          <CornerDownRight className="size-3 text-muted-foreground shrink-0" />
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {/* Collapse / Expand Toggle Button for folders */}
+                        {hasChildren ? (
+                          <button
+                            type="button"
+                            onClick={(e) => toggleCategoryCollapse(cat.id, e)}
+                            className="p-0.5 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground cursor-pointer shrink-0 -ml-1"
+                            title={isCollapsedFolder ? "Expand folder" : "Collapse folder"}
+                          >
+                            {isCollapsedFolder ? (
+                              <ChevronRight className="size-3" />
+                            ) : (
+                              <ChevronDown className="size-3" />
+                            )}
+                          </button>
                         ) : (
-                          <span
-                            className="size-2 rounded-full shrink-0"
-                            style={{ backgroundColor: cat.color }}
-                          />
+                          <span className="w-3 shrink-0" />
                         )}
+
+                        {/* Category Color Dot */}
+                        <span
+                          className="size-2 rounded-full shrink-0"
+                          style={{ backgroundColor: cat.color }}
+                        />
+
+                        {/* Name / Inline Rename Input */}
                         {isEditing ? (
                           <Input
                             value={editingCatName}
@@ -395,6 +403,13 @@ export function AppSidebar({
                           <span className="truncate">{cat.name}</span>
                         )}
                       </div>
+
+                      {/* Child subcategory count badge if folder */}
+                      {hasChildren && !isEditing && (
+                        <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 ml-1">
+                          {childCount}
+                        </span>
+                      )}
                     </button>
 
                     {!isEditing && (
@@ -428,7 +443,7 @@ export function AppSidebar({
                               className="cursor-pointer"
                             >
                               <FolderPlus className="size-3 mr-1.5" />
-                              <span>Add Nested</span>
+                              <span>Add Subcategory</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -450,7 +465,35 @@ export function AppSidebar({
               })}
             </div>
           ) : (
-            <div className="pt-1 border-t border-border-subtle" />
+            <div className="space-y-1 pt-1 border-t border-border-subtle">
+              {categoryTree.map((item) => (
+                <Tooltip key={item.category.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        onSelectCategory(item.category.name);
+                        if (pathname !== "/app/passwords" && pathname !== "/app/bookmarks") {
+                          onSelectView("passwords");
+                        }
+                      }}
+                      className={`w-full flex justify-center py-2 rounded-md transition-colors cursor-pointer ${
+                        selectedCategory === item.category.name
+                          ? "bg-sidebar-accent"
+                          : "hover:bg-sidebar-accent/50"
+                      }`}
+                    >
+                      <span
+                        className="size-2 rounded-full shrink-0"
+                        style={{ backgroundColor: item.category.color }}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs">
+                    {item.path}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
           )}
 
           {/* Utilities & Tools */}

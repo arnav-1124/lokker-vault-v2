@@ -34,6 +34,7 @@ import {
 import { Bookmark, Category, PasswordEntry } from "@/types";
 import { calculatePasswordStrength } from "@/lib/crypto";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import { formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree";
 
 interface PasswordListViewProps {
   passwords: PasswordEntry[];
@@ -93,12 +94,17 @@ export function PasswordListView({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const familyNames = React.useMemo(() => {
+    if (!selectedCategory) return null;
+    return getCategoryFamilyNames(selectedCategory, categories);
+  }, [selectedCategory, categories]);
+
   const filteredPasswords = React.useMemo(() => {
     return passwords
       .filter((p) => hasCloud || p.storageScope !== "cloud")
       .filter((p) => {
         const matchesCategory =
-          !selectedCategory || p.category.toLowerCase() === selectedCategory.toLowerCase();
+          !familyNames || familyNames.has(p.category.toLowerCase());
         const q = searchQuery.toLowerCase().trim();
         const matchesSearch =
           !q ||
@@ -108,7 +114,7 @@ export function PasswordListView({
           (p.notes && p.notes.toLowerCase().includes(q));
         return matchesCategory && matchesSearch;
       });
-  }, [passwords, selectedCategory, searchQuery, hasCloud]);
+  }, [passwords, familyNames, searchQuery, hasCloud]);
 
   // Helper: find linked bookmark for a credential by hostname
   const normalizeHost = (str: string) => {
@@ -238,11 +244,25 @@ export function PasswordListView({
                       <span className="text-sm font-semibold text-foreground truncate">
                         {item.websiteName}
                       </span>
-                      {item.category && (
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-background border-border-subtle">
-                          {item.category}
-                        </Badge>
-                      )}
+                      {item.category && (() => {
+                        const catObj = categories.find((c) => c.name.toLowerCase() === item.category.toLowerCase());
+                        const pathStr = formatCategoryPath(item.category, categories);
+                        return (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 px-1.5 bg-background border-border-subtle gap-1 inline-flex items-center"
+                            title={`Category: ${pathStr}`}
+                          >
+                            {catObj && (
+                              <span
+                                className="size-1.5 rounded-full shrink-0"
+                                style={{ backgroundColor: catObj.color }}
+                              />
+                            )}
+                            <span className="truncate max-w-[150px]">{pathStr}</span>
+                          </Badge>
+                        );
+                      })()}
                       {item.storageScope === "cloud" ? (
                         <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary bg-primary/5 gap-1 inline-flex items-center">
                           <Cloud className="size-2.5" />

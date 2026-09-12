@@ -26,6 +26,7 @@ import {
 import { Bookmark, Category, PasswordEntry } from "@/types";
 import { calculatePasswordStrength } from "@/lib/crypto";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import { formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree";
 
 interface BookmarkListViewProps {
   bookmarks: Bookmark[];
@@ -48,6 +49,7 @@ export function BookmarkListView({
   onEdit,
   onDelete,
   onOpenAddModal,
+  categories = [],
   passwords = [],
   onNavigateCredential,
 }: BookmarkListViewProps) {
@@ -85,13 +87,18 @@ export function BookmarkListView({
     };
   }, []);
 
+  const familyNames = React.useMemo(() => {
+    if (!selectedCategory) return null;
+    return getCategoryFamilyNames(selectedCategory, categories);
+  }, [selectedCategory, categories]);
+
   const filteredBookmarks = React.useMemo(() => {
     return bookmarks
       .filter((b) => hasCloud || b.storageScope !== "cloud")
       .filter((b) => {
         const matchesCategory =
-          !selectedCategory ||
-          (b.category && b.category.toLowerCase() === selectedCategory.toLowerCase());
+          !familyNames ||
+          (b.category && familyNames.has(b.category.toLowerCase()));
         const q = searchQuery.toLowerCase().trim();
         const matchesSearch =
           !q ||
@@ -100,7 +107,7 @@ export function BookmarkListView({
           (b.description && b.description.toLowerCase().includes(q));
         return matchesCategory && matchesSearch;
       });
-  }, [bookmarks, selectedCategory, searchQuery, hasCloud]);
+  }, [bookmarks, familyNames, searchQuery, hasCloud]);
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
@@ -235,9 +242,26 @@ export function BookmarkListView({
 
               <div className="flex items-center justify-between pt-2 border-t border-border-subtle text-xs">
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px] bg-background border-border-subtle">
-                    {bm.category || "General"}
-                  </Badge>
+                  {(() => {
+                    const catName = bm.category || "General";
+                    const catObj = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
+                    const pathStr = formatCategoryPath(catName, categories);
+                    return (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] py-0 px-1.5 bg-background border-border-subtle gap-1 inline-flex items-center"
+                        title={`Category: ${pathStr}`}
+                      >
+                        {catObj && (
+                          <span
+                            className="size-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: catObj.color }}
+                          />
+                        )}
+                        <span className="truncate max-w-[150px]">{pathStr}</span>
+                      </Badge>
+                    );
+                  })()}
                   {bm.storageScope === "cloud" ? (
                     <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary bg-primary/5 gap-1 inline-flex items-center">
                       <Cloud className="size-2.5" />

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark as BookmarkIcon, Cloud, HardDrive } from "lucide-react";
+import { Bookmark as BookmarkIcon, Cloud, HardDrive, CornerDownRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import { Bookmark, Category, StorageScope } from "@/types";
 import { generateId } from "@/lib/id";
 import { SaveScopeWarningModal } from "./save-scope-warning-modal";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import { buildCategoryTree } from "@/lib/category-tree";
 
 interface BookmarkModalProps {
   isOpen: boolean;
@@ -51,6 +52,8 @@ export function BookmarkModal({
   const [storageScope, setStorageScope] = React.useState<StorageScope>(initialBookmark?.storageScope || "cloud");
   const [hasCloudSession, setHasCloudSession] = React.useState<boolean>(() => !!getCloudSession());
   const [isWarningModalOpen, setIsWarningModalOpen] = React.useState(false);
+
+  const categoryTree = React.useMemo(() => buildCategoryTree(categories), [categories]);
 
   React.useEffect(() => {
     const updateSession = () => setHasCloudSession(!!getCloudSession());
@@ -181,13 +184,30 @@ export function BookmarkModal({
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.name}>
-                    {c.name}
+                {categoryTree.map((item) => (
+                  <SelectItem key={item.category.id} value={item.category.name}>
+                    <div className="flex items-center gap-1.5" style={{ paddingLeft: `${item.depth * 10}px` }}>
+                      {item.depth > 0 && <CornerDownRight className="size-3 text-muted-foreground shrink-0" />}
+                      <span
+                        className="size-2 rounded-full shrink-0"
+                        style={{ backgroundColor: item.category.color || "#6b7280" }}
+                      />
+                      <span className="truncate">{item.category.name}</span>
+                      {item.depth > 0 && (
+                        <span className="text-[10px] text-muted-foreground shrink-0 opacity-70">
+                          ({item.path})
+                        </span>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
                 {!categories.some((c) => c.name.toLowerCase() === "general") && (
-                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="General">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-muted-foreground shrink-0" />
+                      <span>General</span>
+                    </div>
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
