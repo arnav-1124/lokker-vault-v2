@@ -48,6 +48,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Category, ViewMode } from "@/types";
 import { appConfig } from "@/config/app";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT, type CloudSessionUser } from "@/lib/auth-session";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
 
 const VIEW_TO_PATH: Record<ViewMode, string> = {
@@ -102,32 +103,18 @@ export function AppSidebar({
   const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
   const [editingCatName, setEditingCatName] = React.useState("");
 
-  const [cloudSession, setCloudSession] = React.useState<{
-    id: string;
-    email: string;
-    name?: string;
-    role: "ADMIN" | "USER";
-  } | null>(null);
+  const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
 
   React.useEffect(() => {
     const loadSession = () => {
-      try {
-        const raw = localStorage.getItem("lokker_cloud_session");
-        if (raw) {
-          setCloudSession(JSON.parse(raw));
-        } else {
-          setCloudSession(null);
-        }
-      } catch {
-        setCloudSession(null);
-      }
+      setCloudSession(getCloudSession());
     };
 
     loadSession();
-    window.addEventListener("lokker_auth_change", loadSession);
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, loadSession);
     window.addEventListener("storage", loadSession);
     return () => {
-      window.removeEventListener("lokker_auth_change", loadSession);
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, loadSession);
       window.removeEventListener("storage", loadSession);
     };
   }, []);

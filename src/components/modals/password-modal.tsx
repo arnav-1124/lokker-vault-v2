@@ -38,6 +38,7 @@ import {
   generateSecurePassword,
 } from "@/lib/crypto";
 import { SaveScopeWarningModal } from "./save-scope-warning-modal";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 
 interface PasswordModalProps {
   isOpen: boolean;
@@ -68,16 +69,18 @@ export function PasswordModal({
   const [totpSecret, setTotpSecret] = React.useState(initialEntry?.totpSecret || "");
   const [isFavorite, setIsFavorite] = React.useState(!!initialEntry?.isFavorite);
   const [showPassword, setShowPassword] = React.useState(false);
-  const [hasCloudSession, setHasCloudSession] = React.useState(false);
+  const [hasCloudSession, setHasCloudSession] = React.useState<boolean>(() => !!getCloudSession());
   const [isWarningModalOpen, setIsWarningModalOpen] = React.useState(false);
 
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem("lokker_cloud_session");
-      setHasCloudSession(!!raw);
-    } catch {
-      setHasCloudSession(false);
-    }
+    const updateSession = () => setHasCloudSession(!!getCloudSession());
+    updateSession();
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, updateSession);
+    window.addEventListener("storage", updateSession);
+    return () => {
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, updateSession);
+      window.removeEventListener("storage", updateSession);
+    };
   }, [isOpen]);
 
   // Credit card specific fields

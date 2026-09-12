@@ -23,6 +23,7 @@ import { VaultNavigationProvider, useVaultNavigation } from "./vault-navigation-
 import { VaultSecurityProvider, useVaultSecurity } from "./vault-security-context";
 import { VaultDataProvider, useVaultData } from "./vault-data-context";
 import { VaultBackupProvider, useVaultBackup } from "./vault-backup-context";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 import type { VaultContextType } from "./vault-types";
 
 const VaultContext = React.createContext<VaultContextType | null>(null);
@@ -40,22 +41,17 @@ function VaultContextBridge({ children }: { children: React.ReactNode }) {
   const data = useVaultData();
   const backup = useVaultBackup();
 
-  const [hasCloudSession, setHasCloudSession] = React.useState(false);
+  const [hasCloudSession, setHasCloudSession] = React.useState<boolean>(() => !!getCloudSession());
 
   React.useEffect(() => {
     const checkSession = () => {
-      try {
-        const raw = localStorage.getItem("lokker_cloud_session");
-        setHasCloudSession(!!raw);
-      } catch {
-        setHasCloudSession(false);
-      }
+      setHasCloudSession(!!getCloudSession());
     };
     checkSession();
-    window.addEventListener("lokker_auth_change", checkSession);
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, checkSession);
     window.addEventListener("storage", checkSession);
     return () => {
-      window.removeEventListener("lokker_auth_change", checkSession);
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, checkSession);
       window.removeEventListener("storage", checkSession);
     };
   }, []);
@@ -76,10 +72,10 @@ function VaultContextBridge({ children }: { children: React.ReactNode }) {
     ...navigation,
     ...ui,
     ...security,
-    decryptedPasswords: visiblePasswords,
     ...data,
-    bookmarks: visibleBookmarks,
     ...backup,
+    decryptedPasswords: visiblePasswords,
+    bookmarks: visibleBookmarks,
   };
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;

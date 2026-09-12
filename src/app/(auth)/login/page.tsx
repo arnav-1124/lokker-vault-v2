@@ -21,6 +21,7 @@ import { appConfig } from "@/config/app";
 import { getVaultMeta, saveVaultMeta } from "@/lib/db";
 import { generateRecoveryKey, initializeEnvelopeVault } from "@/lib/crypto";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
+import { setCloudSession } from "@/lib/auth-session";
 
 const STORAGE_KEY = "lokker_cloud_session";
 
@@ -83,18 +84,13 @@ function LoginContent() {
       }
 
       // Store authenticated session
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          role: data.user.role,
-          name: data.user.name,
-          accessToken: data.accessToken,
-        })
-      );
-      document.cookie = "lokker_cloud_session=1; path=/; max-age=604800; SameSite=Lax";
-      window.dispatchEvent(new Event("lokker_auth_change"));
+      setCloudSession({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        name: data.user.name,
+        accessToken: data.accessToken,
+      });
 
       // If local device does not have an initialized vault yet, initialize it with this unified password
       const meta = await getVaultMeta();

@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, Category, PasswordEntry } from "@/types";
 import { calculatePasswordStrength } from "@/lib/crypto";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 
 interface PasswordListViewProps {
   passwords: PasswordEntry[];
@@ -72,6 +73,20 @@ export function PasswordListView({
     setRevealedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const [hasCloud, setHasCloud] = React.useState<boolean>(() => !!getCloudSession());
+
+  React.useEffect(() => {
+    const handleAuth = () => {
+      setHasCloud(!!getCloudSession());
+    };
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuth);
+    window.addEventListener("storage", handleAuth);
+    return () => {
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuth);
+      window.removeEventListener("storage", handleAuth);
+    };
+  }, []);
+
   const handleCopy = (id: string, text: string, label: string) => {
     onCopyText(text, label);
     setCopiedId(id);
@@ -79,19 +94,21 @@ export function PasswordListView({
   };
 
   const filteredPasswords = React.useMemo(() => {
-    return passwords.filter((p) => {
-      const matchesCategory =
-        !selectedCategory || p.category.toLowerCase() === selectedCategory.toLowerCase();
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        p.websiteName.toLowerCase().includes(q) ||
-        p.username.toLowerCase().includes(q) ||
-        (p.websiteUrl && p.websiteUrl.toLowerCase().includes(q)) ||
-        (p.notes && p.notes.toLowerCase().includes(q));
-      return matchesCategory && matchesSearch;
-    });
-  }, [passwords, selectedCategory, searchQuery]);
+    return passwords
+      .filter((p) => hasCloud || p.storageScope !== "cloud")
+      .filter((p) => {
+        const matchesCategory =
+          !selectedCategory || p.category.toLowerCase() === selectedCategory.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
+        const matchesSearch =
+          !q ||
+          p.websiteName.toLowerCase().includes(q) ||
+          p.username.toLowerCase().includes(q) ||
+          (p.websiteUrl && p.websiteUrl.toLowerCase().includes(q)) ||
+          (p.notes && p.notes.toLowerCase().includes(q));
+        return matchesCategory && matchesSearch;
+      });
+  }, [passwords, selectedCategory, searchQuery, hasCloud]);
 
   // Helper: find linked bookmark for a credential by hostname
   const normalizeHost = (str: string) => {

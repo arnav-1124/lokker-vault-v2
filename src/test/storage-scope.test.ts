@@ -151,4 +151,58 @@ describe("Storage Scope Models", () => {
     expect(visibleWhenLoggedIn.length).toBe(3);
     expect(visibleWhenLoggedIn.some((p) => p.storageScope === "cloud")).toBe(true);
   });
+
+  it("broadcasts CLOUD_AUTH_CHANGE_EVENT on setCloudSession and clearCloudSession", async () => {
+    const {
+      getCloudSession,
+      setCloudSession,
+      clearCloudSession,
+      CLOUD_AUTH_CHANGE_EVENT,
+      CLOUD_SESSION_STORAGE_KEY,
+    } = await import("@/lib/auth-session");
+
+    let eventFired = 0;
+    let lastDetail: any = null;
+
+    const listener = (e: Event) => {
+      eventFired++;
+      lastDetail = (e as CustomEvent).detail;
+    };
+
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, listener);
+
+    try {
+      // 1. Set cloud session
+      setCloudSession({
+        id: "user-123",
+        email: "alice@example.com",
+        role: "USER",
+        name: "Alice",
+        accessToken: "jwt-token-abc",
+      });
+
+      expect(eventFired).toBe(1);
+      expect(lastDetail).toEqual({
+        id: "user-123",
+        email: "alice@example.com",
+        role: "USER",
+        name: "Alice",
+        accessToken: "jwt-token-abc",
+      });
+
+      const current = getCloudSession();
+      expect(current?.email).toBe("alice@example.com");
+      expect(localStorage.getItem(CLOUD_SESSION_STORAGE_KEY)).not.toBeNull();
+
+      // 2. Clear cloud session (logout)
+      clearCloudSession();
+
+      expect(eventFired).toBe(2);
+      expect(lastDetail).toBeNull();
+      expect(getCloudSession()).toBeNull();
+      expect(localStorage.getItem(CLOUD_SESSION_STORAGE_KEY)).toBeNull();
+    } finally {
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, listener);
+    }
+  });
 });

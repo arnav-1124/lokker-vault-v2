@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, Category, PasswordEntry } from "@/types";
 import { calculatePasswordStrength } from "@/lib/crypto";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 
 interface BookmarkListViewProps {
   bookmarks: Bookmark[];
@@ -70,20 +71,36 @@ export function BookmarkListView({
     [passwords]
   );
 
+  const [hasCloud, setHasCloud] = React.useState<boolean>(() => !!getCloudSession());
+
+  React.useEffect(() => {
+    const handleAuth = () => {
+      setHasCloud(!!getCloudSession());
+    };
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuth);
+    window.addEventListener("storage", handleAuth);
+    return () => {
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuth);
+      window.removeEventListener("storage", handleAuth);
+    };
+  }, []);
+
   const filteredBookmarks = React.useMemo(() => {
-    return bookmarks.filter((b) => {
-      const matchesCategory =
-        !selectedCategory ||
-        (b.category && b.category.toLowerCase() === selectedCategory.toLowerCase());
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        b.title.toLowerCase().includes(q) ||
-        b.url.toLowerCase().includes(q) ||
-        (b.description && b.description.toLowerCase().includes(q));
-      return matchesCategory && matchesSearch;
-    });
-  }, [bookmarks, selectedCategory, searchQuery]);
+    return bookmarks
+      .filter((b) => hasCloud || b.storageScope !== "cloud")
+      .filter((b) => {
+        const matchesCategory =
+          !selectedCategory ||
+          (b.category && b.category.toLowerCase() === selectedCategory.toLowerCase());
+        const q = searchQuery.toLowerCase().trim();
+        const matchesSearch =
+          !q ||
+          b.title.toLowerCase().includes(q) ||
+          b.url.toLowerCase().includes(q) ||
+          (b.description && b.description.toLowerCase().includes(q));
+        return matchesCategory && matchesSearch;
+      });
+  }, [bookmarks, selectedCategory, searchQuery, hasCloud]);
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">

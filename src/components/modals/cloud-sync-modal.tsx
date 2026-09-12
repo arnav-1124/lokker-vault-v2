@@ -28,6 +28,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { appConfig } from "@/config/app";
+import {
+  getCloudSession,
+  setCloudSession,
+  clearCloudSession,
+  CLOUD_AUTH_CHANGE_EVENT,
+} from "@/lib/auth-session";
 
 interface CloudSyncModalProps {
   isOpen: boolean;
@@ -41,8 +47,6 @@ interface UserSession {
   name?: string | null;
   accessToken: string;
 }
-
-const STORAGE_KEY = "lokker_cloud_session";
 
 export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
   const [activeTab, setActiveTab] = React.useState<"account" | "features">("account");
@@ -59,14 +63,16 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
 
   // Load existing session from storage if any
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSession(JSON.parse(stored));
-      }
-    } catch {
-      // Ignore parse error
-    }
+    setSession(getCloudSession());
+    const handleAuthChange = () => {
+      setSession(getCloudSession());
+    };
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
   }, [isOpen]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -102,7 +108,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
         accessToken: data.accessToken,
       };
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(userSession));
+      setCloudSession(userSession);
       setSession(userSession);
       setSuccessMsg(
         authMode === "signup"
@@ -122,7 +128,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    clearCloudSession();
     setSession(null);
     setSuccessMsg("Disconnected from cloud. Your vault remains 100% safe locally.");
     setErrorMsg(null);

@@ -30,6 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ViewMode } from "@/types";
+import {
+  getCloudSession,
+  clearCloudSession,
+  CLOUD_AUTH_CHANGE_EVENT,
+  type CloudSessionUser,
+} from "@/lib/auth-session";
+import { appConfig } from "@/config/app";
 
 const PATH_TITLE: Record<string, string> = {
   "/app": "Security Workspace",
@@ -101,34 +108,19 @@ export function AppHeader({
   );
 
   const { addToast } = useVaultUI();
-  const [cloudSession, setCloudSession] = React.useState<{
-    id: string;
-    email: string;
-    name?: string;
-    role: "ADMIN" | "USER";
-    accessToken: string;
-  } | null>(null);
+  const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
   const [isSyncing, setIsSyncing] = React.useState(false);
 
   React.useEffect(() => {
     const loadSession = () => {
-      try {
-        const raw = localStorage.getItem("lokker_cloud_session");
-        if (raw) {
-          setCloudSession(JSON.parse(raw));
-        } else {
-          setCloudSession(null);
-        }
-      } catch {
-        setCloudSession(null);
-      }
+      setCloudSession(getCloudSession());
     };
 
     loadSession();
-    window.addEventListener("lokker_auth_change", loadSession);
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, loadSession);
     window.addEventListener("storage", loadSession);
     return () => {
-      window.removeEventListener("lokker_auth_change", loadSession);
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, loadSession);
       window.removeEventListener("storage", loadSession);
     };
   }, []);
@@ -142,10 +134,14 @@ export function AppHeader({
   };
 
   const handleSignOut = () => {
-    localStorage.removeItem("lokker_cloud_session");
-    document.cookie = "lokker_cloud_session=; path=/; max-age=0; SameSite=Lax";
+    if (cloudSession?.accessToken) {
+      fetch(`${appConfig.apiUrl}/api/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cloudSession.accessToken}` },
+      }).catch(() => {});
+    }
+    clearCloudSession();
     setCloudSession(null);
-    window.dispatchEvent(new Event("lokker_auth_change"));
     addToast("Signed out of Cloud. Your local vault remains safely on this device.", "info");
   };
 
