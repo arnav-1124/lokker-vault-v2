@@ -24,6 +24,8 @@ export function getCloudSession(): CloudSessionUser | null {
   }
 }
 
+import { identifyPostHogUser, resetPostHogUser } from "@/components/providers/posthog-provider";
+
 /**
  * Persists cloud user session, sets the auth cookie, and broadcasts an auth change event.
  */
@@ -31,6 +33,11 @@ export function setCloudSession(session: CloudSessionUser): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(CLOUD_SESSION_STORAGE_KEY, JSON.stringify(session));
   document.cookie = `${CLOUD_SESSION_STORAGE_KEY}=1; path=/; max-age=604800; SameSite=Lax`;
+  identifyPostHogUser(session.id, {
+    email: session.email,
+    role: session.role,
+    name: session.name,
+  });
   window.dispatchEvent(new CustomEvent(CLOUD_AUTH_CHANGE_EVENT, { detail: session }));
 }
 
@@ -41,5 +48,6 @@ export function clearCloudSession(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
   document.cookie = `${CLOUD_SESSION_STORAGE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+  resetPostHogUser();
   window.dispatchEvent(new CustomEvent(CLOUD_AUTH_CHANGE_EVENT, { detail: null }));
 }
