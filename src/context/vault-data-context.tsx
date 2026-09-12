@@ -19,6 +19,15 @@ import {
 } from "@/lib/db";
 import { generateId } from "@/lib/id";
 import { reconcileMissingCategories } from "@/lib/category-tree";
+import {
+  prepareCloudSyncPayload,
+  encryptAndUploadCloudVault,
+  downloadAndDecryptCloudVault,
+  deleteCloudVault,
+  mergeCloudVaultWithLocal,
+} from "@/lib/cloud-sync";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import { appConfig } from "@/config/app";
 import { useVaultUI } from "./vault-ui-context";
 import { useVaultSecurity } from "./vault-security-context";
 import type { VaultDataContextType } from "./vault-types";
@@ -56,9 +65,182 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
   const [bookmarks, setBookmarks] = React.useState<Bookmark[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
 
+  // Cloud Sync state
+  const [syncStatus, setSyncStatus] = React.useState<"idle" | "syncing" | "synced" | "error">("idle");
+  const [lastSyncedAt, setLastSyncedAt] = React.useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("lokker_last_synced_at");
+  });
+  const [cloudItemCount, setCloudItemCount] = React.useState<number>(0);
+  const [syncError, setSyncError] = React.useState<string | null>(null);
+
+  // Debounced auto-sync timer ref
+  const autoSyncTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Keep live count of items with storageScope: 'cloud'
+  const localCloudItemCount = React.useMemo(() => {
+    return (
+      decryptedPasswords.filter((p) => p.storageScope === "cloud").length +
+      bookmarks.filter((b) => b.storageScope === "cloud").length
+    );
+  }, [decryptedPasswords, bookmarks]);
+
+  const effectiveCloudItemCount = cloudItemCount > 0 ? cloudItemCount : localCloudItemCount;
+
   // When a linked-entry edit modal is opened from a sync suggestion, the next
   // save must not trigger the mirrored suggestion again (ping-pong guard).
   const skipSyncSuggestionRef = React.useRef(false);
+
+  // Core Cloud Sync Orchestrator
+  const triggerCloudSync = React.useCallback(
+    async (options?: { force?: boolean }): Promise<boolean> => {
+      const session = getCloudSession();
+      if (!session?.accessToken) {
+        setSyncStatus("idle");
+        return false;
+      }
+      if (!isUnlocked || !derivedKey) {
+        return false;
+      }
+
+      setSyncStatus("syncing");
+      setSyncError(null);
+
+      try {
+        // 1. Download cloud vault (if any)
+        const downloadResult = await downloadAndDecryptCloudVault(
+          derivedKey,
+          session.accessToken,
+          appConfig.apiUrl
+        );
+
+        let currentPasswords = decryptedPasswords;
+        let currentBookmarks = bookmarks;
+        let currentCategories = categories;
+
+        if (downloadResult.exists && downloadResult.payload) {
+          const merged = mergeCloudVaultWithLocal(
+            {
+              passwords: decryptedPasswords,
+              bookmarks,
+              categories,
+            },
+            downloadResult.payload
+          );
+
+          if (merged.hasChanges) {
+            currentPasswords = merged.mergedPasswords;
+            currentBookmarks = merged.mergedBookmarks;
+            currentCategories = merged.mergedCategories;
+
+            await saveAndEncryptPasswords(currentPasswords);
+            setBookmarks(currentBookmarks);
+            await saveAllBookmarks(currentBookmarks);
+            setCategories(currentCategories);
+            await saveAllCategories(currentCategories);
+          }
+        }
+
+        // 2. Prepare payload of local cloud-scoped items to sync upstream
+        const uploadPayload = prepareCloudSyncPayload({
+          passwords: currentPasswords,
+          bookmarks: currentBookmarks,
+          categories: currentCategories,
+        });
+
+        // 3. Encrypt and upload
+        const uploadResult = await encryptAndUploadCloudVault(
+          derivedKey,
+          uploadPayload,
+          session.accessToken,
+          appConfig.apiUrl
+        );
+
+        setSyncStatus("synced");
+        setLastSyncedAt(uploadResult.updatedAt);
+        setCloudItemCount(uploadResult.itemCount);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("lokker_last_synced_at", uploadResult.updatedAt);
+        }
+
+        if (options?.force) {
+          addToast("Cloud vault synchronized securely.", "success");
+        }
+        return true;
+      } catch (err: any) {
+        console.error("Cloud sync error:", err);
+        setSyncStatus("error");
+        setSyncError(err.message || "Failed to synchronize with cloud");
+        if (options?.force) {
+          addToast(err.message || "Unable to sync with cloud", "error");
+        }
+        return false;
+      }
+    },
+    [isUnlocked, derivedKey, decryptedPasswords, bookmarks, categories, saveAndEncryptPasswords, addToast]
+  );
+
+  const deleteCloudBackup = React.useCallback(async (): Promise<boolean> => {
+    const session = getCloudSession();
+    if (!session?.accessToken) return false;
+    try {
+      await deleteCloudVault(session.accessToken, appConfig.apiUrl);
+      setLastSyncedAt(null);
+      setCloudItemCount(0);
+      setSyncStatus("idle");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("lokker_last_synced_at");
+      }
+      addToast("Cloud backup removed successfully. Your local vault is preserved.", "info");
+      return true;
+    } catch (err: any) {
+      addToast(err.message || "Failed to remove cloud backup", "error");
+      return false;
+    }
+  }, [addToast]);
+
+  const scheduleAutoSync = React.useCallback(() => {
+    const session = getCloudSession();
+    if (!session?.accessToken || !isUnlocked || !derivedKey) return;
+    if (autoSyncTimeoutRef.current) {
+      clearTimeout(autoSyncTimeoutRef.current);
+    }
+    autoSyncTimeoutRef.current = setTimeout(() => {
+      triggerCloudSync();
+    }, 1500);
+  }, [isUnlocked, derivedKey, triggerCloudSync]);
+
+  // Trigger sync on unlock if cloud session exists
+  const hasTriggeredInitialSyncRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isUnlocked && derivedKey && getCloudSession()) {
+      if (!hasTriggeredInitialSyncRef.current) {
+        hasTriggeredInitialSyncRef.current = true;
+        triggerCloudSync();
+      }
+    } else if (!isUnlocked) {
+      hasTriggeredInitialSyncRef.current = false;
+    }
+  }, [isUnlocked, derivedKey, triggerCloudSync]);
+
+  // Sync on auth session changes (login/logout)
+  React.useEffect(() => {
+    const handleAuthChange = () => {
+      const session = getCloudSession();
+      if (session && isUnlocked && derivedKey) {
+        triggerCloudSync();
+      } else if (!session) {
+        setSyncStatus("idle");
+        setLastSyncedAt(null);
+        setCloudItemCount(0);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("lokker_last_synced_at");
+        }
+      }
+    };
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+  }, [isUnlocked, derivedKey, triggerCloudSync]);
 
   // Initialize bookmark + category collections
   React.useEffect(() => {
@@ -100,6 +282,9 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
         : [bookmark, ...bookmarks];
     setBookmarks(updatedBookmarks);
     await saveBookmark(bookmark);
+    if (bookmark.storageScope === "cloud") {
+      scheduleAutoSync();
+    }
 
     const bmHost = normalizeHost(bookmark.url || bookmark.title);
     const linkedPassword = decryptedPasswords.find(
@@ -159,7 +344,12 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
     const updated = bookmarks.map((b) => (b.id === id ? { ...b, isFavorite: !b.isFavorite } : b));
     setBookmarks(updated);
     const target = updated.find((b) => b.id === id);
-    if (target) await saveBookmark(target);
+    if (target) {
+      await saveBookmark(target);
+      if (target.storageScope === "cloud") {
+        scheduleAutoSync();
+      }
+    }
   };
 
   const handleDeleteBookmark = async (id: string) => {
@@ -171,6 +361,9 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
         const updated = bookmarks.filter((b) => b.id !== id);
         setBookmarks(updated);
         await deleteBookmarkDB(id);
+        if (target?.storageScope === "cloud") {
+          scheduleAutoSync();
+        }
         addToast("Bookmark deleted.", "info");
 
         // Deletion is isolated by default — only offer to remove the linked
@@ -249,6 +442,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
     };
     setBookmarks([newBm, ...bookmarks]);
     await saveBookmark(newBm);
+    scheduleAutoSync();
     addToast(
       existingIndex >= 0 ? "Password updated & bookmark linked." : "Password stored & synced to bookmarks.",
       "success"
@@ -258,6 +452,10 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
   const handleTogglePasswordFavorite = async (id: string) => {
     const updated = decryptedPasswords.map((p) => (p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
     await saveAndEncryptPasswords(updated);
+    const target = updated.find((p) => p.id === id);
+    if (target?.storageScope === "cloud") {
+      scheduleAutoSync();
+    }
   };
 
   const handleDeletePassword = async (id: string) => {
@@ -267,6 +465,9 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       `Are you sure you want to permanently delete credentials for "${target?.websiteName || "this entry"}"?`,
       async () => {
         await saveAndEncryptPasswords(decryptedPasswords.filter((p) => p.id !== id));
+        if (target?.storageScope === "cloud") {
+          scheduleAutoSync();
+        }
         addToast("Password entry deleted.", "info");
 
         // Deletion is isolated by default — only offer to remove the linked
@@ -392,6 +593,12 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
   const value: VaultDataContextType = {
     bookmarks, categories,
     setBookmarks, setCategories,
+    syncStatus,
+    lastSyncedAt,
+    cloudItemCount: effectiveCloudItemCount,
+    syncError,
+    triggerCloudSync,
+    deleteCloudBackup,
     handleSavePassword, handleDeletePassword, handleTogglePasswordFavorite,
     handleSaveBookmark, handleDeleteBookmark, handleToggleBookmarkFavorite,
     handleAddCategory, handleDeleteCategory, handleTransferAndDelete, handleRenameCategory,

@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useVaultUI } from "@/context/vault-ui-context";
+import { useVaultData } from "@/context/vault-data-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,7 @@ export function AppHeader({
   onOpenCommandPalette,
   onToggleMobileSidebar,
   onOpenExtensionGuide,
+  onOpenCloudSyncModal,
 }: AppHeaderProps) {
   const pathname = usePathname();
   const viewTitle = PATH_TITLE[pathname] || "Security Workspace";
@@ -109,8 +111,8 @@ export function AppHeader({
   );
 
   const { addToast } = useVaultUI();
+  const { syncStatus, lastSyncedAt, cloudItemCount, triggerCloudSync } = useVaultData();
   const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
-  const [isSyncing, setIsSyncing] = React.useState(false);
   const [isDonateOpen, setIsDonateOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -127,12 +129,8 @@ export function AppHeader({
     };
   }, []);
 
-  const handleManualSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      addToast("Vault backed up securely to Cloud.", "success");
-    }, 700);
+  const handleManualSync = async () => {
+    await triggerCloudSync({ force: true });
   };
 
   const handleSignOut = () => {
@@ -284,31 +282,63 @@ export function AppHeader({
                     <span className="hidden lg:inline max-w-[100px] truncate text-foreground">
                       {cloudSession.name || cloudSession.email.split("@")[0]}
                     </span>
-                    <Badge variant="outline" className="hidden xl:inline-flex text-[9px] py-0 px-1 border-emerald-500/30 text-emerald-500 bg-emerald-500/10 gap-1 font-mono">
-                      <Cloud className={`size-2.5 ${isSyncing ? "animate-spin" : ""}`} />
-                      <span>Active</span>
+                    <Badge
+                      variant="outline"
+                      className={`hidden xl:inline-flex text-[9px] py-0 px-1 gap-1 font-mono ${
+                        syncStatus === "syncing"
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : syncStatus === "synced"
+                          ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/10"
+                          : syncStatus === "error"
+                          ? "border-destructive/30 text-destructive bg-destructive/10"
+                          : "border-muted-foreground/30 text-muted-foreground bg-muted/10"
+                      }`}
+                    >
+                      <Cloud className={`size-2.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
+                      <span>
+                        {syncStatus === "syncing"
+                          ? "Syncing"
+                          : syncStatus === "synced"
+                          ? "Synced"
+                          : syncStatus === "error"
+                          ? "Issue"
+                          : "Active"}
+                      </span>
                     </Badge>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 p-1.5 text-xs">
+                <DropdownMenuContent align="end" className="w-60 p-1.5 text-xs">
                   <div className="px-2 py-1.5 border-b border-border-subtle mb-1">
                     <p className="font-semibold text-foreground truncate">{cloudSession.name || "Cloud Account"}</p>
                     <p className="text-muted-foreground text-[11px] truncate">{cloudSession.email}</p>
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex items-center justify-between">
                       <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-primary border-primary/20 bg-primary/5">
                         {cloudSession.role === "ADMIN" ? "Team Administrator" : "Personal Account"}
                       </Badge>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {cloudItemCount} cloud items
+                      </span>
                     </div>
                   </div>
 
                   <DropdownMenuItem
                     onClick={handleManualSync}
-                    disabled={isSyncing}
+                    disabled={syncStatus === "syncing"}
                     className="gap-2 cursor-pointer py-1.5"
                   >
-                    <RefreshCw className={`size-3.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
-                    <span>{isSyncing ? "Syncing with Cloud..." : "Sync Vault Now"}</span>
+                    <RefreshCw className={`size-3.5 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
+                    <span>{syncStatus === "syncing" ? "Syncing with Cloud..." : "Sync Vault Now"}</span>
                   </DropdownMenuItem>
+
+                  {onOpenCloudSyncModal && (
+                    <DropdownMenuItem
+                      onClick={onOpenCloudSyncModal}
+                      className="gap-2 cursor-pointer py-1.5"
+                    >
+                      <Cloud className="size-3.5 text-muted-foreground" />
+                      <span>Cloud Settings & Backup</span>
+                    </DropdownMenuItem>
+                  )}
 
                   <DropdownMenuSeparator />
 
@@ -383,12 +413,40 @@ export function AppHeader({
                     <div className="px-2 py-1.5 border-b border-border-subtle mb-1">
                       <p className="font-semibold text-foreground truncate">{cloudSession.name || "Cloud Account"}</p>
                       <p className="text-muted-foreground text-[10px] truncate">{cloudSession.email}</p>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-[9px] text-muted-foreground font-mono">
+                          {cloudItemCount} cloud items
+                        </span>
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/20 text-primary">
+                          {syncStatus}
+                        </Badge>
+                      </div>
                     </div>
-                    <DropdownMenuItem onClick={handleManualSync} disabled={isSyncing} className="gap-2 cursor-pointer">
-                      <RefreshCw className={`size-3.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
-                      <span>Sync Vault Now</span>
+                    <DropdownMenuItem
+                      onClick={handleManualSync}
+                      disabled={syncStatus === "syncing"}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <RefreshCw
+                        className={`size-3.5 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`}
+                      />
+                      <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Vault Now"}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+
+                    {onOpenCloudSyncModal && (
+                      <DropdownMenuItem
+                        onClick={onOpenCloudSyncModal}
+                        className="gap-2 cursor-pointer"
+                      >
+                        <Cloud className="size-3.5 text-muted-foreground" />
+                        <span>Cloud Settings</span>
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                    >
                       <LogOut className="size-3.5" />
                       <span>Sign Out of Cloud</span>
                     </DropdownMenuItem>

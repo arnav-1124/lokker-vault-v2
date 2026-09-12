@@ -13,6 +13,7 @@ import {
   ArrowRight,
   LogOut,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -34,6 +35,7 @@ import {
   clearCloudSession,
   CLOUD_AUTH_CHANGE_EVENT,
 } from "@/lib/auth-session";
+import { useVaultData } from "@/context/vault-data-context";
 
 interface CloudSyncModalProps {
   isOpen: boolean;
@@ -48,7 +50,37 @@ interface UserSession {
   accessToken: string;
 }
 
+function formatLastSynced(timestamp: string | null): string {
+  if (!timestamp) return "Never synchronized";
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+
+  if (diffSec < 30) return "Just now";
+  if (diffSec < 60) return `${diffSec} seconds ago`;
+  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
+  const {
+    syncStatus,
+    lastSyncedAt,
+    cloudItemCount,
+    syncError,
+    triggerCloudSync,
+    deleteCloudBackup,
+  } = useVaultData();
+
   const [activeTab, setActiveTab] = React.useState<"account" | "features">("account");
   const [authMode, setAuthMode] = React.useState<"signup" | "signin">("signup");
   const [session, setSession] = React.useState<UserSession | null>(null);
@@ -60,6 +92,10 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+
+  // Deletion confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [isDeletingBackup, setIsDeletingBackup] = React.useState(false);
 
   // Load existing session from storage if any
   React.useEffect(() => {
@@ -213,9 +249,117 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg border border-border-subtle bg-surface text-[11px] text-muted-foreground flex items-center gap-2">
-                  <RefreshCw className="size-3.5 text-primary shrink-0 animate-spin" />
-                  <span>Vault coordination layer is active. Encrypted synchronization is linked.</span>
+                {/* Cloud Sync Status & Actions Card */}
+                <div className="p-4 rounded-xl border border-border-subtle bg-background space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw
+                        className={`size-4 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`}
+                      />
+                      <span className="text-xs font-semibold text-foreground">
+                        Encrypted Cloud Vault Relay
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-medium px-2 py-0.5 ${
+                        syncStatus === "syncing"
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : syncStatus === "synced"
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                          : syncStatus === "error"
+                          ? "border-destructive/40 bg-destructive/10 text-destructive"
+                          : "border-muted/40 bg-muted/10 text-muted-foreground"
+                      }`}
+                    >
+                      {syncStatus === "syncing" && "Syncing..."}
+                      {syncStatus === "synced" && "Synchronized"}
+                      {syncStatus === "error" && "Sync Issue"}
+                      {syncStatus === "idle" && "Ready to Sync"}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                    <div className="p-2.5 rounded-lg bg-surface border border-border-subtle space-y-0.5">
+                      <p className="text-[11px] text-muted-foreground">Cloud-Scoped Items</p>
+                      <p className="font-semibold text-foreground text-sm">{cloudItemCount} items</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-surface border border-border-subtle space-y-0.5">
+                      <p className="text-[11px] text-muted-foreground">Last Synchronized</p>
+                      <p className="font-semibold text-foreground text-xs truncate">
+                        {formatLastSynced(lastSyncedAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {syncError && (
+                    <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2">
+                      <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                      <span>{syncError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-border-subtle">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        setErrorMsg(null);
+                        await triggerCloudSync({ force: true });
+                      }}
+                      disabled={syncStatus === "syncing"}
+                      className="flex-1 h-8 text-xs gap-1.5 cursor-pointer font-medium"
+                    >
+                      <RefreshCw
+                        className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`}
+                      />
+                      <span>
+                        {syncStatus === "syncing" ? "Synchronizing Vault..." : "Sync Vault Now"}
+                      </span>
+                    </Button>
+
+                    {showDeleteConfirm ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={async () => {
+                            setIsDeletingBackup(true);
+                            await deleteCloudBackup();
+                            setIsDeletingBackup(false);
+                            setShowDeleteConfirm(false);
+                          }}
+                          disabled={isDeletingBackup}
+                          className="h-8 text-xs cursor-pointer"
+                        >
+                          {isDeletingBackup ? "Deleting..." : "Confirm Delete"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="h-8 text-xs cursor-pointer"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="h-8 text-xs gap-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                        title="Delete the encrypted backup from cloud (local vault is unaffected)"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="hidden sm:inline">Delete Backup</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
+                    🔒 Protected by zero-knowledge encryption. Only AES-GCM 256-bit ciphertext blobs are
+                    stored on the server. Local-only items remain exclusively on this device.
+                  </p>
                 </div>
               </div>
             ) : (

@@ -160,6 +160,14 @@ export interface VaultDataContextType {
   setBookmarks: React.Dispatch<React.SetStateAction<Bookmark[]>>;
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
 
+  // Cloud Sync state & operations
+  syncStatus: "idle" | "syncing" | "synced" | "error";
+  lastSyncedAt: string | null;
+  cloudItemCount: number;
+  syncError: string | null;
+  triggerCloudSync: (options?: { force?: boolean }) => Promise<boolean>;
+  deleteCloudBackup: () => Promise<boolean>;
+
   handleSavePassword: (entry: PasswordEntry) => Promise<void>;
   handleDeletePassword: (id: string) => Promise<void>;
   handleTogglePasswordFavorite: (id: string) => Promise<void>;
