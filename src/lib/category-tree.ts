@@ -14,20 +14,28 @@ export interface CategoryTreeItem {
  * Builds a flat, depth-first ordered list of category tree items for arbitrary depth.
  */
 export function buildCategoryTree(categories: Category[]): CategoryTreeItem[] {
+  const catById = new Map<string, Category>();
+  const catByName = new Map<string, Category>();
+  categories.forEach((c) => {
+    catById.set(c.id, c);
+    catByName.set(c.name.toLowerCase().trim(), c);
+  });
+
   const childrenMap = new Map<string, Category[]>();
   const rootCats: Category[] = [];
 
   categories.forEach((cat) => {
-    if (cat.parentId) {
-      const list = childrenMap.get(cat.parentId) || [];
+    if (cat.parentId && cat.parentId !== "none") {
+      const parent = catById.get(cat.parentId) || catByName.get(cat.parentId.toLowerCase().trim());
+      const parentKey = parent ? parent.id : cat.parentId;
+      const list = childrenMap.get(parentKey) || [];
       list.push(cat);
-      childrenMap.set(cat.parentId, list);
+      childrenMap.set(parentKey, list);
     } else {
       rootCats.push(cat);
     }
   });
 
-  const catMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
   const result: CategoryTreeItem[] = [];
   const visited = new Set<string>();
 
@@ -56,7 +64,7 @@ export function buildCategoryTree(categories: Category[]): CategoryTreeItem[] {
   // Handle orphan categories (categories whose parentId does not exist)
   categories.forEach((cat) => {
     if (!visited.has(cat.id)) {
-      const parent = cat.parentId ? catMap.get(cat.parentId) : null;
+      const parent = cat.parentId && cat.parentId !== "none" ? (catById.get(cat.parentId) || catByName.get(cat.parentId.toLowerCase().trim())) : null;
       if (!parent) {
         walk(cat, 0, []);
       }
@@ -71,17 +79,23 @@ export function buildCategoryTree(categories: Category[]): CategoryTreeItem[] {
  * Returns array of category names, e.g. ["Work", "Projects", "Client A"].
  */
 export function getCategoryPathArray(catNameOrId: string, categories: Category[]): string[] {
-  const cat = categories.find((c) => c.name === catNameOrId || c.id === catNameOrId);
+  const catById = new Map<string, Category>();
+  const catByName = new Map<string, Category>();
+  categories.forEach((c) => {
+    catById.set(c.id, c);
+    catByName.set(c.name.toLowerCase().trim(), c);
+  });
+
+  const cat = catByName.get(catNameOrId.toLowerCase().trim()) || catById.get(catNameOrId);
   if (!cat) return [catNameOrId];
 
-  const catMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
   const path: string[] = [cat.name];
   let curr = cat;
   const visited = new Set<string>([cat.id]);
 
-  while (curr.parentId && catMap.has(curr.parentId)) {
-    const parent = catMap.get(curr.parentId)!;
-    if (visited.has(parent.id)) break; // circular safeguard
+  while (curr.parentId && curr.parentId !== "none") {
+    const parent = catById.get(curr.parentId) || catByName.get(curr.parentId.toLowerCase().trim());
+    if (!parent || visited.has(parent.id)) break; // circular safeguard
     visited.add(parent.id);
     path.unshift(parent.name);
     curr = parent;
@@ -103,15 +117,26 @@ export function formatCategoryPath(catNameOrId: string, categories: Category[], 
  */
 export function getCategoryDescendantIds(categoryId: string, categories: Category[]): Set<string> {
   const descendants = new Set<string>();
-  const childrenMap = new Map<string, Category[]>();
-
+  const catById = new Map<string, Category>();
+  const catByName = new Map<string, Category>();
   categories.forEach((c) => {
-    if (c.parentId) {
-      const arr = childrenMap.get(c.parentId) || [];
+    catById.set(c.id, c);
+    catByName.set(c.name.toLowerCase().trim(), c);
+  });
+
+  const childrenMap = new Map<string, Category[]>();
+  categories.forEach((c) => {
+    if (c.parentId && c.parentId !== "none") {
+      const parent = catById.get(c.parentId) || catByName.get(c.parentId.toLowerCase().trim());
+      const pKey = parent ? parent.id : c.parentId;
+      const arr = childrenMap.get(pKey) || [];
       arr.push(c);
-      childrenMap.set(c.parentId, arr);
+      childrenMap.set(pKey, arr);
     }
   });
+
+  const target = catById.get(categoryId) || catByName.get(categoryId.toLowerCase().trim());
+  const targetId = target ? target.id : categoryId;
 
   const collect = (id: string) => {
     const children = childrenMap.get(id) || [];
@@ -123,7 +148,7 @@ export function getCategoryDescendantIds(categoryId: string, categories: Categor
     });
   };
 
-  collect(categoryId);
+  collect(targetId);
   return descendants;
 }
 
@@ -131,17 +156,23 @@ export function getCategoryDescendantIds(categoryId: string, categories: Categor
  * Collects all ancestor categories for a category, from immediate parent up to root.
  */
 export function getCategoryAncestors(categoryId: string, categories: Category[]): Category[] {
-  const catMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
-  const target = catMap.get(categoryId);
+  const catById = new Map<string, Category>();
+  const catByName = new Map<string, Category>();
+  categories.forEach((c) => {
+    catById.set(c.id, c);
+    catByName.set(c.name.toLowerCase().trim(), c);
+  });
+
+  const target = catById.get(categoryId) || catByName.get(categoryId.toLowerCase().trim());
   if (!target) return [];
 
   const ancestors: Category[] = [];
   let curr = target;
   const visited = new Set<string>([target.id]);
 
-  while (curr.parentId && catMap.has(curr.parentId)) {
-    const parent = catMap.get(curr.parentId)!;
-    if (visited.has(parent.id)) break;
+  while (curr.parentId && curr.parentId !== "none") {
+    const parent = catById.get(curr.parentId) || catByName.get(curr.parentId.toLowerCase().trim());
+    if (!parent || visited.has(parent.id)) break;
     visited.add(parent.id);
     ancestors.push(parent);
     curr = parent;

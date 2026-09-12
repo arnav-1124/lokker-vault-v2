@@ -43,7 +43,6 @@ export function BookmarkModal({
   categories,
   defaultCategoryId,
 }: BookmarkModalProps) {
-  const [prevBookmark, setPrevBookmark] = React.useState<Bookmark | null>(initialBookmark);
   const [title, setTitle] = React.useState(initialBookmark?.title || "");
   const [url, setUrl] = React.useState(initialBookmark?.url || "");
   const [category, setCategory] = React.useState(initialBookmark?.category || defaultCategoryId || (categories[0]?.name || "General"));
@@ -66,22 +65,23 @@ export function BookmarkModal({
     };
   }, [isOpen]);
 
-  if (prevBookmark !== initialBookmark) {
-    setPrevBookmark(initialBookmark);
-    if (initialBookmark) {
-      setTitle(initialBookmark.title || "");
-      setUrl(initialBookmark.url || "");
-      setCategory(initialBookmark.category || "General");
-      setDescription(initialBookmark.description || "");
-      setIsFavorite(!!initialBookmark.isFavorite);
-    } else {
-      setTitle("");
-      setUrl("");
-      setCategory(defaultCategoryId || (categories[0]?.name || "General"));
-      setDescription("");
-      setIsFavorite(false);
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialBookmark) {
+        setTitle(initialBookmark.title || "");
+        setUrl(initialBookmark.url || "");
+        setCategory(initialBookmark.category || defaultCategoryId || (categories[0]?.name || "General"));
+        setDescription(initialBookmark.description || "");
+        setIsFavorite(!!initialBookmark.isFavorite);
+      } else {
+        setTitle("");
+        setUrl("");
+        setCategory(defaultCategoryId || (categories[0]?.name || "General"));
+        setDescription("");
+        setIsFavorite(false);
+      }
     }
-  }
+  }, [isOpen, initialBookmark, defaultCategoryId, categories]);
 
   const buildBookmark = (scope?: StorageScope): Bookmark => {
     let cleanUrl = url.trim();

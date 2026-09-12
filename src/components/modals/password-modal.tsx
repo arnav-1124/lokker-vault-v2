@@ -60,7 +60,6 @@ export function PasswordModal({
   categories,
   defaultCategoryId,
 }: PasswordModalProps) {
-  const [prevEntry, setPrevEntry] = React.useState<PasswordEntry | null>(initialEntry);
   const [entryType, setEntryType] = React.useState<EntryType>(initialEntry?.entryType || "login");
   const [websiteName, setWebsiteName] = React.useState(initialEntry?.websiteName || "");
   const [websiteUrl, setWebsiteUrl] = React.useState(initialEntry?.websiteUrl || "");
@@ -94,42 +93,49 @@ export function PasswordModal({
   const [expiryYear, setExpiryYear] = React.useState(initialEntry?.cardDetails?.expiryYear || "");
   const [cvv, setCvv] = React.useState(initialEntry?.cardDetails?.cvv || "");
 
-  if (prevEntry !== initialEntry) {
-    setPrevEntry(initialEntry);
-    if (initialEntry) {
-      setEntryType(initialEntry.entryType || "login");
-      setWebsiteName(initialEntry.websiteName || "");
-      setWebsiteUrl(initialEntry.websiteUrl || "");
-      setUsername(initialEntry.username || "");
-      setPassword(initialEntry.password || "");
-      setNotes(initialEntry.notes || "");
-      setCategory(initialEntry.category || "General");
-      setTotpSecret(initialEntry.totpSecret || "");
-      setIsFavorite(!!initialEntry.isFavorite);
-      if (initialEntry.cardDetails) {
-        setCardNumber(initialEntry.cardDetails.cardNumber || "");
-        setCardholderName(initialEntry.cardDetails.cardholderName || "");
-        setExpiryMonth(initialEntry.cardDetails.expiryMonth || "");
-        setExpiryYear(initialEntry.cardDetails.expiryYear || "");
-        setCvv(initialEntry.cardDetails.cvv || "");
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialEntry) {
+        setEntryType(initialEntry.entryType || "login");
+        setWebsiteName(initialEntry.websiteName || "");
+        setWebsiteUrl(initialEntry.websiteUrl || "");
+        setUsername(initialEntry.username || "");
+        setPassword(initialEntry.password || "");
+        setNotes(initialEntry.notes || "");
+        setCategory(initialEntry.category || defaultCategoryId || (categories[0]?.name || "General"));
+        setTotpSecret(initialEntry.totpSecret || "");
+        setIsFavorite(!!initialEntry.isFavorite);
+        if (initialEntry.cardDetails) {
+          setCardNumber(initialEntry.cardDetails.cardNumber || "");
+          setCardholderName(initialEntry.cardDetails.cardholderName || "");
+          setExpiryMonth(initialEntry.cardDetails.expiryMonth || "");
+          setExpiryYear(initialEntry.cardDetails.expiryYear || "");
+          setCvv(initialEntry.cardDetails.cvv || "");
+        } else {
+          setCardNumber("");
+          setCardholderName("");
+          setExpiryMonth("");
+          setExpiryYear("");
+          setCvv("");
+        }
+      } else {
+        setEntryType("login");
+        setWebsiteName("");
+        setWebsiteUrl("");
+        setUsername("");
+        setPassword("");
+        setNotes("");
+        setCategory(defaultCategoryId || (categories[0]?.name || "General"));
+        setTotpSecret("");
+        setIsFavorite(false);
+        setCardNumber("");
+        setCardholderName("");
+        setExpiryMonth("");
+        setExpiryYear("");
+        setCvv("");
       }
-    } else {
-      setEntryType("login");
-      setWebsiteName("");
-      setWebsiteUrl("");
-      setUsername("");
-      setPassword("");
-      setNotes("");
-      setCategory(defaultCategoryId || (categories[0]?.name || "General"));
-      setTotpSecret("");
-      setIsFavorite(false);
-      setCardNumber("");
-      setCardholderName("");
-      setExpiryMonth("");
-      setExpiryYear("");
-      setCvv("");
     }
-  }
+  }, [isOpen, initialEntry, defaultCategoryId, categories]);
 
   const strength = calculatePasswordStrength(password);
 

@@ -52,7 +52,7 @@ import { Category, ViewMode } from "@/types";
 import { appConfig } from "@/config/app";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT, type CloudSessionUser } from "@/lib/auth-session";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
-import { buildCategoryTree, formatCategoryPath } from "@/lib/category-tree";
+import { buildCategoryTree, formatCategoryPath, getCategoryAncestors } from "@/lib/category-tree";
 
 const VIEW_TO_PATH: Record<ViewMode, string> = {
   home: "/app",
@@ -117,9 +117,59 @@ export function AppSidebar({
     });
   };
 
-  const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
+  // Auto-expand ancestors when a category is selected or when new subcategories are added
+  const prevCategoryIdsRef = React.useRef<Set<string>>(new Set(categories.map((c) => c.id)));
+  React.useEffect(() => {
+    const prevIds = prevCategoryIdsRef.current;
+    const newCats = categories.filter((c) => !prevIds.has(c.id));
+    if (newCats.length > 0) {
+      const ancestorIdsToExpand = new Set<string>();
+      newCats.forEach((cat) => {
+        const ancestors = getCategoryAncestors(cat.id, categories);
+        ancestors.forEach((a) => ancestorIdsToExpand.add(a.id));
+      });
+      if (ancestorIdsToExpand.size > 0) {
+        setCollapsedCatIds((prev) => {
+          let changed = false;
+          const next = new Set(prev);
+          ancestorIdsToExpand.forEach((id) => {
+            if (next.has(id)) {
+              next.delete(id);
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
+      }
+    }
+    prevCategoryIdsRef.current = new Set(categories.map((c) => c.id));
+
+    if (selectedCategory) {
+      const activeCat = categories.find((c) => c.name.toLowerCase() === selectedCategory.toLowerCase());
+      if (activeCat) {
+        const ancestors = getCategoryAncestors(activeCat.id, categories);
+        if (ancestors.length > 0) {
+          setCollapsedCatIds((prev) => {
+            let changed = false;
+            const next = new Set(prev);
+            ancestors.forEach((a) => {
+              if (next.has(a.id)) {
+                next.delete(a.id);
+                changed = true;
+              }
+            });
+            return changed ? next : prev;
+          });
+        }
+      }
+    }
+  }, [categories, selectedCategory]);
+
+  const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(null);
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setMounted(true);
     const loadSession = () => {
       setCloudSession(getCloudSession());
     };
@@ -338,87 +388,92 @@ export function AppSidebar({
                 const paddingLeft = depth * 14 + 10;
 
                 return (
-                  <div key={cat.id} className="group relative">
-                    <button
-                      onClick={() => {
-                        if (!isEditing) {
-                          onSelectCategory(cat.name);
-                          if (pathname !== "/app/passwords" && pathname !== "/app/bookmarks") {
-                            onSelectView("passwords");
-                          }
-                          onCloseMobile();
-                        }
-                      }}
-                      style={{ paddingLeft: `${paddingLeft}px` }}
-                      className={`w-full flex items-center justify-between py-1.5 pr-7 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                        isCatActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
-                      }`}
-                      title={item.path}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {/* Collapse / Expand Toggle Button for folders */}
-                        {hasChildren ? (
-                          <button
-                            type="button"
-                            onClick={(e) => toggleCategoryCollapse(cat.id, e)}
-                            className="p-0.5 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground cursor-pointer shrink-0 -ml-1"
-                            title={isCollapsedFolder ? "Expand folder" : "Collapse folder"}
-                          >
-                            {isCollapsedFolder ? (
-                              <ChevronRight className="size-3" />
-                            ) : (
-                              <ChevronDown className="size-3" />
-                            )}
-                          </button>
-                        ) : (
-                          <span className="w-3 shrink-0" />
-                        )}
+                  <div
+                    key={cat.id}
+                    className={`group relative flex items-center justify-between py-1 pr-1.5 rounded-md text-xs font-medium transition-colors ${
+                      isCatActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                    }`}
+                    style={{ paddingLeft: `${paddingLeft}px` }}
+                    title={item.path}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      {/* Collapse / Expand Toggle Button for folders */}
+                      {hasChildren ? (
+                        <button
+                          type="button"
+                          onClick={(e) => toggleCategoryCollapse(cat.id, e)}
+                          className="p-0.5 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                          title={isCollapsedFolder ? "Expand folder" : "Collapse folder"}
+                        >
+                          {isCollapsedFolder ? (
+                            <ChevronRight className="size-3" />
+                          ) : (
+                            <ChevronDown className="size-3" />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="w-4 shrink-0" />
+                      )}
 
-                        {/* Category Color Dot */}
-                        <span
-                          className="size-2 rounded-full shrink-0"
-                          style={{ backgroundColor: cat.color }}
+                      {/* Category Color Dot */}
+                      <span
+                        className="size-2 rounded-full shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+
+                      {/* Name Click Target or Inline Rename Input */}
+                      {isEditing ? (
+                        <Input
+                          value={editingCatName}
+                          onChange={(e) => setEditingCatName(e.target.value)}
+                          onBlur={handleRenameSubmit}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameSubmit();
+                            if (e.key === "Escape") {
+                              setEditingCatId(null);
+                              setEditingCatName("");
+                            }
+                          }}
+                          autoFocus
+                          className="h-6 text-xs px-1.5 py-0 bg-background flex-1"
+                          onClick={(e) => e.stopPropagation()}
                         />
+                      ) : (
+                        <button
+                          type="button"
+                          data-category-name={cat.name}
+                          onClick={() => {
+                            onSelectCategory(cat.name);
+                            if (pathname !== "/app/passwords" && pathname !== "/app/bookmarks") {
+                              onSelectView("passwords");
+                            }
+                            onCloseMobile();
+                          }}
+                          className="truncate flex-1 text-left cursor-pointer focus:outline-none"
+                        >
+                          {cat.name}
+                        </button>
+                      )}
+                    </div>
 
-                        {/* Name / Inline Rename Input */}
-                        {isEditing ? (
-                          <Input
-                            value={editingCatName}
-                            onChange={(e) => setEditingCatName(e.target.value)}
-                            onBlur={handleRenameSubmit}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleRenameSubmit();
-                              if (e.key === "Escape") {
-                                setEditingCatId(null);
-                                setEditingCatName("");
-                              }
-                            }}
-                            autoFocus
-                            className="h-6 text-xs px-1.5 py-0 bg-background"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span className="truncate">{cat.name}</span>
-                        )}
-                      </div>
-
+                    <div className="flex items-center gap-1 shrink-0">
                       {/* Child subcategory count badge if folder */}
                       {hasChildren && !isEditing && (
-                        <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 ml-1">
+                        <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 mr-0.5">
                           {childCount}
                         </span>
                       )}
-                    </button>
 
-                    {!isEditing && (
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!isEditing && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
-                              className="p-0.5 rounded text-muted-foreground hover:text-foreground cursor-pointer"
+                              type="button"
+                              className="p-0.5 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity cursor-pointer"
                               onClick={(e) => e.stopPropagation()}
+                              title="Category options"
                             >
                               <MoreVertical className="size-3" />
                             </button>
@@ -458,8 +513,8 @@ export function AppSidebar({
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -519,7 +574,7 @@ export function AppSidebar({
           {/* Cloud Sync Callout */}
           {!isCollapsed ? (
             <div className="p-3 rounded-xl bg-surface/70 border border-border-subtle space-y-2">
-              {cloudSession ? (
+              {mounted && cloudSession ? (
                 <>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">

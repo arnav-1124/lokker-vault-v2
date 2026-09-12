@@ -156,30 +156,31 @@ export function PasswordListView({
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Top action row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border-subtle">
-        <div>
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <span>{selectedCategory ? `${selectedCategory} Credentials` : "All Credentials"}</span>
-            <Badge variant="outline" className="text-xs font-mono">
+      <div className="flex items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-border-subtle">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm sm:text-base font-semibold text-foreground flex items-center gap-2 truncate">
+            <span className="truncate">{selectedCategory ? `${selectedCategory} Credentials` : "All Credentials"}</span>
+            <Badge variant="outline" className="text-xs font-mono shrink-0">
               {filteredPasswords.length}
             </Badge>
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
             Local zero-knowledge vault • AES-GCM 256-bit encrypted payload
           </p>
         </div>
 
-        <Button onClick={onOpenAddModal} size="sm" className="h-8 text-xs gap-1.5 self-start sm:self-auto cursor-pointer">
+        <Button onClick={onOpenAddModal} size="sm" className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer">
           <Plus className="size-3.5" />
-          <span>Add Password</span>
+          <span className="hidden xs:inline">Add Password</span>
+          <span className="xs:hidden">Add</span>
         </Button>
       </div>
 
       {/* Password list */}
       {filteredPasswords.length === 0 ? (
-        <div className="rounded-xl border border-border-subtle bg-surface p-12 text-center space-y-3">
+        <div className="rounded-xl border border-border-subtle bg-surface p-8 sm:p-12 text-center space-y-3">
           <div className="size-10 rounded-full bg-surface-elevated text-muted-foreground flex items-center justify-center mx-auto">
             <KeyRound className="size-5" />
           </div>
@@ -214,6 +215,8 @@ export function PasswordListView({
             return (
               <div
                 key={item.id}
+                data-testid="credential-row"
+                data-credential-title={item.websiteName}
                 className="rounded-xl border border-border-subtle bg-surface p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-border-strong transition-colors relative"
               >
                 {/* Password strength indicator bar */}
@@ -285,110 +288,112 @@ export function PasswordListView({
                 </div>
 
                 {/* Right: Masked Password, Quick Actions */}
-                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border-subtle/40 shrink-0">
                   {item.password && (
-                    <div className="flex items-center gap-1.5 bg-background px-2.5 py-1 rounded-lg border border-border-subtle">
-                      <span className="font-mono text-xs text-foreground select-all">
-                        {isRevealed ? item.password : "••••••••••••••••"}
+                    <div className="flex items-center gap-1.5 bg-background px-2.5 py-1 rounded-lg border border-border-subtle max-w-[180px] sm:max-w-none">
+                      <span className="font-mono text-xs text-foreground truncate select-all">
+                        {isRevealed ? item.password : "••••••••••••"}
                       </span>
                       <button
                         type="button"
                         onClick={() => toggleReveal(item.id)}
-                        className="text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                        className="text-muted-foreground hover:text-foreground p-0.5 cursor-pointer shrink-0"
                         aria-label={isRevealed ? "Hide Password" : "Show Password"}
                       >
                         {isRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                       </button>
                       {strength && (
-                        <span className={`text-[9px] font-medium px-1 py-0.5 rounded ${strength.color}`}>
+                        <span className={`hidden xs:inline text-[9px] font-medium px-1 py-0.5 rounded ${strength.color} shrink-0`}>
                           {strength.label}
                         </span>
                       )}
                     </div>
                   )}
 
-                  {/* Copy Button */}
-                  {item.password && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopy(item.id, item.password, "Password")}
-                      className="h-7 text-xs gap-1 px-2.5 cursor-pointer"
-                    >
-                      {isCopied ? (
-                        <>
-                          <Check className="size-3 text-success" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="size-3" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {/* Website link */}
-                  {item.websiteUrl && (
-                    <a
-                      href={item.websiteUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="Open site"
-                      className="p-1.5 rounded hover:bg-surface-elevated text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  )}
-
-                  {/* Dropdown Options */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-xs" className="text-muted-foreground cursor-pointer">
-                        <MoreVertical className="size-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem onClick={() => onEdit(item)} className="cursor-pointer">
-                        <Edit2 className="size-3 mr-1.5" />
-                        <span>Edit</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onToggleFavorite(item.id)} className="cursor-pointer">
-                        <Star className="size-3 mr-1.5" />
-                        <span>{item.isFavorite ? "Unfavorite" : "Favorite"}</span>
-                      </DropdownMenuItem>
-                      {item.username && (
-                        <DropdownMenuItem onClick={() => onCopyText(item.username, "Username")} className="cursor-pointer">
-                          <Copy className="size-3 mr-1.5" />
-                          <span>Copy Username</span>
-                        </DropdownMenuItem>
-                      )}
-                      {(() => {
-                        const linkedBm = getLinkedBookmark(item);
-                        if (linkedBm) {
-                          return (
-                            <DropdownMenuItem
-                              onClick={() => onNavigateBookmark?.(linkedBm)}
-                              className="cursor-pointer"
-                            >
-                              <BookmarkIcon className="size-3 mr-1.5" />
-                              <span>Linked Bookmark</span>
-                            </DropdownMenuItem>
-                          );
-                        }
-                        return null;
-                      })()}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(item.id)}
-                        className="text-destructive focus:text-destructive cursor-pointer"
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {/* Copy Button */}
+                    {item.password && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopy(item.id, item.password, "Password")}
+                        className="h-7 text-xs gap-1 px-2.5 cursor-pointer"
                       >
-                        <Trash2 className="size-3 mr-1.5" />
-                        <span>Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {isCopied ? (
+                          <>
+                            <Check className="size-3 text-success" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {/* Website link */}
+                    {item.websiteUrl && (
+                      <a
+                        href={item.websiteUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Open site"
+                        className="p-1.5 rounded hover:bg-surface-elevated text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                    )}
+
+                    {/* Dropdown Options */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-xs" className="text-muted-foreground cursor-pointer">
+                          <MoreVertical className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem onClick={() => onEdit(item)} className="cursor-pointer">
+                          <Edit2 className="size-3 mr-1.5" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onToggleFavorite(item.id)} className="cursor-pointer">
+                          <Star className="size-3 mr-1.5" />
+                          <span>{item.isFavorite ? "Unfavorite" : "Favorite"}</span>
+                        </DropdownMenuItem>
+                        {item.username && (
+                          <DropdownMenuItem onClick={() => onCopyText(item.username, "Username")} className="cursor-pointer">
+                            <Copy className="size-3 mr-1.5" />
+                            <span>Copy Username</span>
+                          </DropdownMenuItem>
+                        )}
+                        {(() => {
+                          const linkedBm = getLinkedBookmark(item);
+                          if (linkedBm) {
+                            return (
+                              <DropdownMenuItem
+                                onClick={() => onNavigateBookmark?.(linkedBm)}
+                                className="cursor-pointer"
+                              >
+                                <BookmarkIcon className="size-3 mr-1.5" />
+                                <span>Linked Bookmark</span>
+                              </DropdownMenuItem>
+                            );
+                          }
+                          return null;
+                        })()}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onDelete(item.id)}
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                        >
+                          <Trash2 className="size-3 mr-1.5" />
+                          <span>Delete</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
             );

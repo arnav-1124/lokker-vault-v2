@@ -110,29 +110,30 @@ export function BookmarkListView({
   }, [bookmarks, familyNames, searchQuery, hasCloud]);
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3.5 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Top action row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border-subtle">
-        <div>
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <span>{selectedCategory ? `${selectedCategory} Bookmarks` : "All Bookmarks"}</span>
-            <Badge variant="outline" className="text-xs font-mono">
+      <div className="flex items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-border-subtle">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm sm:text-base font-semibold text-foreground flex items-center gap-2 truncate">
+            <span className="truncate">{selectedCategory ? `${selectedCategory} Bookmarks` : "All Bookmarks"}</span>
+            <Badge variant="outline" className="text-xs font-mono shrink-0">
               {filteredBookmarks.length}
             </Badge>
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
             Organized site hub • Bidirectional credential sync
           </p>
         </div>
 
-        <Button onClick={onOpenAddModal} size="sm" className="h-8 text-xs gap-1.5 self-start sm:self-auto cursor-pointer">
+        <Button onClick={onOpenAddModal} size="sm" className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer">
           <Plus className="size-3.5" />
-          <span>Add Bookmark</span>
+          <span className="hidden xs:inline">Add Bookmark</span>
+          <span className="xs:hidden">Add</span>
         </Button>
       </div>
 
       {filteredBookmarks.length === 0 ? (
-        <div className="rounded-xl border border-border-subtle bg-surface p-12 text-center space-y-3">
+        <div className="rounded-xl border border-border-subtle bg-surface p-8 sm:p-12 text-center space-y-3">
           <div className="size-10 rounded-full bg-surface-elevated text-muted-foreground flex items-center justify-center mx-auto">
             <Globe className="size-5" />
           </div>
@@ -153,6 +154,8 @@ export function BookmarkListView({
           {filteredBookmarks.map((bm) => (
             <div
               key={bm.id}
+              data-testid="bookmark-row"
+              data-bookmark-title={bm.title}
               className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col justify-between gap-3 hover:border-border-strong transition-colors group"
             >
               <div className="space-y-2">

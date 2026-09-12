@@ -114,7 +114,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
       <CategoryManagerModal
         isOpen={vault.isCategoryModalOpen}
-        onClose={() => vault.setIsCategoryModalOpen(false)}
+        onClose={() => {
+          vault.setIsCategoryModalOpen(false);
+          vault.setCategoryModalParentId(undefined);
+        }}
         categories={vault.categories}
         onAddCategory={vault.handleAddCategory}
         onDeleteCategory={vault.handleDeleteCategory}

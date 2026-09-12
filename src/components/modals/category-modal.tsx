@@ -54,22 +54,20 @@ export function CategoryManagerModal({
   const [color, setColor] = React.useState(PRESET_COLORS[0]);
   const [selectedParentId, setSelectedParentId] = React.useState<string>(defaultParentId || "none");
 
+  // Synchronize input fields and selected parent whenever the modal is opened
+  React.useEffect(() => {
+    if (isOpen) {
+      setName("");
+      setSelectedParentId(defaultParentId || "none");
+    }
+  }, [isOpen, defaultParentId]);
+
   const handleClose = React.useCallback(() => {
     setName("");
     setColor(PRESET_COLORS[0]);
-    setSelectedParentId(defaultParentId || "none");
+    setSelectedParentId("none");
     onClose();
-  }, [defaultParentId, onClose]);
-
-  // When defaultParentId changes (e.g. clicking "Add Subcategory" from sidebar),
-  // update the selector using the render-adjust pattern (no setState in effects).
-  const [prevDefaultParentId, setPrevDefaultParentId] = React.useState(defaultParentId);
-  if (prevDefaultParentId !== defaultParentId) {
-    setPrevDefaultParentId(defaultParentId);
-    if (defaultParentId) {
-      setSelectedParentId(defaultParentId);
-    }
-  }
+  }, [onClose]);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +75,6 @@ export function CategoryManagerModal({
     const parentId = selectedParentId !== "none" ? selectedParentId : undefined;
     onAddCategory(name.trim(), color, parentId);
     setName("");
-    setSelectedParentId("none");
   };
 
   const tree = React.useMemo(() => buildCategoryTree(categories), [categories]);
@@ -107,7 +104,7 @@ export function CategoryManagerModal({
                   onChange={(e) => setName(e.target.value)}
                   className="h-8 text-xs bg-surface"
                 />
-                <Button type="submit" size="sm" className="h-8 text-xs gap-1 px-3 cursor-pointer">
+                <Button id="btn-add-category" type="submit" size="sm" className="h-8 text-xs gap-1 px-3 cursor-pointer">
                   <Plus className="size-3.5" />
                   <span>Add</span>
                 </Button>
@@ -217,7 +214,7 @@ export function CategoryManagerModal({
         </div>
 
         <DialogFooter className="pt-2">
-          <Button variant="outline" size="sm" onClick={handleClose} className="text-xs cursor-pointer">
+          <Button id="btn-done-category" variant="outline" size="sm" onClick={handleClose} className="text-xs cursor-pointer">
             Done
           </Button>
         </DialogFooter>
