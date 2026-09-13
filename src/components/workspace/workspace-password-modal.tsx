@@ -37,6 +37,8 @@ import {
   generateSecurePassword,
 } from "@/lib/crypto";
 import { buildCategoryTree } from "@/lib/category-tree";
+import { useBreachCheck } from "@/hooks/use-breach-check";
+import { BreachBadge } from "@/components/ui/breach-badge";
 
 interface WorkspacePasswordModalProps {
   isOpen: boolean;
@@ -76,6 +78,7 @@ export function WorkspacePasswordModal({
   const [expiryMonth, setExpiryMonth] = React.useState(initialEntry?.cardDetails?.expiryMonth || "");
   const [expiryYear, setExpiryYear] = React.useState(initialEntry?.cardDetails?.expiryYear || "");
   const [cvv, setCvv] = React.useState(initialEntry?.cardDetails?.cvv || "");
+  const breachResult = useBreachCheck(password);
 
   const categoryTree = React.useMemo(() => buildCategoryTree(categories), [categories]);
 
@@ -409,9 +412,16 @@ export function WorkspacePasswordModal({
                   </div>
 
                   {password && (
-                    <div className="flex items-center justify-between text-[11px] pt-1">
-                      <span className="text-muted-foreground">Strength:</span>
-                      <span className={`font-semibold ${strength.color}`}>{strength.label}</span>
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Strength:</span>
+                        <span className={`font-semibold ${strength.color}`}>{strength.label}</span>
+                      </div>
+                      <BreachBadge
+                        status={breachResult.status}
+                        count={breachResult.count}
+                        error={breachResult.error}
+                      />
                     </div>
                   )}
                 </div>

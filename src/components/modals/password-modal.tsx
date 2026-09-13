@@ -42,6 +42,8 @@ import { SaveScopeWarningModal } from "./save-scope-warning-modal";
 import { shouldSkipLocalSaveWarning } from "@/lib/storage-scope";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 import { buildCategoryTree } from "@/lib/category-tree";
+import { useBreachCheck } from "@/hooks/use-breach-check";
+import { BreachBadge } from "@/components/ui/breach-badge";
 
 interface PasswordModalProps {
   isOpen: boolean;
@@ -73,6 +75,7 @@ export function PasswordModal({
   const [showPassword, setShowPassword] = React.useState(false);
   const [hasCloudSession, setHasCloudSession] = React.useState<boolean>(() => !!getCloudSession());
   const [isWarningModalOpen, setIsWarningModalOpen] = React.useState(false);
+  const breachResult = useBreachCheck(password);
 
   const categoryTree = React.useMemo(() => buildCategoryTree(categories), [categories]);
 
@@ -441,9 +444,16 @@ export function PasswordModal({
                 </div>
 
                 {password && (
-                  <div className="flex items-center justify-between text-[11px] pt-1">
-                    <span className="text-muted-foreground">Strength:</span>
-                    <span className={`font-semibold ${strength.color}`}>{strength.label}</span>
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Strength:</span>
+                      <span className={`font-semibold ${strength.color}`}>{strength.label}</span>
+                    </div>
+                    <BreachBadge
+                      status={breachResult.status}
+                      count={breachResult.count}
+                      error={breachResult.error}
+                    />
                   </div>
                 )}
               </div>

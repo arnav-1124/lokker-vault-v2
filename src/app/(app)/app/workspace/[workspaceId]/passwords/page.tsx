@@ -22,6 +22,7 @@ import {
   User,
   Bookmark as BookmarkIcon,
   X,
+  ShieldAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -36,10 +37,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, PasswordEntry } from "@/types";
 import { useWorkspace } from "@/context/workspace-context";
-import { calculatePasswordStrength } from "@/lib/crypto";
+import { calculatePasswordStrength, checkPasswordBreached } from "@/lib/crypto";
 import { buildCategoryTree, formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree";
 import { WorkspacePasswordModal } from "@/components/workspace/workspace-password-modal";
 import { ConfirmationModal } from "@/components/modals/confirmation-modal";
+import { BreachBadge } from "@/components/ui/breach-badge";
+import { breachCache } from "@/hooks/use-breach-check";
 
 export default function WorkspacePasswordsPage() {
   const router = useRouter();
@@ -59,6 +62,37 @@ export default function WorkspacePasswordsPage() {
   const [search, setSearch] = React.useState("");
   const [revealedIds, setRevealedIds] = React.useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [rowBreachStatus, setRowBreachStatus] = React.useState<
+    Record<string, { status: "checking" | "breached" | "clean" | "error"; count: number }>
+  >({});
+
+  const handleCheckBreach = React.useCallback(async (id: string, pwd?: string) => {
+    if (!pwd) return;
+    setRowBreachStatus((prev) => ({ ...prev, [id]: { status: "checking", count: 0 } }));
+    try {
+      const res = await checkPasswordBreached(pwd);
+      breachCache.set(pwd, res);
+      setRowBreachStatus((prev) => ({
+        ...prev,
+        [id]: {
+          status: res.error ? "error" : res.breached ? "breached" : "clean",
+          count: res.count,
+        },
+      }));
+    } catch {
+      setRowBreachStatus((prev) => ({ ...prev, [id]: { status: "error", count: 0 } }));
+    }
+  }, []);
+
+  const toggleReveal = (id: string, pwd?: string) => {
+    setRevealedIds((prev) => {
+      const willReveal = !prev[id];
+      if (willReveal && pwd && !rowBreachStatus[id] && !breachCache.get(pwd)) {
+        handleCheckBreach(id, pwd);
+      }
+      return { ...prev, [id]: willReveal };
+    });
+  };
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -113,10 +147,6 @@ export default function WorkspacePasswordsPage() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const toggleReveal = (id: string) => {
-    setRevealedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleOpenAdd = () => {
@@ -337,6 +367,19 @@ export default function WorkspacePasswordsPage() {
             const isRevealed = !!revealedIds[item.id];
             const isCopied = copiedId === item.id;
             const strength = item.password ? calculatePasswordStrength(item.password) : null;
+            const cachedBreach = item.password ? breachCache.get(item.password) : null;
+            const breachInfo =
+              rowBreachStatus[item.id] ||
+              (cachedBreach
+                ? {
+                    status: cachedBreach.error
+                      ? ("error" as const)
+                      : cachedBreach.breached
+                      ? ("breached" as const)
+                      : ("clean" as const),
+                    count: cachedBreach.count,
+                  }
+                : null);
             const strengthBarColor = strength
               ? strength.score <= 40
                 ? "bg-destructive"
@@ -420,13 +463,13 @@ export default function WorkspacePasswordsPage() {
                 {/* Right: Password display & actions */}
                 <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border-subtle/40 shrink-0">
                   {item.password && (
-                    <div className="flex items-center gap-1.5 bg-background px-2.5 py-1 rounded-lg border border-border-subtle max-w-[180px] sm:max-w-none">
+                    <div className="flex items-center gap-1.5 bg-background px-2.5 py-1 rounded-lg border border-border-subtle max-w-[240px] sm:max-w-none">
                       <span className="font-mono text-xs text-foreground truncate select-all">
                         {isRevealed ? item.password : "••••••••••••"}
                       </span>
                       <button
                         type="button"
-                        onClick={() => toggleReveal(item.id)}
+                        onClick={() => toggleReveal(item.id, item.password)}
                         className="text-muted-foreground hover:text-foreground p-0.5 cursor-pointer shrink-0"
                         aria-label={isRevealed ? "Hide Password" : "Show Password"}
                       >
@@ -438,6 +481,13 @@ export default function WorkspacePasswordsPage() {
                         >
                           {strength.label}
                         </span>
+                      )}
+                      {breachInfo && (
+                        <BreachBadge
+                          compact
+                          status={breachInfo.status}
+                          count={breachInfo.count}
+                        />
                       )}
                     </div>
                   )}
@@ -495,7 +545,7 @@ export default function WorkspacePasswordsPage() {
                           <MoreVertical className="size-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-48">
                         {isAdmin && (
                           <DropdownMenuItem
                             onClick={() => handleOpenEdit(item)}
@@ -503,6 +553,16 @@ export default function WorkspacePasswordsPage() {
                           >
                             <Edit2 className="size-3 mr-1.5" />
                             <span>Edit</span>
+                          </DropdownMenuItem>
+                        )}
+
+                        {item.password && (
+                          <DropdownMenuItem
+                            onClick={() => handleCheckBreach(item.id, item.password)}
+                            className="cursor-pointer"
+                          >
+                            <ShieldAlert className="size-3 mr-1.5 text-primary" />
+                            <span>Check Breach Status</span>
                           </DropdownMenuItem>
                         )}
 
