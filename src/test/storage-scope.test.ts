@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PasswordEntry, Bookmark, StorageScope } from "@/types";
 import { generateId } from "@/lib/id";
+import { shouldSkipLocalSaveWarning, setSkipLocalSaveWarning } from "@/lib/storage-scope";
 
 describe("Storage Scope Models", () => {
   it("allows setting storageScope to cloud on password entries", () => {
@@ -263,4 +264,32 @@ describe("Storage Scope Models", () => {
     expect(migratedBookmarks.every((b) => b.storageScope === "cloud")).toBe(true);
     expect(migratedPasswords[0].updatedAt).toBe(now);
   });
+
+  it("persists and checks user preference to skip local save warning", () => {
+    // Default should be false
+    setSkipLocalSaveWarning(false);
+    expect(shouldSkipLocalSaveWarning()).toBe(false);
+
+    // After setting to true
+    setSkipLocalSaveWarning(true);
+    expect(shouldSkipLocalSaveWarning()).toBe(true);
+
+    // After resetting to false
+    setSkipLocalSaveWarning(false);
+    expect(shouldSkipLocalSaveWarning()).toBe(false);
+  });
+
+  it("verifies SaveScopeWarningModal includes Don't ask me again checkbox", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const warningModalSource = fs.readFileSync(
+      path.resolve(__dirname, "../components/modals/save-scope-warning-modal.tsx"),
+      "utf-8"
+    );
+
+    expect(warningModalSource).toContain("Don't ask me again on this device");
+    expect(warningModalSource).toContain("dont-ask-local-save");
+    expect(warningModalSource).toContain("setSkipLocalSaveWarning");
+  });
 });
+

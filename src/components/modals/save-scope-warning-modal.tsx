@@ -10,12 +10,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { setSkipLocalSaveWarning } from "@/lib/storage-scope";
 
 interface SaveScopeWarningModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveToCloud: () => void;
-  onSaveLocally: () => void;
+  onSaveLocally: (dontAskAgain?: boolean) => void;
   itemType?: string; // e.g. "credential", "bookmark"
 }
 
@@ -26,6 +29,21 @@ export function SaveScopeWarningModal({
   onSaveLocally,
   itemType = "credential",
 }: SaveScopeWarningModalProps) {
+  const [dontAskAgain, setDontAskAgain] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setDontAskAgain(false);
+    }
+  }, [isOpen]);
+
+  const handleSaveLocally = () => {
+    if (dontAskAgain) {
+      setSkipLocalSaveWarning(true);
+    }
+    onSaveLocally(dontAskAgain);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md bg-surface border-border-subtle p-6 rounded-2xl shadow-2xl">
@@ -54,6 +72,21 @@ export function SaveScopeWarningModal({
           </p>
         </div>
 
+        {/* Don't ask me again checkbox */}
+        <div className="flex items-center gap-2 pt-1 pb-1 select-none">
+          <Checkbox
+            id="dont-ask-local-save"
+            checked={dontAskAgain}
+            onCheckedChange={(checked) => setDontAskAgain(!!checked)}
+          />
+          <Label
+            htmlFor="dont-ask-local-save"
+            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer font-normal"
+          >
+            Don't ask me again on this device
+          </Label>
+        </div>
+
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2 border-t border-border-subtle mt-2">
           <Button
             type="button"
@@ -69,7 +102,7 @@ export function SaveScopeWarningModal({
             type="button"
             variant="outline"
             size="sm"
-            onClick={onSaveLocally}
+            onClick={handleSaveLocally}
             className="text-xs gap-1.5 cursor-pointer border-border-subtle hover:bg-surface-elevated"
           >
             <HardDrive className="size-3.5 text-muted-foreground" />
@@ -90,3 +123,4 @@ export function SaveScopeWarningModal({
     </Dialog>
   );
 }
+

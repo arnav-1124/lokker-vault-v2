@@ -39,6 +39,7 @@ import {
   generateSecurePassword,
 } from "@/lib/crypto";
 import { SaveScopeWarningModal } from "./save-scope-warning-modal";
+import { shouldSkipLocalSaveWarning } from "@/lib/storage-scope";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 import { buildCategoryTree } from "@/lib/category-tree";
 
@@ -180,7 +181,7 @@ export function PasswordModal({
 
   const handleInitiateSave = (scope: StorageScope) => {
     if (!websiteName.trim()) return;
-    if (hasCloudSession && scope === "local") {
+    if (hasCloudSession && scope === "local" && !shouldSkipLocalSaveWarning()) {
       setIsWarningModalOpen(true);
       return;
     }

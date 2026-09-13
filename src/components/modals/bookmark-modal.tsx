@@ -23,6 +23,7 @@ import {
 import { Bookmark, Category, StorageScope } from "@/types";
 import { generateId } from "@/lib/id";
 import { SaveScopeWarningModal } from "./save-scope-warning-modal";
+import { shouldSkipLocalSaveWarning } from "@/lib/storage-scope";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 import { buildCategoryTree } from "@/lib/category-tree";
 
@@ -104,7 +105,7 @@ export function BookmarkModal({
 
   const handleInitiateSave = (scope: StorageScope) => {
     if (!title.trim() || !url.trim()) return;
-    if (hasCloudSession && scope === "local") {
+    if (hasCloudSession && scope === "local" && !shouldSkipLocalSaveWarning()) {
       setIsWarningModalOpen(true);
       return;
     }

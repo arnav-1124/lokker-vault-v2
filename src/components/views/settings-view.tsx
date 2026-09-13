@@ -12,12 +12,14 @@ import {
   ShieldCheck,
   KeyRound,
   FileKey,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { VaultSettings } from "@/types";
+import { shouldSkipLocalSaveWarning, setSkipLocalSaveWarning } from "@/lib/storage-scope";
 
 interface SettingsViewProps {
   settings: VaultSettings;
@@ -54,6 +56,7 @@ export function SettingsView({
   const [webAuthnActive, setWebAuthnActive] = React.useState(!!isWebAuthnRegistered);
   const [webAuthnLoading, setWebAuthnLoading] = React.useState(false);
   const [webAuthnError, setWebAuthnError] = React.useState<string | null>(null);
+  const [localSaveWarningActive, setLocalSaveWarningActive] = React.useState(true);
 
   // Genuine WebAuthn platform authenticator & browser support detection
   const [hasPlatformAuth, setHasPlatformAuth] = React.useState<boolean | null>(null);
@@ -90,6 +93,7 @@ export function SettingsView({
       }
     }
     checkWebAuthn();
+    setLocalSaveWarningActive(!shouldSkipLocalSaveWarning());
     return () => {
       isMounted = false;
     };
@@ -321,6 +325,30 @@ export function SettingsView({
             id="autofill-prompt"
             checked={requireConfirmation}
             onCheckedChange={handleToggleAutofillConfirmation}
+            className="cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* Local Save Confirmation Settings */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-6 space-y-4 shadow-xs">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <HardDrive className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Local-Only Save Warning Prompt</h3>
+            </div>
+            <p className="text-xs text-muted-foreground max-w-xl">
+              Show a confirmation warning when choosing to save credentials or bookmarks strictly to this local device while signed in to Cloud.
+            </p>
+          </div>
+          <Switch
+            id="local-save-warning-prompt"
+            checked={localSaveWarningActive}
+            onCheckedChange={(checked) => {
+              setLocalSaveWarningActive(checked);
+              setSkipLocalSaveWarning(!checked);
+            }}
             className="cursor-pointer"
           />
         </div>

@@ -200,11 +200,29 @@ export function AppHeader({
 
         {/* Right Section: Actions */}
         <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 shrink-0">
+          {/* Search Trigger: Full input bar on wide desktop (xl+), icon button on smaller screens */}
+          <button
+            type="button"
+            id="btn-header-search-bar"
+            onClick={onOpenCommandPalette}
+            className="hidden xl:flex items-center justify-between gap-2.5 h-8 px-2.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-hover hover:border-border text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-44 2xl:w-56 shadow-2xs group shrink-0 select-none"
+            title="Search vault (⌘K or Ctrl+K)"
+            aria-label="Search vault"
+          >
+            <div className="flex items-center gap-2 truncate min-w-0">
+              <Search className="size-3.5 text-muted-foreground group-hover:text-foreground shrink-0 transition-colors" />
+              <span className="truncate text-xs font-normal">Search vault...</span>
+            </div>
+            <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-muted/60 text-muted-foreground border border-border-subtle shrink-0">
+              <span className="text-[11px] leading-none">⌘</span>K
+            </kbd>
+          </button>
+
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={onOpenCommandPalette}
-            className="text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8"
+            className="xl:hidden text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8 shrink-0"
             aria-label="Search"
             title="Search vault (⌘K)"
           >
