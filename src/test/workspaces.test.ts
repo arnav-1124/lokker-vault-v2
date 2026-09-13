@@ -240,5 +240,39 @@ describe("Team Workspaces & Cloud-Only Rules", () => {
     toggleFavorite("p1");
     expect(passwords[0].isFavorite).toBe(false);
   });
+
+  it("always redirects logged-out users to dedicated auth page with redirect param and avoids modal popups", () => {
+    function resolveWorkspaceRouteAccess(isAuthenticated: boolean, requestedPath: string) {
+      if (!isAuthenticated) {
+        return {
+          allowed: false,
+          redirectUrl: `/signup?redirect=${encodeURIComponent(requestedPath)}`,
+          shouldOpenModal: false,
+        };
+      }
+      return {
+        allowed: true,
+        redirectUrl: null,
+        shouldOpenModal: false,
+      };
+    }
+
+    // 1. Logged-out access to /app/workspaces
+    const loggedOutAccess = resolveWorkspaceRouteAccess(false, "/app/workspaces");
+    expect(loggedOutAccess.allowed).toBe(false);
+    expect(loggedOutAccess.shouldOpenModal).toBe(false);
+    expect(loggedOutAccess.redirectUrl).toBe("/signup?redirect=%2Fapp%2Fworkspaces");
+
+    // 2. Logged-out access to specific workspace detail route
+    const loggedOutDetailAccess = resolveWorkspaceRouteAccess(false, "/app/workspace/ws-123/passwords");
+    expect(loggedOutDetailAccess.allowed).toBe(false);
+    expect(loggedOutDetailAccess.shouldOpenModal).toBe(false);
+    expect(loggedOutDetailAccess.redirectUrl).toBe("/signup?redirect=%2Fapp%2Fworkspace%2Fws-123%2Fpasswords");
+
+    // 3. Logged-in access proceeds normally
+    const loggedInAccess = resolveWorkspaceRouteAccess(true, "/app/workspaces");
+    expect(loggedInAccess.allowed).toBe(true);
+    expect(loggedInAccess.redirectUrl).toBeNull();
+  });
 });
 

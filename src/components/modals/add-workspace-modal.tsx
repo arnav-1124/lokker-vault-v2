@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +25,8 @@ interface AddWorkspaceModalProps {
 }
 
 export function AddWorkspaceModal({ isOpen, onClose }: AddWorkspaceModalProps) {
+  const router = useRouter();
   const { createWorkspace, planQuota, isCloudActive } = useWorkspace();
-  const { setIsCloudSyncModalOpen } = useVaultUI();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -90,7 +91,7 @@ export function AddWorkspaceModal({ isOpen, onClose }: AddWorkspaceModalProps) {
                 size="sm"
                 onClick={() => {
                   onClose();
-                  setIsCloudSyncModalOpen(true);
+                  router.push("/signup?redirect=/app/workspaces");
                 }}
                 className="h-8 text-xs font-medium gap-1.5 cursor-pointer"
               >

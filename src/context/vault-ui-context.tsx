@@ -38,6 +38,7 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
   const [isImportBackupModalOpen, setIsImportBackupModalOpen] = React.useState(false);
   const [isBackupPasswordModalOpen, setIsBackupPasswordModalOpen] = React.useState(false);
   const [isCloudSyncModalOpen, setIsCloudSyncModalOpen] = React.useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const handleOpenSync = () => setIsCloudSyncModalOpen(true);
@@ -98,29 +99,99 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
 
   const dismissConfirm = React.useCallback(() => setConfirmDialog(null), []);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts & Power-user navigation
+  const pendingKeyRef = React.useRef<string | null>(null);
+  const keyTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
-      const isInputFocused = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      const isInputFocused =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        (e.target as HTMLElement)?.isContentEditable;
+
+      // ⌘K / Ctrl+K: Global Search & Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
         return;
       }
-      if (e.key === "/" && !isInputFocused) {
+
+      // ? or ⌘/ or Ctrl+/: Shortcuts Cheatsheet
+      if (
+        (e.key === "?" && !isInputFocused && !e.metaKey && !e.ctrlKey) ||
+        ((e.metaKey || e.ctrlKey) && e.key === "/")
+      ) {
         e.preventDefault();
-        setIsCommandPaletteOpen(true);
+        setIsShortcutsModalOpen((prev) => !prev);
         return;
       }
-      if (e.key === "Escape" && isCommandPaletteOpen) {
-        setIsCommandPaletteOpen(false);
+
+      // Escape: Close modals
+      if (e.key === "Escape") {
+        if (isShortcutsModalOpen) {
+          setIsShortcutsModalOpen(false);
+          return;
+        }
+        if (isCommandPaletteOpen) {
+          setIsCommandPaletteOpen(false);
+          return;
+        }
+      }
+
+      // If typing in an input or a modal is open, ignore sequence shortcuts
+      if (isInputFocused || isCommandPaletteOpen || isShortcutsModalOpen) {
         return;
+      }
+
+      // N: Add new item
+      if (e.key === "n" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setEditingPassword(null);
+        setIsPasswordModalOpen(true);
+        return;
+      }
+
+      // Sequential navigation: G then [P, B, T, F, W, S]
+      if (e.key.toLowerCase() === "g" && !e.metaKey && !e.ctrlKey) {
+        pendingKeyRef.current = "g";
+        if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
+        keyTimerRef.current = setTimeout(() => {
+          pendingKeyRef.current = null;
+        }, 1000);
+        return;
+      }
+
+      if (pendingKeyRef.current === "g") {
+        const nextKey = e.key.toLowerCase();
+        pendingKeyRef.current = null;
+        if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
+
+        const routeMap: Record<string, string> = {
+          p: "/app/passwords",
+          b: "/app/bookmarks",
+          t: "/app/totp",
+          f: "/app/favorites",
+          w: "/app/workspaces",
+          s: "/app/settings",
+        };
+
+        if (routeMap[nextKey]) {
+          e.preventDefault();
+          window.location.assign(routeMap[nextKey]);
+          return;
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCommandPaletteOpen]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
+    };
+  }, [isCommandPaletteOpen, isShortcutsModalOpen]);
 
   const value: VaultUIContextType = {
     selectedCategory, setSelectedCategory,
@@ -135,6 +206,7 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
     isImportBackupModalOpen, setIsImportBackupModalOpen,
     isBackupPasswordModalOpen, setIsBackupPasswordModalOpen,
     isCloudSyncModalOpen, setIsCloudSyncModalOpen,
+    isShortcutsModalOpen, setIsShortcutsModalOpen,
     pendingEncryptedBackup, setPendingEncryptedBackup,
     pendingUnencryptedBackup, setPendingUnencryptedBackup,
     confirmDialog, deleteTransferDialog, setDeleteTransferDialog,

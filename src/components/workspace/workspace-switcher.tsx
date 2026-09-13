@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Check, ChevronsUpDown, Plus, ShieldCheck, User, Cloud } from "lucide-react";
 import { useWorkspace } from "@/context/workspace-context";
-import { useVaultUI } from "@/context/vault-ui-context";
 
 interface WorkspaceSwitcherProps {
   onOpenAddModal: () => void;
@@ -21,6 +21,7 @@ interface WorkspaceSwitcherProps {
 }
 
 export function WorkspaceSwitcher({ onOpenAddModal, className }: WorkspaceSwitcherProps) {
+  const router = useRouter();
   const {
     workspaces,
     activeWorkspace,
@@ -28,7 +29,6 @@ export function WorkspaceSwitcher({ onOpenAddModal, className }: WorkspaceSwitch
     planQuota,
     isCloudActive,
   } = useWorkspace();
-  const { setIsCloudSyncModalOpen } = useVaultUI();
 
   const ownedWorkspaces = workspaces.filter((w) => w.role === "ADMIN");
   const joinedWorkspaces = workspaces.filter((w) => w.role === "MEMBER");
@@ -150,7 +150,7 @@ export function WorkspaceSwitcher({ onOpenAddModal, className }: WorkspaceSwitch
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
-            onClick={() => setIsCloudSyncModalOpen(true)}
+            onClick={() => router.push("/signup?redirect=/app/workspaces")}
             className="flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md text-primary hover:text-primary cursor-pointer font-medium"
           >
             <div className="flex items-center gap-2">

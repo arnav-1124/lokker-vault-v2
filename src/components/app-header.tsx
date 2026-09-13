@@ -19,6 +19,7 @@ import {
   Coffee,
   MoreVertical,
   HelpCircle,
+  Keyboard,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -86,6 +87,7 @@ interface AppHeaderProps {
   onToggleMobileSidebar: () => void;
   onOpenExtensionGuide: () => void;
   onOpenCloudSyncModal?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 const emptySubscribe = () => () => {};
@@ -101,6 +103,7 @@ export function AppHeader({
   onToggleMobileSidebar,
   onOpenExtensionGuide,
   onOpenCloudSyncModal,
+  onOpenShortcuts,
 }: AppHeaderProps) {
   const pathname = usePathname();
   const viewTitle = PATH_TITLE[pathname] || "Security Workspace";
@@ -228,6 +231,20 @@ export function AppHeader({
           >
             <Search className="size-3.5 sm:size-4" />
           </Button>
+
+          {/* Keyboard Shortcuts Cheatsheet Trigger */}
+          {onOpenShortcuts && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onOpenShortcuts}
+              className="text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8 shrink-0"
+              aria-label="Keyboard Shortcuts"
+              title="Keyboard Shortcuts (Press ?)"
+            >
+              <Keyboard className="size-3.5 sm:size-4" />
+            </Button>
+          )}
 
           {/* Add Item Button */}
           {(currentView === "passwords" || currentView === "bookmarks" || currentView === "home") && (

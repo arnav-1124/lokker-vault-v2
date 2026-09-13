@@ -10,6 +10,7 @@ import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import type { ViewMode } from "@/types";
 import type { VaultNavigationContextType } from "./vault-types";
+import { getCloudSession } from "@/lib/auth-session";
 
 const VIEW_TO_PATH: Record<ViewMode, string> = {
   home: "/app",
@@ -53,6 +54,10 @@ export function VaultNavigationProvider({ children }: { children: React.ReactNod
 
   const navigateTo = React.useCallback(
     (view: ViewMode) => {
+      if (view === "workspaces" && !getCloudSession()?.accessToken) {
+        router.push("/signup?redirect=/app/workspaces");
+        return;
+      }
       router.push(VIEW_TO_PATH[view]);
     },
     [router]

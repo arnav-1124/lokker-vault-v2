@@ -218,8 +218,9 @@ export function AppSidebar({
 
   const renderNavItem = (item: { id: ViewMode; label: string; icon: React.ElementType; count?: number }) => {
     const Icon = item.icon;
-    const href = VIEW_TO_PATH[item.id];
-    const isActive = pathname === href && (item.id !== "passwords" || selectedCategory === null);
+    const rawHref = VIEW_TO_PATH[item.id];
+    const href = item.id === "workspaces" && !cloudSession ? "/signup?redirect=/app/workspaces" : rawHref;
+    const isActive = pathname === rawHref && (item.id !== "passwords" || selectedCategory === null);
 
     const linkElement = (
       <Link

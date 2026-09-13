@@ -22,6 +22,7 @@ import { ExtensionGuideModal } from "@/components/modals/extension-guide-modal";
 import { ConfirmationModal } from "@/components/modals/confirmation-modal";
 import { ImportBackupModal } from "@/components/modals/import-backup-modal";
 import { CloudSyncModal } from "@/components/modals/cloud-sync-modal";
+import { ShortcutsModal } from "@/components/modals/shortcuts-modal";
 import { ToastContainer } from "@/components/toast-container";
 
 function AppShell({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             onToggleMobileSidebar={() => vault.setIsMobileSidebarOpen(!vault.isMobileSidebarOpen)}
             onOpenExtensionGuide={() => vault.setIsExtensionGuideOpen(true)}
             onOpenCloudSyncModal={() => vault.setIsCloudSyncModalOpen(true)}
+            onOpenShortcuts={() => vault.setIsShortcutsModalOpen(true)}
           />
         )}
 
@@ -211,6 +213,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <CloudSyncModal
         isOpen={vault.isCloudSyncModalOpen}
         onClose={() => vault.setIsCloudSyncModalOpen(false)}
+      />
+
+      <ShortcutsModal
+        isOpen={vault.isShortcutsModalOpen}
+        onClose={() => vault.setIsShortcutsModalOpen(false)}
       />
 
       <ImportBackupModal
