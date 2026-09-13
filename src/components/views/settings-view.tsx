@@ -13,6 +13,10 @@ import {
   KeyRound,
   FileKey,
   HardDrive,
+  Wifi,
+  WifiOff,
+  Download,
+  Laptop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { VaultSettings } from "@/types";
 import { shouldSkipLocalSaveWarning, setSkipLocalSaveWarning } from "@/lib/storage-scope";
+import { usePWA } from "@/hooks/use-pwa";
 
 interface SettingsViewProps {
   settings: VaultSettings;
@@ -57,6 +62,17 @@ export function SettingsView({
   const [webAuthnLoading, setWebAuthnLoading] = React.useState(false);
   const [webAuthnError, setWebAuthnError] = React.useState<string | null>(null);
   const [localSaveWarningActive, setLocalSaveWarningActive] = React.useState(true);
+  const { isOnline, isInstallable, isStandalone, installApp } = usePWA();
+  const [isInstalling, setIsInstalling] = React.useState(false);
+
+  const handleSettingsInstall = async () => {
+    setIsInstalling(true);
+    try {
+      await installApp();
+    } finally {
+      setIsInstalling(false);
+    }
+  };
 
   // Genuine WebAuthn platform authenticator & browser support detection
   const [hasPlatformAuth, setHasPlatformAuth] = React.useState<boolean | null>(null);
@@ -351,6 +367,79 @@ export function SettingsView({
             }}
             className="cursor-pointer"
           />
+        </div>
+      </div>
+
+      {/* Progressive Web App (PWA) & Offline Vault */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-6 space-y-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Laptop className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Desktop & Mobile PWA App</h3>
+              {isStandalone ? (
+                <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30 bg-emerald-500/10">
+                  Installed Standalone
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground border-border-subtle">
+                  Browser Tab
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground max-w-xl">
+              Install Lokker as a native desktop or mobile application. The app shell and assets are cached locally via service worker for 100% offline access.
+            </p>
+          </div>
+          <div className="shrink-0">
+            {isStandalone ? (
+              <Button size="sm" variant="outline" disabled className="text-xs h-8 gap-1.5 opacity-80 cursor-default">
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                <span>Installed</span>
+              </Button>
+            ) : isInstallable ? (
+              <Button
+                id="btn-settings-install-pwa"
+                size="sm"
+                onClick={handleSettingsInstall}
+                disabled={isInstalling}
+                className="text-xs h-8 gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Download className="size-3.5" />
+                <span>{isInstalling ? "Installing..." : "Install Desktop App"}</span>
+              </Button>
+            ) : (
+              <Badge variant="outline" className="text-[11px] py-1 px-2 text-muted-foreground border-border-subtle">
+                Installed or in Browser Menu
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border-subtle/60 text-xs">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {isOnline ? (
+              <>
+                <Wifi className="size-3.5 text-emerald-500 shrink-0" />
+                <span>
+                  Network: <strong className="text-foreground font-medium">Online</strong>
+                </span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="size-3.5 text-amber-500 shrink-0" />
+                <span>
+                  Network: <strong className="text-amber-500 font-medium">Offline (Local Vault Active)</strong>
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <HardDrive className="size-3.5 text-primary shrink-0" />
+            <span>
+              Storage: <strong className="text-foreground font-medium">IndexedDB Encrypted At Rest</strong>
+            </span>
+          </div>
         </div>
       </div>
 

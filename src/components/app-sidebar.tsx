@@ -33,6 +33,7 @@ import {
   ChevronDown,
   ChevronRight,
   Building2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +56,7 @@ import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT, type CloudSessionUser } from 
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
 import { buildCategoryTree, formatCategoryPath, getCategoryAncestors } from "@/lib/category-tree";
 import { useVaultUI } from "@/context/vault-ui-context";
+import { usePWA } from "@/hooks/use-pwa";
 
 const VIEW_TO_PATH: Record<ViewMode, string> = {
   home: "/app",
@@ -106,6 +108,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { setIsCloudSyncModalOpen } = useVaultUI();
+  const { isInstallable, isStandalone, installApp } = usePWA();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
   const [editingCatName, setEditingCatName] = React.useState("");
@@ -651,9 +654,23 @@ export function AppSidebar({
                   </div>
                 </>
               )}
+              {isInstallable && !isStandalone && (
+                <div className="mt-2 pt-2 border-t border-border-subtle">
+                  <Button
+                    id="btn-sidebar-install-pwa"
+                    variant="outline"
+                    size="sm"
+                    onClick={installApp}
+                    className="w-full h-6 text-[10px] gap-1 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+                  >
+                    <Download className="size-2.5" />
+                    <span>Install Desktop App</span>
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="flex justify-center my-2">
+            <div className="flex flex-col items-center gap-1.5 my-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   {cloudSession ? (
@@ -677,6 +694,22 @@ export function AppSidebar({
                   {cloudSession ? `Cloud Sync: ${cloudSession.email}` : "Go Cloud (Optional)"}
                 </TooltipContent>
               </Tooltip>
+
+              {isInstallable && !isStandalone && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      id="btn-sidebar-install-pwa-collapsed"
+                      onClick={installApp}
+                      className="p-2 rounded-lg text-primary hover:bg-primary/10 border border-primary/20 cursor-pointer flex items-center justify-center"
+                      title="Install Lokker App"
+                    >
+                      <Download className="size-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Install Lokker Desktop App</TooltipContent>
+                </Tooltip>
+              )}
             </div>
           )}
         </div>
@@ -691,7 +724,16 @@ export function AppSidebar({
             />
             {!isCollapsed && <span>{isUnlocked ? "Decrypted" : "Encrypted"}</span>}
           </div>
-          {!isCollapsed && <span className="font-mono text-[10px]">v0.1.0</span>}
+          {!isCollapsed && (
+            <div className="flex items-center gap-1.5 font-mono text-[10px]">
+              {isStandalone && (
+                <span className="px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 text-[9px] font-sans">
+                  Desktop
+                </span>
+              )}
+              <span>v0.1.0</span>
+            </div>
+          )}
         </div>
       </aside>
     </TooltipProvider>

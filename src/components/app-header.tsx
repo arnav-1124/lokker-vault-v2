@@ -20,6 +20,8 @@ import {
   MoreVertical,
   HelpCircle,
   Keyboard,
+  WifiOff,
+  Download,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -30,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useVaultUI } from "@/context/vault-ui-context";
 import { useVaultData } from "@/context/vault-data-context";
+import { usePWA } from "@/hooks/use-pwa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -117,9 +120,17 @@ export function AppHeader({
 
   const { addToast } = useVaultUI();
   const { syncStatus, lastSyncedAt, cloudItemCount, triggerCloudSync, migrateAllToCloudAndSync } = useVaultData();
+  const { isOnline, isInstallable, isStandalone, installApp, hasUpdate, reloadForUpdate } = usePWA();
   const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
   const [isDonateOpen, setIsDonateOpen] = React.useState(false);
   const [isChoiceModalOpen, setIsChoiceModalOpen] = React.useState(false);
+
+  const handleInstallApp = async () => {
+    const installed = await installApp();
+    if (installed) {
+      addToast("Lokker installed as standalone app!", "success");
+    }
+  };
 
   React.useEffect(() => {
     const loadSession = () => {
@@ -183,6 +194,18 @@ export function AppHeader({
                 Locked
               </Badge>
             )}
+            {!isOnline && (
+              <Badge
+                id="badge-offline-status"
+                variant="outline"
+                className="inline-flex items-center gap-1 text-[10px] text-amber-500 border-amber-500/30 bg-amber-500/10 py-0 px-1.5 shrink-0"
+                title="Offline Mode — All credentials and vault operations operate locally with zero-knowledge encryption."
+              >
+                <WifiOff className="size-2.5" />
+                <span className="hidden md:inline">Offline (Local Vault Active)</span>
+                <span className="md:hidden">Offline</span>
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -243,6 +266,36 @@ export function AppHeader({
               title="Keyboard Shortcuts (Press ?)"
             >
               <Keyboard className="size-3.5 sm:size-4" />
+            </Button>
+          )}
+
+          {/* PWA Install Button */}
+          {isInstallable && !isStandalone && (
+            <Button
+              id="btn-header-install-pwa"
+              variant="outline"
+              size="sm"
+              onClick={handleInstallApp}
+              className="h-7 sm:h-8 text-xs gap-1 sm:gap-1.5 border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary font-medium cursor-pointer shadow-2xs px-2 sm:px-2.5"
+              title="Install Lokker as standalone Desktop/Mobile App"
+            >
+              <Download className="size-3.5" />
+              <span className="hidden md:inline">Install App</span>
+            </Button>
+          )}
+
+          {/* PWA Service Worker Update Prompt */}
+          {hasUpdate && (
+            <Button
+              id="btn-header-pwa-update"
+              variant="outline"
+              size="sm"
+              onClick={reloadForUpdate}
+              className="h-7 sm:h-8 text-xs gap-1 text-emerald-500 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer px-2 sm:px-2.5"
+              title="A new version of Lokker is ready. Click to reload."
+            >
+              <RefreshCw className="size-3 animate-spin" />
+              <span className="hidden md:inline">Update Ready</span>
             </Button>
           )}
 
@@ -514,6 +567,17 @@ export function AppHeader({
                         <span>Switch to Dark Mode</span>
                       </>
                     )}
+                  </DropdownMenuItem>
+                )}
+
+                {isInstallable && !isStandalone && (
+                  <DropdownMenuItem
+                    id="btn-mobile-install-pwa"
+                    onClick={handleInstallApp}
+                    className="gap-2 cursor-pointer text-primary focus:text-primary"
+                  >
+                    <Download className="size-3.5" />
+                    <span>Install Lokker App</span>
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
