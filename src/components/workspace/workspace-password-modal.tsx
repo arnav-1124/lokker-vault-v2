@@ -1,0 +1,552 @@
+"use client";
+
+import * as React from "react";
+import {
+  KeyRound,
+  CreditCard,
+  FileText,
+  User,
+  Sparkles,
+  Eye,
+  EyeOff,
+  QrCode,
+  CornerDownRight,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Category, EntryType, PasswordEntry } from "@/types";
+import {
+  calculatePasswordStrength,
+  generateSecurePassword,
+} from "@/lib/crypto";
+import { buildCategoryTree } from "@/lib/category-tree";
+
+interface WorkspacePasswordModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (entry: PasswordEntry) => void;
+  initialEntry: PasswordEntry | null;
+  categories: Category[];
+  defaultCategoryId?: string;
+  workspaceName?: string;
+}
+
+export function WorkspacePasswordModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialEntry,
+  categories,
+  defaultCategoryId,
+  workspaceName,
+}: WorkspacePasswordModalProps) {
+  const [entryType, setEntryType] = React.useState<EntryType>(initialEntry?.entryType || "login");
+  const [websiteName, setWebsiteName] = React.useState(initialEntry?.websiteName || "");
+  const [websiteUrl, setNewUrl] = React.useState(initialEntry?.websiteUrl || "");
+  const [username, setUsername] = React.useState(initialEntry?.username || "");
+  const [password, setPassword] = React.useState(initialEntry?.password || "");
+  const [notes, setNotes] = React.useState(initialEntry?.notes || "");
+  const [category, setCategory] = React.useState(
+    initialEntry?.category || defaultCategoryId || (categories[0]?.name || "General")
+  );
+  const [totpSecret, setTotpSecret] = React.useState(initialEntry?.totpSecret || "");
+  const [isFavorite, setIsFavorite] = React.useState(!!initialEntry?.isFavorite);
+  const [showPassword, setShowPassword] = React.useState(false);
+
+  // Credit card specific fields
+  const [cardNumber, setCardNumber] = React.useState(initialEntry?.cardDetails?.cardNumber || "");
+  const [cardholderName, setCardholderName] = React.useState(initialEntry?.cardDetails?.cardholderName || "");
+  const [expiryMonth, setExpiryMonth] = React.useState(initialEntry?.cardDetails?.expiryMonth || "");
+  const [expiryYear, setExpiryYear] = React.useState(initialEntry?.cardDetails?.expiryYear || "");
+  const [cvv, setCvv] = React.useState(initialEntry?.cardDetails?.cvv || "");
+
+  const categoryTree = React.useMemo(() => buildCategoryTree(categories), [categories]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialEntry) {
+        setEntryType(initialEntry.entryType || "login");
+        setWebsiteName(initialEntry.websiteName || "");
+        setNewUrl(initialEntry.websiteUrl || "");
+        setUsername(initialEntry.username || "");
+        setPassword(initialEntry.password || "");
+        setNotes(initialEntry.notes || "");
+        setCategory(initialEntry.category || defaultCategoryId || (categories[0]?.name || "General"));
+        setTotpSecret(initialEntry.totpSecret || "");
+        setIsFavorite(!!initialEntry.isFavorite);
+        if (initialEntry.cardDetails) {
+          setCardNumber(initialEntry.cardDetails.cardNumber || "");
+          setCardholderName(initialEntry.cardDetails.cardholderName || "");
+          setExpiryMonth(initialEntry.cardDetails.expiryMonth || "");
+          setExpiryYear(initialEntry.cardDetails.expiryYear || "");
+          setCvv(initialEntry.cardDetails.cvv || "");
+        } else {
+          setCardNumber("");
+          setCardholderName("");
+          setExpiryMonth("");
+          setExpiryYear("");
+          setCvv("");
+        }
+      } else {
+        setEntryType("login");
+        setWebsiteName("");
+        setNewUrl("");
+        setUsername("");
+        setPassword("");
+        setNotes("");
+        setCategory(defaultCategoryId || (categories[0]?.name || "General"));
+        setTotpSecret("");
+        setIsFavorite(false);
+        setCardNumber("");
+        setCardholderName("");
+        setExpiryMonth("");
+        setExpiryYear("");
+        setCvv("");
+      }
+    }
+  }, [isOpen, initialEntry, defaultCategoryId, categories]);
+
+  const strength = calculatePasswordStrength(password);
+
+  const handleGeneratePassword = () => {
+    const generated = generateSecurePassword({
+      length: 18,
+      includeUppercase: true,
+      includeLowercase: true,
+      includeNumbers: true,
+      includeSymbols: true,
+    });
+    setPassword(generated);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!websiteName.trim()) return;
+
+    let cleanUrl = websiteUrl.trim();
+    if (cleanUrl && !cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+      cleanUrl = `https://${cleanUrl}`;
+    }
+
+    const entry: PasswordEntry = {
+      id: initialEntry?.id || "ws-pwd-" + Date.now().toString(16),
+      websiteName: websiteName.trim(),
+      websiteUrl: cleanUrl,
+      username: username.trim(),
+      password,
+      notes: notes.trim(),
+      category: category || "General",
+      isFavorite,
+      storageScope: "cloud",
+      totpSecret: totpSecret.trim().toUpperCase(),
+      entryType,
+      createdAt: initialEntry?.createdAt || Date.now(),
+      updatedAt: Date.now(),
+      cardDetails:
+        entryType === "card"
+          ? {
+              cardNumber: cardNumber.trim(),
+              cardholderName: cardholderName.trim(),
+              expiryMonth: expiryMonth.trim(),
+              expiryYear: expiryYear.trim(),
+              cvv: cvv.trim(),
+            }
+          : undefined,
+    };
+
+    onSave(entry);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl w-full bg-surface border-border-subtle p-6 max-h-[90vh]">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="text-base font-semibold flex items-center gap-2">
+            <KeyRound className="size-4 text-primary" />
+            <span>{initialEntry ? "Edit Workspace Password" : "Add Workspace Password"}</span>
+            {workspaceName && (
+              <span className="text-xs font-normal text-muted-foreground">
+                • {workspaceName}
+              </span>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+          <div className="flex-1 overflow-y-auto overflow-x-clip lokker-scrollbar space-y-4 pt-2">
+            {/* Entry Type Selector */}
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setEntryType("login")}
+                className={`p-2 rounded-lg border text-xs font-medium flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
+                  entryType === "login"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border-subtle text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <KeyRound className="size-4" />
+                <span>Login</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType("card")}
+                className={`p-2 rounded-lg border text-xs font-medium flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
+                  entryType === "card"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border-subtle text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <CreditCard className="size-4" />
+                <span>Card</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType("note")}
+                className={`p-2 rounded-lg border text-xs font-medium flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
+                  entryType === "note"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border-subtle text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <FileText className="size-4" />
+                <span>Secure Note</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType("identity")}
+                className={`p-2 rounded-lg border text-xs font-medium flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
+                  entryType === "identity"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border-subtle text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <User className="size-4" />
+                <span>Identity</span>
+              </button>
+            </div>
+
+            {/* Title / Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-item-title" className="text-xs">
+                {entryType === "login"
+                  ? "Website / Service Name"
+                  : entryType === "card"
+                  ? "Card Nickname / Bank"
+                  : entryType === "note"
+                  ? "Note Title"
+                  : "Identity Name"}
+              </Label>
+              <Input
+                id="ws-item-title"
+                required
+                placeholder={entryType === "login" ? "e.g. AWS Console, GitHub Team, Figma" : "Title..."}
+                value={websiteName}
+                onChange={(e) => setWebsiteName(e.target.value)}
+                className="h-8 text-xs bg-background"
+              />
+            </div>
+
+            {/* URL & Category (for Logins) or Category alone */}
+            {entryType === "login" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-item-url" className="text-xs">
+                    Website URL
+                  </Label>
+                  <Input
+                    id="ws-item-url"
+                    placeholder="https://console.aws.amazon.com"
+                    value={websiteUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-item-cat" className="text-xs">
+                    Category
+                  </Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger id="ws-item-cat" size="sm" className="bg-background">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryTree.map((item) => (
+                        <SelectItem key={item.category.id} value={item.category.name}>
+                          <div className="flex items-center gap-1.5" style={{ paddingLeft: `${item.depth * 10}px` }}>
+                            {item.depth > 0 && <CornerDownRight className="size-3 text-muted-foreground shrink-0" />}
+                            <span
+                              className="size-2 rounded-full shrink-0"
+                              style={{ backgroundColor: item.category.color || "#6b7280" }}
+                            />
+                            <span className="truncate">{item.category.name}</span>
+                            {item.depth > 0 && (
+                              <span className="text-[10px] text-muted-foreground shrink-0 opacity-70">
+                                ({item.path})
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                      {!categories.some((c) => c.name.toLowerCase() === "general") && (
+                        <SelectItem value="General">
+                          <div className="flex items-center gap-1.5">
+                            <span className="size-2 rounded-full bg-muted-foreground shrink-0" />
+                            <span>General</span>
+                          </div>
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="ws-item-cat" className="text-xs">
+                  Category
+                </Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger id="ws-item-cat" size="sm" className="bg-background">
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryTree.map((item) => (
+                      <SelectItem key={item.category.id} value={item.category.name}>
+                        <div className="flex items-center gap-1.5" style={{ paddingLeft: `${item.depth * 10}px` }}>
+                          {item.depth > 0 && <CornerDownRight className="size-3 text-muted-foreground shrink-0" />}
+                          <span
+                            className="size-2 rounded-full shrink-0"
+                            style={{ backgroundColor: item.category.color || "#6b7280" }}
+                          />
+                          <span className="truncate">{item.category.name}</span>
+                          {item.depth > 0 && (
+                            <span className="text-[10px] text-muted-foreground shrink-0 opacity-70">
+                              ({item.path})
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                    {!categories.some((c) => c.name.toLowerCase() === "general") && (
+                      <SelectItem value="General">
+                        <div className="flex items-center gap-1.5">
+                          <span className="size-2 rounded-full bg-muted-foreground shrink-0" />
+                          <span>General</span>
+                        </div>
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Login Fields */}
+            {entryType === "login" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-item-user" className="text-xs">
+                    Username / Email
+                  </Label>
+                  <Input
+                    id="ws-item-user"
+                    placeholder="team@example.com"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="ws-item-pass" className="text-xs">
+                      Password
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGeneratePassword}
+                      className="h-6 text-[11px] gap-1 text-primary hover:text-primary cursor-pointer"
+                    >
+                      <Sparkles className="size-3" />
+                      <span>Generate</span>
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="ws-item-pass"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password..."
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pr-9 h-8 text-xs font-mono bg-background"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </button>
+                  </div>
+
+                  {password && (
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="text-muted-foreground">Strength:</span>
+                      <span className={`font-semibold ${strength.color}`}>{strength.label}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2FA TOTP Secret Key */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-item-totp" className="text-xs flex items-center gap-1.5">
+                    <QrCode className="size-3.5 text-primary" />
+                    <span>2FA TOTP Secret Key (Optional)</span>
+                  </Label>
+                  <Input
+                    id="ws-item-totp"
+                    placeholder="e.g. JBSWY3DPEHPK3PXP"
+                    value={totpSecret}
+                    onChange={(e) => setTotpSecret(e.target.value.replace(/\s+/g, ""))}
+                    className="h-8 text-xs font-mono bg-background uppercase"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Credit Card Fields */}
+            {entryType === "card" && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-card-number" className="text-xs">
+                    Card Number
+                  </Label>
+                  <Input
+                    id="ws-card-number"
+                    placeholder="•••• •••• •••• ••••"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    className="h-8 text-xs font-mono bg-background"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-card-holder" className="text-xs">
+                    Cardholder Name
+                  </Label>
+                  <Input
+                    id="ws-card-holder"
+                    placeholder="Name on card"
+                    value={cardholderName}
+                    onChange={(e) => setCardholderName(e.target.value)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ws-card-mm" className="text-xs">Exp Month</Label>
+                    <Input
+                      id="ws-card-mm"
+                      placeholder="MM"
+                      maxLength={2}
+                      value={expiryMonth}
+                      onChange={(e) => setExpiryMonth(e.target.value)}
+                      className="h-8 text-xs font-mono bg-background"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ws-card-yy" className="text-xs">Exp Year</Label>
+                    <Input
+                      id="ws-card-yy"
+                      placeholder="YY"
+                      maxLength={2}
+                      value={expiryYear}
+                      onChange={(e) => setExpiryYear(e.target.value)}
+                      className="h-8 text-xs font-mono bg-background"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ws-card-cvv" className="text-xs">CVV</Label>
+                    <Input
+                      id="ws-card-cvv"
+                      placeholder="123"
+                      maxLength={4}
+                      value={cvv}
+                      onChange={(e) => setCvv(e.target.value)}
+                      className="h-8 text-xs font-mono bg-background"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-item-notes" className="text-xs">
+                {entryType === "note" ? "Secure Note Content" : "Encrypted Notes (Optional)"}
+              </Label>
+              <Textarea
+                id="ws-item-notes"
+                rows={entryType === "note" ? 5 : 2}
+                placeholder="Private team details, instructions, security credentials..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="text-xs bg-background"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                id="ws-pwd-fav"
+                checked={isFavorite}
+                onCheckedChange={(checked) => setIsFavorite(!!checked)}
+              />
+              <Label htmlFor="ws-pwd-fav" className="text-xs text-muted-foreground cursor-pointer font-normal">
+                Pin to Favorites
+              </Label>
+            </div>
+          </div>
+
+          <div className="-mx-6 -mb-6 mt-6 px-6 py-4 border-t border-border-subtle bg-surface-elevated/40 flex items-center justify-between gap-3 rounded-b-xl shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="submit"
+              size="sm"
+              className="text-xs font-medium gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <ShieldCheck className="size-3.5" />
+              <span>{initialEntry ? "Update in Workspace" : "Save to Workspace"}</span>
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

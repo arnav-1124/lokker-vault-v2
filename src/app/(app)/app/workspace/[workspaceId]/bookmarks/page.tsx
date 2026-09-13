@@ -7,258 +7,539 @@ import {
   Search,
   ExternalLink,
   Trash2,
+  Edit2,
+  Star,
   Globe,
+  MoreVertical,
+  Filter,
+  ChevronDown,
+  CornerDownRight,
+  Check,
+  Copy,
+  KeyRound,
+  X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark } from "@/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Bookmark, PasswordEntry } from "@/types";
 import { useWorkspace } from "@/context/workspace-context";
+import { calculatePasswordStrength } from "@/lib/crypto";
+import { buildCategoryTree, formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree";
+import { WorkspaceBookmarkModal } from "@/components/workspace/workspace-bookmark-modal";
+import { ConfirmationModal } from "@/components/modals/confirmation-modal";
 
 export default function WorkspaceBookmarksPage() {
+  const router = useRouter();
   const {
     activeWorkspace,
     workspaceBookmarks,
+    workspacePasswords,
     workspaceCategories,
     selectedWorkspaceCategory,
     setSelectedWorkspaceCategory,
     saveWorkspaceBookmark,
     deleteWorkspaceBookmark,
+    toggleWorkspaceBookmarkFavorite,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
-  // Add Bookmark Modal State
-  const [isAddOpen, setIsAddOpen] = React.useState(false);
-  const [newTitle, setNewTitle] = React.useState("");
-  const [newUrl, setNewUrl] = React.useState("");
-  const [newCategory, setNewCategory] = React.useState(workspaceCategories[0]?.name || "General");
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingBookmark, setEditingBookmark] = React.useState<Bookmark | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  const categoryTree = React.useMemo(
+    () => buildCategoryTree(workspaceCategories),
+    [workspaceCategories]
+  );
+
+  const familyNames = React.useMemo(() => {
+    if (!selectedWorkspaceCategory) return null;
+    return getCategoryFamilyNames(selectedWorkspaceCategory, workspaceCategories);
+  }, [selectedWorkspaceCategory, workspaceCategories]);
 
   const filteredBookmarks = React.useMemo(() => {
     return workspaceBookmarks.filter((b) => {
+      const matchesCategory =
+        !familyNames || (b.category && familyNames.has(b.category.toLowerCase()));
+      const q = search.toLowerCase().trim();
       const matchesSearch =
-        b.title.toLowerCase().includes(search.toLowerCase()) ||
-        b.url.toLowerCase().includes(search.toLowerCase());
-      const matchesCat = !selectedWorkspaceCategory || b.category === selectedWorkspaceCategory;
-      return matchesSearch && matchesCat;
+        !q ||
+        b.title.toLowerCase().includes(q) ||
+        b.url.toLowerCase().includes(q) ||
+        (b.description && b.description.toLowerCase().includes(q));
+      return matchesCategory && matchesSearch;
     });
-  }, [workspaceBookmarks, search, selectedWorkspaceCategory]);
+  }, [workspaceBookmarks, familyNames, search]);
 
-  const handleCreateBookmark = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newUrl.trim()) return;
-
-    let formattedUrl = newUrl.trim();
-    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = `https://${formattedUrl}`;
+  const normalizeHost = (str: string) => {
+    if (!str) return "";
+    try {
+      const raw = str.startsWith("http") ? str : `https://${str}`;
+      return new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      return str.trim().toLowerCase();
     }
-
-    const entry: Bookmark = {
-      id: "ws-bm-" + Date.now().toString(16),
-      title: newTitle.trim(),
-      url: formattedUrl,
-      category: newCategory,
-      isFavorite: false,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      workspaceId: activeWorkspace?.id,
-      workspaceName: activeWorkspace?.name,
-    };
-
-    await saveWorkspaceBookmark(entry);
-    setNewTitle("");
-    setNewUrl("");
-    setIsAddOpen(false);
   };
 
+  const getLinkedCredential = React.useCallback(
+    (bm: Bookmark): PasswordEntry | undefined => {
+      if (!bm.url && !bm.title) return undefined;
+      const host = normalizeHost(bm.url || bm.title);
+      return workspacePasswords.find(
+        (p) => normalizeHost(p.websiteUrl || p.websiteName) === host
+      );
+    },
+    [workspacePasswords]
+  );
+
+  const handleCopyUrl = (id: string, url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleOpenAdd = () => {
+    setEditingBookmark(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (bm: Bookmark) => {
+    setEditingBookmark(bm);
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deletingId) {
+      await deleteWorkspaceBookmark(deletingId);
+      setDeletingId(null);
+    }
+  };
+
+  // Find active category object for display
+  const activeCatObj = React.useMemo(() => {
+    if (!selectedWorkspaceCategory) return null;
+    return workspaceCategories.find(
+      (c) => c.name.toLowerCase() === selectedWorkspaceCategory.toLowerCase()
+    );
+  }, [selectedWorkspaceCategory, workspaceCategories]);
+
+  const activeCatCount = React.useMemo(() => {
+    if (!selectedWorkspaceCategory) return workspaceBookmarks.length;
+    return workspaceBookmarks.filter(
+      (b) => !!b.category && familyNames?.has(b.category.toLowerCase())
+    ).length;
+  }, [selectedWorkspaceCategory, workspaceBookmarks, familyNames]);
+
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <BookmarkIcon className="size-5 text-primary" />
             <span>Workspace Bookmarks</span>
+            <Badge variant="outline" className="text-xs font-mono shrink-0">
+              {filteredBookmarks.length}
+            </Badge>
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Shared team links and resources for {activeWorkspace?.name || "this workspace"}.
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Shared team links, documentation, and resources for {activeWorkspace?.name || "this workspace"}.
           </p>
         </div>
 
         <Button
           size="sm"
-          onClick={() => setIsAddOpen(true)}
-          className="h-8 text-xs gap-1.5 font-medium cursor-pointer"
+          onClick={handleOpenAdd}
+          className="h-8 text-xs gap-1.5 font-medium cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="size-3.5" />
           <span>Add Bookmark</span>
         </Button>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row items-center gap-3">
+      {/* Filter and Search Bar: Scalable Dropdown instead of compacted horizontal row */}
+      <div className="flex flex-col sm:flex-row items-center gap-2.5">
         <div className="relative flex-1 w-full">
           <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search workspace bookmarks..."
+            placeholder="Search workspace bookmarks by title, URL, or notes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs bg-background border-border-subtle"
+            className="pl-8 pr-8 h-8 text-xs bg-background border-border-subtle"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
+              aria-label="Clear search"
+            >
+              <X className="size-3" />
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto lokker-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
-          <Button
-            variant={selectedWorkspaceCategory === null ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setSelectedWorkspaceCategory(null)}
-            className="h-7 text-xs px-2.5 cursor-pointer rounded-full"
-          >
-            All ({workspaceBookmarks.length})
-          </Button>
-          {workspaceCategories.map((cat) => {
-            const count = workspaceBookmarks.filter((b) => b.category === cat.name).length;
-            return (
-              <Button
-                key={cat.id}
-                variant={selectedWorkspaceCategory === cat.name ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() =>
-                  setSelectedWorkspaceCategory(selectedWorkspaceCategory === cat.name ? null : cat.name)
-                }
-                className="h-7 text-xs px-2.5 cursor-pointer rounded-full gap-1.5"
-              >
-                <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                <span>{cat.name}</span>
-                <span className="opacity-60 font-mono text-[10px]">({count})</span>
-              </Button>
-            );
-          })}
-        </div>
+        {/* Category Filter Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs px-3 gap-2 shrink-0 border-border-subtle bg-background hover:bg-surface cursor-pointer w-full sm:w-auto justify-between sm:justify-start"
+            >
+              <Filter className="size-3 text-muted-foreground shrink-0" />
+              <span className="truncate max-w-[180px]">
+                {selectedWorkspaceCategory ? (
+                  <span className="flex items-center gap-1.5 truncate">
+                    <span
+                      className="size-2 rounded-full shrink-0"
+                      style={{ backgroundColor: activeCatObj?.color || "#3b82f6" }}
+                    />
+                    <span className="font-medium text-foreground truncate">
+                      {selectedWorkspaceCategory}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                      ({activeCatCount})
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <span>All Categories</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      ({workspaceBookmarks.length})
+                    </span>
+                  </span>
+                )}
+              </span>
+              <ChevronDown className="size-3 text-muted-foreground shrink-0 ml-1 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60 max-h-80 overflow-y-auto lokker-scrollbar">
+            <DropdownMenuItem
+              onClick={() => setSelectedWorkspaceCategory(null)}
+              className="text-xs cursor-pointer flex items-center justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-muted-foreground/40 shrink-0" />
+                <span className={selectedWorkspaceCategory === null ? "font-semibold text-primary" : ""}>
+                  All Categories
+                </span>
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {workspaceBookmarks.length}
+              </span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {categoryTree.map((item) => {
+              const count = workspaceBookmarks.filter(
+                (b) => (b.category || "General").toLowerCase() === item.category.name.toLowerCase()
+              ).length;
+              const isSelected =
+                selectedWorkspaceCategory?.toLowerCase() === item.category.name.toLowerCase();
+
+              return (
+                <DropdownMenuItem
+                  key={item.category.id}
+                  onClick={() =>
+                    setSelectedWorkspaceCategory(isSelected ? null : item.category.name)
+                  }
+                  className="text-xs cursor-pointer flex items-center justify-between"
+                  style={{ paddingLeft: `${Math.max(8, item.depth * 12 + 8)}px` }}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    {item.depth > 0 && (
+                      <CornerDownRight className="size-2.5 text-muted-foreground shrink-0" />
+                    )}
+                    <span
+                      className="size-2 rounded-full shrink-0"
+                      style={{ backgroundColor: item.category.color || "#6b7280" }}
+                    />
+                    <span className={`truncate ${isSelected ? "font-semibold text-primary" : ""}`}>
+                      {item.category.name}
+                    </span>
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      ({count})
+                    </span>
+                    {isSelected && <Check className="size-3 text-primary shrink-0" />}
+                  </div>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Bookmarks List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {filteredBookmarks.length === 0 ? (
-          <div className="col-span-full p-12 text-center border border-border-subtle rounded-xl bg-surface/30 space-y-3">
-            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-              <BookmarkIcon className="size-5" />
-            </div>
-            <p className="text-xs font-medium text-foreground">No workspace bookmarks found</p>
-            <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-              Save shared team docs, repos, dashboards, and staging links here.
-            </p>
-            <Button
-              size="sm"
-              onClick={() => setIsAddOpen(true)}
-              className="h-8 text-xs gap-1.5 cursor-pointer"
-            >
-              <Plus className="size-3.5" />
-              <span>Add First Bookmark</span>
-            </Button>
+      {filteredBookmarks.length === 0 ? (
+        <div className="p-12 text-center border border-border-subtle rounded-xl bg-surface/40 space-y-3">
+          <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+            <BookmarkIcon className="size-5" />
           </div>
-        ) : (
-          filteredBookmarks.map((item) => (
-            <div
-              key={item.id}
-              className="p-3.5 rounded-xl border border-border-subtle bg-surface/60 hover:bg-surface transition-all flex items-start justify-between gap-3"
-            >
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Globe className="size-3.5 text-primary shrink-0" />
-                  <span className="font-semibold text-xs text-foreground truncate">{item.title}</span>
-                  {item.category && (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-border-subtle">
-                      {item.category}
-                    </Badge>
+          <p className="text-xs font-semibold text-foreground">No workspace bookmarks found</p>
+          <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+            {search
+              ? `No bookmarks match "${search}".`
+              : selectedWorkspaceCategory
+              ? `No bookmarks found in category "${selectedWorkspaceCategory}".`
+              : "Save shared team docs, repos, dashboards, and staging links here."}
+          </p>
+          <Button
+            size="sm"
+            onClick={handleOpenAdd}
+            className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
+          >
+            <Plus className="size-3.5" />
+            <span>Add First Bookmark</span>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {filteredBookmarks.map((item) => {
+            const isCopied = copiedId === item.id;
+            const linkedCred = getLinkedCredential(item);
+            const strength = linkedCred?.password
+              ? calculatePasswordStrength(linkedCred.password)
+              : null;
+
+            return (
+              <div
+                key={item.id}
+                className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col justify-between gap-3 hover:border-border-strong transition-colors"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="size-7 rounded-lg bg-surface-elevated border border-border-subtle flex items-center justify-center shrink-0">
+                        <Globe className="size-3.5 text-primary" />
+                      </div>
+                      <span className="font-semibold text-xs sm:text-sm text-foreground truncate">
+                        {item.title}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => toggleWorkspaceBookmarkFavorite(item.id)}
+                        className="p-1 text-muted-foreground hover:text-amber-400 transition-colors cursor-pointer"
+                        title={item.isFavorite ? "Unpin from favorites" : "Pin to favorites"}
+                      >
+                        <Star
+                          className={`size-3.5 ${
+                            item.isFavorite ? "text-amber-400 fill-amber-400" : ""
+                          }`}
+                        />
+                      </button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-muted-foreground cursor-pointer"
+                          >
+                            <MoreVertical className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem
+                            onClick={() => handleOpenEdit(item)}
+                            className="cursor-pointer"
+                          >
+                            <Edit2 className="size-3 mr-1.5" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => handleCopyUrl(item.id, item.url)}
+                            className="cursor-pointer"
+                          >
+                            <Copy className="size-3 mr-1.5" />
+                            <span>Copy URL</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="cursor-pointer flex items-center"
+                            >
+                              <ExternalLink className="size-3 mr-1.5" />
+                              <span>Visit Site</span>
+                            </a>
+                          </DropdownMenuItem>
+
+                          {linkedCred && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                router.push(`/app/workspace/${activeWorkspace?.id}/passwords`)
+                              }
+                              className="cursor-pointer"
+                            >
+                              <KeyRound className="size-3 mr-1.5 text-primary" />
+                              <span>View Password</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => setDeletingId(item.id)}
+                            className="text-destructive focus:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="size-3 mr-1.5" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* URL */}
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors block truncate font-mono"
+                    title={item.url}
+                  >
+                    {item.url}
+                  </a>
+
+                  {/* Description / Notes */}
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {item.description}
+                    </p>
+                  )}
+
+                  {/* Linked credential indicator */}
+                  {linkedCred && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(`/app/workspace/${activeWorkspace?.id}/passwords`)
+                      }
+                      className="flex items-center gap-1.5 text-[11px] text-primary hover:underline cursor-pointer w-fit pt-0.5"
+                      title="Jump to workspace credential"
+                    >
+                      <KeyRound className="size-3" />
+                      <span className="font-medium">Credential linked</span>
+                      {strength && (
+                        <span className={`text-[9px] font-medium ${strength.color}`}>
+                          ({strength.label})
+                        </span>
+                      )}
+                    </button>
                   )}
                 </div>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 truncate font-mono"
-                >
-                  <span className="truncate">{item.url}</span>
-                  <ExternalLink className="size-2.5 shrink-0" />
-                </a>
-              </div>
 
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => deleteWorkspaceBookmark(item.id)}
-                className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0"
-                title="Delete Bookmark"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-          ))
-        )}
-      </div>
+                {/* Footer bar */}
+                <div className="flex items-center justify-between pt-2.5 border-t border-border-subtle text-xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {item.category && (() => {
+                      const catName = item.category;
+                      const catObj = workspaceCategories.find(
+                        (c) => c.name.toLowerCase() === catName.toLowerCase()
+                      );
+                      const pathStr = formatCategoryPath(catName, workspaceCategories);
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] py-0 px-1.5 bg-background border-border-subtle gap-1 inline-flex items-center"
+                          title={`Category: ${pathStr}`}
+                        >
+                          {catObj && (
+                            <span
+                              className="size-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: catObj.color }}
+                            />
+                          )}
+                          <span className="truncate max-w-[130px]">{pathStr}</span>
+                        </Badge>
+                      );
+                    })()}
+                  </div>
 
-      {/* Add Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface border border-border-subtle rounded-xl p-6 space-y-4">
-            <h2 className="text-sm font-semibold text-foreground">Add Workspace Bookmark</h2>
-            <form onSubmit={handleCreateBookmark} className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Title</label>
-                <Input
-                  required
-                  placeholder="e.g. GitHub Organization, Staging Server"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="h-8 text-xs bg-background"
-                />
-              </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopyUrl(item.id, item.url)}
+                      className="h-7 text-xs gap-1 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="size-3 text-success" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </Button>
 
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">URL</label>
-                <Input
-                  required
-                  placeholder="https://..."
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  className="h-8 text-xs bg-background"
-                />
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-primary hover:underline text-xs font-medium cursor-pointer"
+                    >
+                      <span>Visit Site</span>
+                      <ExternalLink className="size-3" />
+                    </a>
+                  </div>
+                </div>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Category</label>
-                <select
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  className="w-full h-8 text-xs bg-background border border-border-subtle rounded-md px-2 text-foreground"
-                >
-                  {workspaceCategories.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-border-subtle">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsAddOpen(false)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm" className="h-8 text-xs cursor-pointer">
-                  Save Bookmark
-                </Button>
-              </div>
-            </form>
-          </div>
+            );
+          })}
         </div>
       )}
+
+      {/* Add / Edit Workspace Bookmark Modal */}
+      <WorkspaceBookmarkModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingBookmark(null);
+        }}
+        onSave={(bm) => {
+          saveWorkspaceBookmark(bm);
+        }}
+        initialBookmark={editingBookmark}
+        categories={workspaceCategories}
+        defaultCategoryId={selectedWorkspaceCategory || undefined}
+        workspaceName={activeWorkspace?.name}
+      />
+
+      {/* Confirmation Modal for Delete */}
+      <ConfirmationModal
+        isOpen={!!deletingId}
+        title="Delete Workspace Bookmark"
+        message="Are you sure you want to delete this shared bookmark? It will be permanently removed for all members of this workspace."
+        confirmText="Delete Bookmark"
+        isDestructive={true}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeletingId(null)}
+      />
     </div>
   );
 }

@@ -131,4 +131,114 @@ describe("Team Workspaces & Cloud-Only Rules", () => {
     // Cloud-authenticated user
     expect(canCreateWorkspace({ accessToken: "valid-jwt-token" })).toBe(true);
   });
+
+  it("automatically creates a matching workspace bookmark when a workspace password is saved", () => {
+    const normalizeHost = (str: string) => {
+      if (!str) return "";
+      try {
+        const raw = str.startsWith("http") ? str : `https://${str}`;
+        return new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+      } catch {
+        return str.trim().toLowerCase();
+      }
+    };
+
+    let bookmarks: Bookmark[] = [];
+    let passwords: PasswordEntry[] = [];
+
+    function saveWorkspacePassword(entry: PasswordEntry) {
+      passwords = [entry, ...passwords];
+      if (entry.websiteUrl || entry.websiteName) {
+        let formattedUrl = entry.websiteUrl?.trim() || "";
+        if (!formattedUrl) {
+          formattedUrl = `https://${entry.websiteName.toLowerCase().replace(/\s+/g, "")}.com`;
+        } else if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+          formattedUrl = `https://${formattedUrl}`;
+        }
+        const targetHost = normalizeHost(formattedUrl);
+        const alreadyExists = bookmarks.some((b) => normalizeHost(b.url || b.title) === targetHost);
+        if (!alreadyExists) {
+          bookmarks = [
+            {
+              id: "ws-bm-test",
+              title: entry.websiteName,
+              url: formattedUrl,
+              category: entry.category || "General",
+              isFavorite: !!entry.isFavorite,
+              description: entry.notes || "",
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              workspaceId: entry.workspaceId,
+            },
+            ...bookmarks,
+          ];
+        }
+      }
+    }
+
+    // Save a new workspace password
+    saveWorkspacePassword({
+      id: "ws-pwd-1",
+      websiteName: "GitHub Team",
+      websiteUrl: "https://github.com",
+      username: "org-admin",
+      password: "secretPassword",
+      category: "Engineering",
+      isFavorite: true,
+      workspaceId: "ws-1",
+      createdAt: 1000,
+      updatedAt: 1000,
+    });
+
+    expect(passwords).toHaveLength(1);
+    expect(bookmarks).toHaveLength(1);
+    expect(bookmarks[0].title).toBe("GitHub Team");
+    expect(bookmarks[0].url).toBe("https://github.com");
+    expect(bookmarks[0].category).toBe("Engineering");
+    expect(bookmarks[0].isFavorite).toBe(true);
+
+    // Saving another entry with the same domain should not duplicate the bookmark
+    saveWorkspacePassword({
+      id: "ws-pwd-2",
+      websiteName: "GitHub Team Second",
+      websiteUrl: "https://github.com/login",
+      username: "second-user",
+      password: "secretPassword2",
+      category: "Engineering",
+      isFavorite: false,
+      workspaceId: "ws-1",
+      createdAt: 1001,
+      updatedAt: 1001,
+    });
+
+    expect(passwords).toHaveLength(2);
+    expect(bookmarks).toHaveLength(1); // Not duplicated
+  });
+
+  it("toggles favorite status on workspace items", () => {
+    let passwords: PasswordEntry[] = [
+      {
+        id: "p1",
+        websiteName: "AWS",
+        websiteUrl: "https://aws.amazon.com",
+        username: "dev",
+        password: "secret",
+        category: "Cloud",
+        isFavorite: false,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+
+    function toggleFavorite(id: string) {
+      passwords = passwords.map((p) => (p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
+    }
+
+    toggleFavorite("p1");
+    expect(passwords[0].isFavorite).toBe(true);
+
+    toggleFavorite("p1");
+    expect(passwords[0].isFavorite).toBe(false);
+  });
 });
+

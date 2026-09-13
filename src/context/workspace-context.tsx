@@ -37,8 +37,10 @@ interface WorkspaceContextType {
   leaveWorkspace: (workspaceId: string) => Promise<void>;
   saveWorkspacePassword: (entry: PasswordEntry) => Promise<void>;
   deleteWorkspacePassword: (id: string) => Promise<void>;
+  toggleWorkspacePasswordFavorite: (id: string) => Promise<void>;
   saveWorkspaceBookmark: (entry: Bookmark) => Promise<void>;
   deleteWorkspaceBookmark: (id: string) => Promise<void>;
+  toggleWorkspaceBookmarkFavorite: (id: string) => Promise<void>;
   saveWorkspaceCategory: (category: Category) => Promise<void>;
   deleteWorkspaceCategory: (id: string) => Promise<void>;
   renameWorkspaceCategory: (id: string, newName: string) => Promise<void>;
@@ -474,7 +476,55 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setWorkspacePasswords((prev) => {
         const exists = prev.some((p) => p.id === entry.id);
         const next = exists ? prev.map((p) => (p.id === entry.id ? updatedEntry : p)) : [updatedEntry, ...prev];
-        persistWorkspaceData(next, undefined, undefined);
+
+        // If this is a new password entry with a website url or website name, auto-create a bookmark counterpart in workspace
+        if (!exists && (entry.websiteUrl || entry.websiteName)) {
+          let formattedUrl = entry.websiteUrl?.trim() || "";
+          if (!formattedUrl) {
+            formattedUrl = `https://${entry.websiteName.toLowerCase().replace(/\s+/g, "")}.com`;
+          } else if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+            formattedUrl = `https://${formattedUrl}`;
+          }
+
+          const normalizeHost = (str: string) => {
+            if (!str) return "";
+            try {
+              const raw = str.startsWith("http") ? str : `https://${str}`;
+              return new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+            } catch {
+              return str.trim().toLowerCase();
+            }
+          };
+
+          const targetHost = normalizeHost(formattedUrl);
+
+          setWorkspaceBookmarks((bms) => {
+            const alreadyExists = bms.some((b) => normalizeHost(b.url || b.title) === targetHost);
+            if (alreadyExists) {
+              persistWorkspaceData(next, undefined, undefined);
+              return bms;
+            }
+
+            const newBm: Bookmark = {
+              id: "ws-bm-" + Date.now().toString(16),
+              title: entry.websiteName,
+              url: formattedUrl,
+              category: entry.category || "General",
+              isFavorite: !!entry.isFavorite,
+              description: entry.notes || "",
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              workspaceId: activeWorkspaceId || undefined,
+              workspaceName: activeWorkspace?.name || undefined,
+            };
+            const nextBms = [newBm, ...bms];
+            persistWorkspaceData(next, nextBms, undefined);
+            return nextBms;
+          });
+        } else {
+          persistWorkspaceData(next, undefined, undefined);
+        }
+
         return next;
       });
     },
@@ -485,6 +535,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       setWorkspacePasswords((prev) => {
         const next = prev.filter((p) => p.id !== id);
+        persistWorkspaceData(next, undefined, undefined);
+        return next;
+      });
+    },
+    [persistWorkspaceData]
+  );
+
+  const toggleWorkspacePasswordFavorite = React.useCallback(
+    async (id: string) => {
+      setWorkspacePasswords((prev) => {
+        const next = prev.map((p) => (p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
         persistWorkspaceData(next, undefined, undefined);
         return next;
       });
@@ -515,6 +576,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       setWorkspaceBookmarks((prev) => {
         const next = prev.filter((b) => b.id !== id);
+        persistWorkspaceData(undefined, next, undefined);
+        return next;
+      });
+    },
+    [persistWorkspaceData]
+  );
+
+  const toggleWorkspaceBookmarkFavorite = React.useCallback(
+    async (id: string) => {
+      setWorkspaceBookmarks((prev) => {
+        const next = prev.map((b) => (b.id === id ? { ...b, isFavorite: !b.isFavorite } : b));
         persistWorkspaceData(undefined, next, undefined);
         return next;
       });
@@ -616,8 +688,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     leaveWorkspace,
     saveWorkspacePassword,
     deleteWorkspacePassword,
+    toggleWorkspacePasswordFavorite,
     saveWorkspaceBookmark,
     deleteWorkspaceBookmark,
+    toggleWorkspaceBookmarkFavorite,
     saveWorkspaceCategory,
     deleteWorkspaceCategory,
     renameWorkspaceCategory,
