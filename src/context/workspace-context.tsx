@@ -20,6 +20,7 @@ interface WorkspaceContextType {
   activeWorkspaceId: string | null;
   planQuota: WorkspacePlanQuota;
   userRole: WorkspaceRole | null;
+  isAdmin: boolean;
   members: WorkspaceMember[];
   workspacePasswords: PasswordEntry[];
   workspaceBookmarks: Bookmark[];
@@ -164,6 +165,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [workspaces, activeWorkspaceId]);
 
   const userRole = activeWorkspace?.role || null;
+  const isAdmin = userRole === "ADMIN";
 
   // Load active workspace details (members, data) when activeWorkspaceId changes
   React.useEffect(() => {
@@ -242,9 +244,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       // Local storage
       localStorage.setItem(`lokker_ws_data_${activeWorkspaceId}`, JSON.stringify(payload));
 
-      // Remote cloud sync if logged in
+      // Remote cloud sync if logged in and user is ADMIN
       const session = getCloudSession();
-      if (session?.accessToken) {
+      if (session?.accessToken && activeWorkspace?.role === "ADMIN") {
         try {
           await fetch(`${appConfig.apiUrl}/api/workspaces/${activeWorkspaceId}/vault`, {
             method: "PUT",
@@ -264,7 +266,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [activeWorkspaceId, workspacePasswords, workspaceBookmarks, workspaceCategories]
+    [activeWorkspace, activeWorkspaceId, workspacePasswords, workspaceBookmarks, workspaceCategories]
   );
 
   // Switch workspace
@@ -321,9 +323,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [fetchWorkspaces, selectWorkspace]
   );
 
-  // Update workspace
+  // Update workspace (ADMIN only)
   const updateWorkspace = React.useCallback(
     async (workspaceId: string, name?: string, description?: string) => {
+      const targetWs = workspaces.find((w) => w.id === workspaceId);
+      if (targetWs?.role && targetWs.role !== "ADMIN") {
+        throw new Error("Only workspace admins can update workspace settings");
+      }
+
       const session = getCloudSession();
       if (session?.accessToken) {
         const res = await fetch(`${appConfig.apiUrl}/api/workspaces/${workspaceId}`, {
@@ -354,12 +361,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         )
       );
     },
-    []
+    [workspaces]
   );
 
-  // Delete workspace
+  // Delete workspace (ADMIN only)
   const deleteWorkspace = React.useCallback(
     async (workspaceId: string) => {
+      const targetWs = workspaces.find((w) => w.id === workspaceId);
+      if (targetWs?.role && targetWs.role !== "ADMIN") {
+        throw new Error("Only workspace admins can delete this workspace");
+      }
+
       const session = getCloudSession();
       if (session?.accessToken) {
         const res = await fetch(`${appConfig.apiUrl}/api/workspaces/${workspaceId}`, {
@@ -389,9 +401,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [workspaces, selectWorkspace, router]
   );
 
-  // Generate Invite
+  // Generate Invite (ADMIN only)
   const createInvite = React.useCallback(
     async (workspaceId: string) => {
+      const targetWs = workspaces.find((w) => w.id === workspaceId);
+      if (targetWs?.role && targetWs.role !== "ADMIN") {
+        throw new Error("Only workspace admins can create invite links");
+      }
+
       const session = getCloudSession();
       if (session?.accessToken) {
         const res = await fetch(`${appConfig.apiUrl}/api/workspaces/${workspaceId}/invites`, {
@@ -410,7 +427,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(),
       };
     },
-    []
+    [workspaces]
   );
 
   // Accept Invite
@@ -466,6 +483,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   // Scoped Item CRUD
   const saveWorkspacePassword = React.useCallback(
     async (entry: PasswordEntry) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can add or modify workspace credentials");
+      }
+
       const updatedEntry: PasswordEntry = {
         ...entry,
         workspaceId: activeWorkspaceId || undefined,
@@ -533,13 +554,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const deleteWorkspacePassword = React.useCallback(
     async (id: string) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can delete workspace credentials");
+      }
+
       setWorkspacePasswords((prev) => {
         const next = prev.filter((p) => p.id !== id);
         persistWorkspaceData(next, undefined, undefined);
         return next;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, persistWorkspaceData]
   );
 
   const toggleWorkspacePasswordFavorite = React.useCallback(
@@ -555,6 +580,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const saveWorkspaceBookmark = React.useCallback(
     async (entry: Bookmark) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can add or modify workspace bookmarks");
+      }
+
       const updatedEntry: Bookmark = {
         ...entry,
         workspaceId: activeWorkspaceId || undefined,
@@ -574,13 +603,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const deleteWorkspaceBookmark = React.useCallback(
     async (id: string) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can delete workspace bookmarks");
+      }
+
       setWorkspaceBookmarks((prev) => {
         const next = prev.filter((b) => b.id !== id);
         persistWorkspaceData(undefined, next, undefined);
         return next;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, persistWorkspaceData]
   );
 
   const toggleWorkspaceBookmarkFavorite = React.useCallback(
@@ -596,6 +629,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const saveWorkspaceCategory = React.useCallback(
     async (category: Category) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can create workspace categories");
+      }
+
       setWorkspaceCategories((prev) => {
         const exists = prev.some((c) => c.id === category.id);
         const next = exists ? prev.map((c) => (c.id === category.id ? category : c)) : [...prev, category];
@@ -603,11 +640,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, persistWorkspaceData]
   );
 
   const renameWorkspaceCategory = React.useCallback(
     async (id: string, newName: string) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can rename workspace categories");
+      }
+
       const trimmed = newName.trim();
       if (!trimmed) return;
 
@@ -633,11 +674,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, persistWorkspaceData]
   );
 
   const deleteWorkspaceCategory = React.useCallback(
     async (id: string) => {
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can delete workspace categories");
+      }
       setWorkspaceCategories((prev) => {
         const catToDelete = prev.find((c) => c.id === id);
         const next = prev.filter((c) => c.id !== id);
@@ -660,7 +704,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, persistWorkspaceData]
   );
 
   const value: WorkspaceContextType = {
@@ -669,6 +713,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     activeWorkspaceId,
     planQuota,
     userRole,
+    isAdmin,
     members,
     workspacePasswords,
     workspaceBookmarks,

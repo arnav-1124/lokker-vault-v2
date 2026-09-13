@@ -49,6 +49,7 @@ export default function WorkspaceBookmarksPage() {
     saveWorkspaceBookmark,
     deleteWorkspaceBookmark,
     toggleWorkspaceBookmarkFavorite,
+    isAdmin,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
@@ -159,14 +160,22 @@ export default function WorkspaceBookmarksPage() {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={handleOpenAdd}
-          className="h-8 text-xs gap-1.5 font-medium cursor-pointer shrink-0 self-start sm:self-auto"
-        >
-          <Plus className="size-3.5" />
-          <span>Add Bookmark</span>
-        </Button>
+        {isAdmin ? (
+          <Button
+            size="sm"
+            onClick={handleOpenAdd}
+            className="h-8 text-xs gap-1.5 font-medium cursor-pointer shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="size-3.5" />
+            <span>Add Bookmark</span>
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+            <Badge variant="outline" className="text-xs border-border-subtle bg-surface text-muted-foreground px-2.5 py-1">
+              Member (Read-Only)
+            </Badge>
+          </div>
+        )}
       </div>
 
       {/* Filter and Search Bar: Scalable Dropdown instead of compacted horizontal row */}
@@ -298,14 +307,20 @@ export default function WorkspaceBookmarksPage() {
               ? `No bookmarks found in category "${selectedWorkspaceCategory}".`
               : "Save shared team docs, repos, dashboards, and staging links here."}
           </p>
-          <Button
-            size="sm"
-            onClick={handleOpenAdd}
-            className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
-          >
-            <Plus className="size-3.5" />
-            <span>Add First Bookmark</span>
-          </Button>
+          {isAdmin ? (
+            <Button
+              size="sm"
+              onClick={handleOpenAdd}
+              className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
+            >
+              <Plus className="size-3.5" />
+              <span>Add First Bookmark</span>
+            </Button>
+          ) : (
+            <p className="text-[11px] text-muted-foreground/80 italic">
+              Shared bookmarks added by workspace admins will appear here.
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -357,13 +372,15 @@ export default function WorkspaceBookmarksPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem
-                            onClick={() => handleOpenEdit(item)}
-                            className="cursor-pointer"
-                          >
-                            <Edit2 className="size-3 mr-1.5" />
-                            <span>Edit</span>
-                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem
+                              onClick={() => handleOpenEdit(item)}
+                              className="cursor-pointer"
+                            >
+                              <Edit2 className="size-3 mr-1.5" />
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                          )}
 
                           <DropdownMenuItem
                             onClick={() => handleCopyUrl(item.id, item.url)}
@@ -397,15 +414,18 @@ export default function WorkspaceBookmarksPage() {
                             </DropdownMenuItem>
                           )}
 
-                          <DropdownMenuSeparator />
-
-                          <DropdownMenuItem
-                            onClick={() => setDeletingId(item.id)}
-                            className="text-destructive focus:text-destructive cursor-pointer"
-                          >
-                            <Trash2 className="size-3 mr-1.5" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDeletingId(item.id)}
+                                className="text-destructive focus:text-destructive cursor-pointer"
+                              >
+                                <Trash2 className="size-3 mr-1.5" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

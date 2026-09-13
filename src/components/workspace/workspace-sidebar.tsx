@@ -63,6 +63,7 @@ export function WorkspaceSidebar({
     deleteWorkspaceCategory,
     renameWorkspaceCategory,
     userRole,
+    isAdmin,
   } = useWorkspace();
 
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -221,21 +222,21 @@ export function WorkspaceSidebar({
 
         {/* Workspace Switcher in Sidebar */}
         {!isCollapsed && (
-          <div className="px-3 pt-3 pb-1">
+          <div className="px-3 pt-3.5 pb-1">
             <WorkspaceSwitcher onOpenAddModal={onOpenAddModal} />
           </div>
         )}
 
         {/* Navigation Scrollable Body */}
-        <div className="flex-1 overflow-y-auto lokker-scrollbar px-2 py-3 space-y-4 text-xs">
-          {/* Workspace Items Section (Fixed Height, Scrollable Within Itself) */}
-          <div className="space-y-1">
+        <div className="flex-1 overflow-y-auto lokker-scrollbar px-3 py-3.5 space-y-5 text-xs">
+          {/* Workspace Items Section */}
+          <div className="space-y-1.5">
             {!isCollapsed && (
-              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 Workspace Items
               </p>
             )}
-            <div className="max-h-[200px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+            <div className="space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
@@ -244,21 +245,30 @@ export function WorkspaceSidebar({
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={onCloseMobile}
+                    onClick={() => {
+                      setSelectedWorkspaceCategory(null);
+                      onCloseMobile();
+                    }}
                     className={`w-full flex items-center ${
-                      isCollapsed ? "justify-center px-0 py-2" : "justify-between px-2.5 py-1.5"
-                    } rounded-md text-xs font-medium transition-colors ${
+                      isCollapsed ? "justify-center px-0 py-2.5" : "justify-between px-3 py-2"
+                    } rounded-lg text-xs font-medium transition-all outline-none focus:outline-none focus-visible:outline-none select-none ${
                       isActive && (!selectedWorkspaceCategory || item.label !== "Passwords")
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-xs"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                         : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                     }`}
                   >
-                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2.5 min-w-0"}`}>
-                      <Icon className="size-4 text-muted-foreground shrink-0" />
+                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3 min-w-0"}`}>
+                      <Icon
+                        className={`size-4 shrink-0 ${
+                          isActive && (!selectedWorkspaceCategory || item.label !== "Passwords")
+                            ? "text-primary"
+                            : "text-muted-foreground"
+                        }`}
+                      />
                       {!isCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
                     {!isCollapsed && typeof item.count === "number" && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-background border border-border-subtle text-muted-foreground shrink-0 ml-1">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-background border border-border-subtle text-muted-foreground shrink-0 ml-1">
                         {item.count}
                       </span>
                     )}
@@ -268,35 +278,39 @@ export function WorkspaceSidebar({
             </div>
           </div>
 
-          {/* Workspace Categories Section (Fixed Height ~220px, Scrollable Within Itself) */}
+          {/* Workspace Categories Section */}
           {!isCollapsed && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between px-2 pb-1">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between px-3 pb-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Workspace Categories
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => {
-                    setCategoryModalParentId(undefined);
-                    setIsCategoryModalOpen(true);
-                  }}
-                  className="size-5 text-muted-foreground hover:text-foreground cursor-pointer"
-                  title="Manage Workspace Categories"
-                >
-                  <Plus className="size-3" />
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => {
+                      setCategoryModalParentId(undefined);
+                      setIsCategoryModalOpen(true);
+                    }}
+                    className="size-5 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Manage Workspace Categories"
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                )}
               </div>
 
-              <div className="max-h-[220px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+              <div className="space-y-1">
                 {categoryTree.map((item) => {
                   const { category: cat, depth, hasChildren, childCount, ancestors } = item;
                   const isHiddenByAncestor = ancestors.some((a) => collapsedCatIds.has(a.id));
                   if (isHiddenByAncestor) return null;
 
                   const isCollapsedFolder = collapsedCatIds.has(cat.id);
-                  const isCatActive = selectedWorkspaceCategory === cat.name;
+                  const isCatActive =
+                    selectedWorkspaceCategory === cat.name &&
+                    (pathname?.includes("/passwords") || pathname?.includes("/bookmarks"));
                   const isEditing = editingCatId === cat.id;
 
                   const handleRenameSubmit = () => {
@@ -307,7 +321,7 @@ export function WorkspaceSidebar({
                     setEditingCatName("");
                   };
 
-                  const paddingLeft = depth * 12 + 8;
+                  const paddingLeft = depth * 12 + 10;
                   const matchingCount =
                     workspacePasswords.filter((p) => p.category === cat.name).length +
                     workspaceBookmarks.filter((b) => b.category === cat.name).length;
@@ -315,15 +329,15 @@ export function WorkspaceSidebar({
                   return (
                     <div
                       key={cat.id}
-                      className={`group relative flex items-center justify-between py-1 pr-1.5 rounded-md text-xs font-medium transition-colors ${
+                      className={`group relative flex items-center justify-between py-1.5 pr-2.5 rounded-lg text-xs font-medium transition-all select-none outline-none focus:outline-none focus-visible:outline-none ${
                         isCatActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-xs"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                           : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                       }`}
                       style={{ paddingLeft: `${paddingLeft}px` }}
                       title={item.path}
                     >
-                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         {hasChildren ? (
                           <button
                             type="button"
@@ -342,7 +356,7 @@ export function WorkspaceSidebar({
                         )}
 
                         <span
-                          className="size-2 rounded-full shrink-0"
+                          className="size-2 rounded-full shrink-0 ring-2 ring-background"
                           style={{ backgroundColor: cat.color }}
                         />
 
@@ -380,7 +394,7 @@ export function WorkspaceSidebar({
                           </span>
                         )}
 
-                        {!isEditing && (
+                        {!isEditing && isAdmin && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
@@ -437,14 +451,14 @@ export function WorkspaceSidebar({
             </div>
           )}
 
-          {/* Management & Settings Section (Fixed Height, Scrollable Within Itself) */}
-          <div className="space-y-1">
+          {/* Management & Settings Section */}
+          <div className="space-y-1.5">
             {!isCollapsed && (
-              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                Workspace Admin
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                {isAdmin ? "Workspace Admin" : "Workspace Info"}
               </p>
             )}
-            <div className="max-h-[160px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+            <div className="space-y-1">
               {managementItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
@@ -453,17 +467,24 @@ export function WorkspaceSidebar({
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={onCloseMobile}
+                    onClick={() => {
+                      setSelectedWorkspaceCategory(null);
+                      onCloseMobile();
+                    }}
                     className={`w-full flex items-center ${
-                      isCollapsed ? "justify-center px-0 py-2" : "justify-between px-2.5 py-1.5"
-                    } rounded-md text-xs font-medium transition-colors ${
+                      isCollapsed ? "justify-center px-0 py-2.5" : "justify-between px-3 py-2"
+                    } rounded-lg text-xs font-medium transition-all outline-none focus:outline-none focus-visible:outline-none select-none ${
                       isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-xs"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                         : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                     }`}
                   >
-                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2.5 min-w-0"}`}>
-                      <Icon className="size-4 text-muted-foreground shrink-0" />
+                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3 min-w-0"}`}>
+                      <Icon
+                        className={`size-4 shrink-0 ${
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
                       {!isCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
                   </Link>

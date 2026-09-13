@@ -53,6 +53,7 @@ export default function WorkspacePasswordsPage() {
     saveWorkspacePassword,
     deleteWorkspacePassword,
     toggleWorkspacePasswordFavorite,
+    isAdmin,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
@@ -167,14 +168,22 @@ export default function WorkspacePasswordsPage() {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={handleOpenAdd}
-          className="h-8 text-xs gap-1.5 font-medium cursor-pointer shrink-0 self-start sm:self-auto"
-        >
-          <Plus className="size-3.5" />
-          <span>Add Password</span>
-        </Button>
+        {isAdmin ? (
+          <Button
+            size="sm"
+            onClick={handleOpenAdd}
+            className="h-8 text-xs gap-1.5 font-medium cursor-pointer shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="size-3.5" />
+            <span>Add Password</span>
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+            <Badge variant="outline" className="text-xs border-border-subtle bg-surface text-muted-foreground px-2.5 py-1">
+              Member (Read-Only)
+            </Badge>
+          </div>
+        )}
       </div>
 
       {/* Filter and Search Bar: Scalable Dropdown instead of compacted horizontal row */}
@@ -307,14 +316,20 @@ export default function WorkspacePasswordsPage() {
               ? `No credentials found in category "${selectedWorkspaceCategory}".`
               : "Add shared passwords to this workspace so your team can securely access services."}
           </p>
-          <Button
-            size="sm"
-            onClick={handleOpenAdd}
-            className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
-          >
-            <Plus className="size-3.5" />
-            <span>Add First Password</span>
-          </Button>
+          {isAdmin ? (
+            <Button
+              size="sm"
+              onClick={handleOpenAdd}
+              className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
+            >
+              <Plus className="size-3.5" />
+              <span>Add First Password</span>
+            </Button>
+          ) : (
+            <p className="text-[11px] text-muted-foreground/80 italic">
+              Shared credentials added by workspace admins will appear here.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -481,13 +496,15 @@ export default function WorkspacePasswordsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem
-                          onClick={() => handleOpenEdit(item)}
-                          className="cursor-pointer"
-                        >
-                          <Edit2 className="size-3 mr-1.5" />
-                          <span>Edit</span>
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            onClick={() => handleOpenEdit(item)}
+                            className="cursor-pointer"
+                          >
+                            <Edit2 className="size-3 mr-1.5" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                        )}
 
                         <DropdownMenuItem
                           onClick={() => toggleWorkspacePasswordFavorite(item.id)}
@@ -538,15 +555,18 @@ export default function WorkspacePasswordsPage() {
                           </DropdownMenuItem>
                         )}
 
-                        <DropdownMenuSeparator />
-
-                        <DropdownMenuItem
-                          onClick={() => setDeletingId(item.id)}
-                          className="text-destructive focus:text-destructive cursor-pointer"
-                        >
-                          <Trash2 className="size-3 mr-1.5" />
-                          <span>Delete</span>
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeletingId(item.id)}
+                              className="text-destructive focus:text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="size-3 mr-1.5" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
