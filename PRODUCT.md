@@ -16,7 +16,7 @@ integration, and secure personal data into one coherent local-first product.
 
 **Positioning:** *Your vault. Your device. Your keys. Your data. Your control.*
 
-**Live Production Deployment:** [https://lokker-vault.vercel.app](https://lokker-vault.vercel.app)
+**Live Production Deployment:** [https://www.lokker.space](https://www.lokker.space)
 
 Privacy is not a marketing claim — it is a core architectural principle.
 Lokker is designed so the user's sensitive data never depends on a centralized
@@ -149,6 +149,36 @@ Manifest V3 browser extension with local-first secure communication:
 
 Interactive dashboard answering *"What is the state of my digital security and vault right now?"*
 — live counts, health score breakdown, category distribution, recent activity, and quick actions.
+
+### J. Progressive Web App (PWA) & 100% Offline App (IMPLEMENTED)
+
+Native W3C Web App Manifest and production service worker:
+- Standalone window installation on Desktop (Windows, macOS, Linux, ChromeOS) and Mobile (iOS, Android).
+- 100% offline functionality: App shell and assets cached locally via service worker (`public/sw.js`).
+- Dynamic network status monitoring with offline reassurance indicator.
+- One-click install prompt handling via native browser `beforeinstallprompt` API.
+- Strict security boundary: Service worker completely exempts `/api/*` routes to guarantee encryption keys and auth payloads are never cached.
+
+### K. Zero-Knowledge Expiring Secret Links (IMPLEMENTED)
+
+End-to-end encrypted single-use or time-expiring secret sharing (`/share/[id]#key=...`):
+- Ephemeral AES-GCM-256 encryption keys reside exclusively in the URL hash fragment (`#key=...`), never transmitted over HTTP headers or stored in server logs.
+- Automatic destruction: Server decrements view count atomically and immediately purges ciphertext records upon consumption or expiration (burn-after-reading).
+- Public recipient page reveals secrets securely with zero registration required.
+
+### L. Multi-Tenant Team Workspaces (IMPLEMENTED)
+
+Encrypted collaborative workspaces for teams and organizations:
+- Cryptographic tenant isolation and role-based access control (Admin, Editor, Viewer).
+- Shared team credentials and bookmarks with audit logging and member invitations.
+- Dedicated authentication redirects ensuring logged-out access safely routes to signup/login.
+
+### M. Keyboard Shortcuts & Power Navigation (IMPLEMENTED)
+
+Keyboard-first navigation for power users:
+- Cheatsheet modal triggered via `?` or `⌘/` / `Ctrl+/`.
+- Global search and command palette via `⌘K` / `Ctrl+K`.
+- Fast sequential single-key jumps (`G P` for Passwords, `G B` for Bookmarks, `G T` for 2FA TOTP, `G F` for Favorites, `G W` for Workspaces, `G S` for Settings).
 
 ## 6. Local-first principle (fundamental)
 

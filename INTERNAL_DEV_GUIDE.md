@@ -15,7 +15,7 @@ Lokker is a **local-first, zero-knowledge password vault and personal security w
 - **Client-side Storage**: IndexedDB database (`LokkerLocalVaultDB`) in the user's browser.
 - **Cryptographic Primitives**: Native browser `crypto.subtle` (AES-GCM 256-bit, PBKDF2 SHA-256 100,000 iterations).
 - **Browser Extension**: Manifest V3 extension in `public/extension/`.
-- **Live Production URL**: [https://lokker-vault.vercel.app](https://lokker-vault.vercel.app)
+- **Live Production URL**: [https://www.lokker.space](https://www.lokker.space)
 
 ---
 
@@ -25,7 +25,7 @@ Lokker requires **only one environment variable** for standard operation because
 
 | Variable Name | Required? | Default Fallback | Purpose & Origin |
 | :--- | :---: | :--- | :--- |
-| `NEXT_PUBLIC_APP_URL` | **Yes (in prod)** | `http://localhost:3000` | The public URL of the deployed web application (e.g. `https://lokker-vault.vercel.app`). Used for canonical links, absolute asset URLs, and extension postMessage security allowlists. |
+| `NEXT_PUBLIC_APP_URL` | **Yes (in prod)** | `http://localhost:3000` | The public URL of the deployed web application (e.g. `https://www.lokker.space`). Used for canonical links, absolute asset URLs, and extension postMessage security allowlists. |
 
 ### Why is it prefixed with `NEXT_PUBLIC_`?
 In Next.js, variables without the `NEXT_PUBLIC_` prefix are only accessible on the server. Because Lokker runs client-side components and browser extension communication bridges in the user's browser, the public deployment origin must be readable by the browser runtime.
@@ -37,7 +37,7 @@ It is parsed exclusively through a single configuration file:
   const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
   export const appConfig = {
     name: "Lokker",
-    url: envUrl && envUrl.length > 0 ? envUrl : "http://localhost:3000",
+    url: envUrl && envUrl.length > 0 ? envUrl : "https://www.lokker.space",
   };
   ```
 
@@ -45,8 +45,8 @@ It is parsed exclusively through a single configuration file:
 The browser extension does not run a Next.js build step. Its deployment origin is defined in:
 - [`public/extension/config.js`](file:///c:/Users/Arnav112/OneDrive/Desktop/lokker-vault/public/extension/config.js):
   ```javascript
-  const appOrigin = 'https://lokker-vault.vercel.app';
-  const trustedHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'lokker-vault.vercel.app'];
+  const appOrigin = 'https://www.lokker.space';
+  const trustedHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'lokker.space', 'www.lokker.space'];
   ```
   *(Update this file whenever deploying to a custom domain so the extension content script accepts vault sync handshakes from your custom domain).*
 

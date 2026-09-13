@@ -5,24 +5,28 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.3.3-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Tests-62%20passed-success?style=flat-square&logo=vitest)](https://vitest.dev/)
-[![Production](https://img.shields.io/badge/Production-Live%20on%20Vercel-blueviolet?style=flat-square)](https://lokker-vault.vercel.app)
+[![Tests](https://img.shields.io/badge/Tests-153%20passed-success?style=flat-square&logo=vitest)](https://vitest.dev/)
+[![Production](https://img.shields.io/badge/Production-lokker.space-blueviolet?style=flat-square)](https://www.lokker.space)
 
-**Lokker** is a local-first personal security and digital-utility workspace built for privacy-conscious users, developers, and professionals. It brings credential management, bookmarks, RFC 6238 time-based two-factor authentication (TOTP), an encrypted file vault, deep security health audits, and browser autofill into a single coherent local application running directly on your device.
+**Lokker** is a local-first personal security and digital-utility workspace built for privacy-conscious users, developers, and professionals. It brings credential management, bookmarks, RFC 6238 time-based two-factor authentication (TOTP), an encrypted file vault, deep security health audits, browser autofill, and team workspaces into a single coherent local application running directly on your device.
 
-**Production Deployment:** [https://lokker-vault.vercel.app](https://lokker-vault.vercel.app)
+**Production Deployment:** [https://www.lokker.space](https://www.lokker.space)
 
 ---
 
 ## Key Highlights
 
 - **Local-First Zero-Knowledge Architecture**: The browser is your data authority. Credentials and encryption keys never leave your device unencrypted.
+- **Progressive Web App (PWA) & 100% Offline Access**: Install Lokker as a native desktop (Windows, macOS, Linux) or mobile (iOS, Android) app. Built-in service worker caches application shell for instant offline launch.
 - **3-Tier Envelope Encryption**: Native Web Crypto API utilizing 256-bit AES-GCM Vault Encryption Keys (VEK) wrapped by PBKDF2-derived Key Encryption Keys (KEK).
 - **Emergency Recovery Key**: Instant offline 32-character hexadecimal emergency recovery key allowing self-sovereign vault recovery if master password is forgotten.
+- **Zero-Knowledge Expiring Secret Links**: Generate end-to-end encrypted single-use or time-expiring share links (`/share/[id]#key=...`) where decryption keys never touch servers.
+- **Multi-Tenant Team Workspaces**: Create isolated encrypted workspaces, invite team members with granular roles (Admin, Editor, Viewer), and collaborate securely.
 - **RFC 6238 TOTP Authenticator**: Native 2FA generator with real-time 30-second countdown dials, Base32 key validation, and 1-click clipboard copying.
 - **Encrypted File Vault**: Client-side AES-GCM 256-bit encrypted file storage for sensitive documents, identity records, and seed phrases.
 - **Full Portability & Backup Engine**: Encrypted container backups (`.lokker` format) with pre-restore summary inspection, merge deduplication, and external imports (Chrome, Bitwarden, 1Password).
 - **Security Health & Dark Web Auditor**: Local password entropy rating, reused/weak password analysis, and Have I Been Pwned checks using privacy-preserving SHA-1 k-anonymity (`Add-Padding: true`).
+- **Keyboard Shortcuts & Power Navigation**: Full cheatsheet modal (`?`), global search (`⌘K`), and sequential single-key navigation (`G P`, `G B`, `G T`).
 - **Manifest V3 Browser Extension**: Contextual login field detection, strict anti-phishing domain allowlists, and real-time handshake with the web vault.
 - **Modern Design System**: Built with Tailwind CSS v4, shadcn/ui primitives, tactile glassmorphism surfaces, and dark/light theme support.
 
@@ -80,19 +84,23 @@ lokker-vault/
 ├── src/
 │   ├── app/
 │   │   ├── (marketing)/           # Public static routes (/, /features, /security, /privacy, /docs, /download)
-│   │   ├── (app)/app/             # Local-first application workspace (/app, /passwords, /totp, /files, etc.)
+│   │   ├── (app)/app/             # Local-first application workspace (/app, /passwords, /totp, /files, /workspaces, etc.)
+│   │   ├── manifest.ts            # Native W3C Web App Manifest (standalone PWA)
 │   │   ├── globals.css            # 4-layer design token system
 │   │   └── layout.tsx             # Root HTML layout and font loading
 │   ├── components/
-│   │   ├── modals/                # Unlock, Setup, Backup, and Entry modals
+│   │   ├── modals/                # Unlock, Setup, Backup, Shortcuts, Secret Share, and Entry modals
 │   │   ├── views/                 # Domain views (Passwords, Bookmarks, TOTP, Security, Files, Settings)
 │   │   └── ui/                    # shadcn/ui components
 │   ├── context/                   # Decomposed vault context providers (UI, Nav, Security, Data, Backup)
-│   ├── lib/                       # Web Crypto, IndexedDB, TOTP, Importers, ID generator
+│   ├── hooks/                     # Custom hooks (usePWA for offline & install prompt)
+│   ├── lib/                       # Web Crypto, IndexedDB, Secret Sharing, Category Trees, Importers
 │   ├── types.ts                   # Canonical TypeScript domain types
-│   └── test/                      # Vitest test suites (62 unit tests)
+│   └── test/                      # Vitest test suites (21 test files, 153 unit tests)
 ├── public/
 │   ├── extension/                 # Manifest V3 browser extension source
+│   ├── icons/                     # PWA raster icons (192x192, 512x512, maskable)
+│   ├── sw.js                      # Production service worker for offline shell caching
 │   └── favicon.svg                # Application branding
 ├── PRODUCT.md                     # Product philosophy, mission, and scope boundaries
 ├── DEVELOPER.md                   # Comprehensive technical and architectural guide
@@ -157,7 +165,7 @@ Lokker includes a Manifest V3 browser extension for one-click autofill:
 2. Navigate to `chrome://extensions/` and enable **Developer mode** (top right toggle).
 3. Click **Load unpacked**.
 4. Select the `public/extension` folder from this repository.
-5. The extension will automatically detect login forms and connect securely via `window.postMessage` to `https://lokker-vault.vercel.app` (or your local dev instance on `localhost:3000`).
+5. The extension will automatically detect login forms and connect securely via `window.postMessage` to `https://www.lokker.space` (or your local dev instance on `localhost:3000`).
 
 ---
 

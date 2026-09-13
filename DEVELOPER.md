@@ -38,19 +38,24 @@ Import alias: `@/*` → `src/*` (tsconfig.json).
 src/
 ├── app/                  # Next.js App Router
 │   ├── (marketing)/      # Public site boundary (/, /features, /security, /privacy, /docs, /download)
-│   ├── (app)/app/        # Product workspace under /app (passwords, bookmarks, totp, files, settings, masked-emails, passkeys)
+│   ├── (app)/app/        # Product workspace under /app (passwords, bookmarks, totp, files, settings, masked-emails, passkeys, workspaces)
+│   ├── manifest.ts       # Native W3C Web App Manifest (PWA standalone)
 │   ├── globals.css       # Design tokens + theme definitions
-│   └── layout.tsx        # Root layout: fonts, ThemeProvider, metadata
+│   └── layout.tsx        # Root layout: fonts, ThemeProvider, metadata, Apple PWA tags
 ├── components/
-│   ├── modals/           # App modals (import-backup-modal, add-password, add-file, etc.)
+│   ├── modals/           # App modals (import-backup-modal, add-password, shortcuts-modal, share-secret-modal, etc.)
 │   ├── views/            # Workspace views (passwords, bookmarks, totp, security-audit, files, settings, import-export, masked-emails, passkeys)
 │   ├── ui/               # shadcn primitives in TypeScript
 │   └── theme-provider.tsx
-├── lib/                  # Native Web Crypto, IndexedDB, Backup engine, Importers, TOTP, Watchtower, Masked Emails, Passkeys
-├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings, Masked Emails, Passkeys)
-└── test/                 # Test suites (crypto, totp, backup, extension, importers, foundations, watchtower, masked-email, passkey)
+├── context/              # Decomposed vault context providers (UI, Nav, Security, Data, Backup)
+├── hooks/                # Custom hooks (usePWA for offline and install prompt management)
+├── lib/                  # Native Web Crypto, IndexedDB, Secret Sharing, Backup engine, Importers, TOTP, Watchtower
+├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings, Workspaces)
+└── test/                 # Test suites (21 files, 153 tests: crypto, totp, backup, pwa, secret-sharing, workspaces, etc.)
 public/
-└── extension/            # Manifest V3 browser extension (background, content, popup, vault)
+├── extension/            # Manifest V3 browser extension (background, content, popup, vault)
+├── icons/                # PWA icons (192x192, 512x512, maskable)
+└── sw.js                 # Production service worker for offline app shell caching
 ```
 
 The vault state lives in `src/context/` as five focused providers composed in
@@ -158,7 +163,7 @@ Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 - `src/test/masked-email.test.ts`: 6 tests verifying BYOK header construction, SimpleLogin / Addy.io API payloads, active/paused toggles, and offline DuckDuckGo/custom alias generation.
 - `src/test/passkey.test.ts`: 3 tests verifying Base64URL credential ID encoding, native Web Crypto ECDSA P-256 keypair generation, and challenge assertion signing.
 
-All 75 tests across 10 test suites pass cleanly.
+All 153 tests across 21 test suites pass cleanly.
 
 ## 8. Commands
 
