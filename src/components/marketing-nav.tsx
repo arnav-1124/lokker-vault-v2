@@ -29,6 +29,8 @@ export function MarketingNav() {
 
   const navLinks = [
     { href: "/features", label: "Features" },
+    { href: "/pricing", label: "Pricing" },
+    { href: "/why-to-pay", label: "Why Pay?" },
     { href: "/security", label: "Security" },
     { href: "/privacy", label: "Privacy" },
     { href: "/docs", label: "Docs" },

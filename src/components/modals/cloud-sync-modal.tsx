@@ -34,36 +34,23 @@ import {
   setCloudSession,
   clearCloudSession,
   CLOUD_AUTH_CHANGE_EVENT,
+  type CloudSessionUser,
 } from "@/lib/auth-session";
 import { deriveAuthHash } from "@/lib/crypto";
 import { useVaultData } from "@/context/vault-data-context";
+import { CloudUploadChoiceModal } from "./cloud-upload-choice-modal";
+
+type UserSession = CloudSessionUser;
 
 interface CloudSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface UserSession {
-  id: string;
-  email: string;
-  role: "ADMIN" | "USER";
-  name?: string | null;
-  accessToken: string;
-}
-
-function formatLastSynced(timestamp: string | null): string {
-  if (!timestamp) return "Never synchronized";
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHours = Math.floor(diffMin / 60);
-
-  if (diffSec < 30) return "Just now";
-  if (diffSec < 60) return `${diffSec} seconds ago`;
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+function formatLastSynced(iso: string | null) {
+  if (!iso) return "Never";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Unknown";
   return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -79,12 +66,14 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
     cloudItemCount,
     syncError,
     triggerCloudSync,
+    migrateAllToCloudAndSync,
     deleteCloudBackup,
   } = useVaultData();
 
   const [activeTab, setActiveTab] = React.useState<"account" | "features">("account");
   const [authMode, setAuthMode] = React.useState<"signup" | "signin">("signup");
   const [session, setSession] = React.useState<UserSession | null>(null);
+  const [showChoiceModal, setShowChoiceModal] = React.useState(false);
 
   // Form states
   const [email, setEmail] = React.useState("");
@@ -153,7 +142,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
       const userSession: UserSession = {
         id: data.user.id,
         email: data.user.email,
-        role: data.user.role,
+        role: data.user.role === "ADMIN" ? "ADMIN" : "USER",
         name: data.user.name,
         accessToken: data.accessToken,
       };
@@ -335,9 +324,9 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                   <div className="flex items-center gap-2 pt-2 border-t border-border-subtle">
                     <Button
                       size="sm"
-                      onClick={async () => {
+                      onClick={() => {
                         setErrorMsg(null);
-                        await triggerCloudSync({ force: true });
+                        setShowChoiceModal(true);
                       }}
                       disabled={syncStatus === "syncing"}
                       className="flex-1 h-8 text-xs gap-1.5 cursor-pointer font-medium"
@@ -346,7 +335,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                         className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`}
                       />
                       <span>
-                        {syncStatus === "syncing" ? "Synchronizing Vault..." : "Sync Vault Now"}
+                        {syncStatus === "syncing" ? "Synchronizing Vault..." : "Sync to Cloud"}
                       </span>
                     </Button>
 
@@ -558,6 +547,19 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <CloudUploadChoiceModal
+        isOpen={showChoiceModal}
+        onClose={() => setShowChoiceModal(false)}
+        onUploadAll={async () => {
+          await migrateAllToCloudAndSync();
+        }}
+        onUploadSelected={() => {
+          setShowChoiceModal(false);
+          onClose();
+        }}
+        totalLocalItems={cloudItemCount}
+      />
     </Dialog>
   );
 }

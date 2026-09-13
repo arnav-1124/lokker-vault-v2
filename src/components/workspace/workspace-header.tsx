@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Menu, Plus, Building2, ShieldCheck, User, Cloud } from "lucide-react";
+import Link from "next/link";
+import { useTheme } from "next-themes";
+import { Menu, Plus, Building2, ShieldCheck, User, Cloud, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkspace } from "@/context/workspace-context";
@@ -15,7 +17,13 @@ export function WorkspaceHeader({
   onToggleMobileSidebar,
   onOpenAddModal,
 }: WorkspaceHeaderProps) {
-  const { activeWorkspace, planQuota, userRole } = useWorkspace();
+  const { activeWorkspace, planQuota, userRole, isCloudActive } = useWorkspace();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="h-14 border-b border-border-subtle bg-background px-4 flex items-center justify-between gap-3 shrink-0">
@@ -66,18 +74,42 @@ export function WorkspaceHeader({
           <span>Cloud Encrypted</span>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onOpenAddModal}
-          className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer font-medium"
-        >
-          <Plus className="size-3.5" />
-          <span>Add Workspace</span>
-          <span className="text-[10px] opacity-70 font-mono hidden sm:inline">
-            ({planQuota.ownedCount}/{planQuota.maxAllowed})
-          </span>
-        </Button>
+        {/* Theme Switcher Button */}
+        {mounted && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            aria-label="Toggle Theme"
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            {resolvedTheme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+          </Button>
+        )}
+
+        {!isCloudActive ? (
+          <Link href="/login?redirect=/app/workspaces">
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1.5 font-medium cursor-pointer"
+            >
+              <span>Sign In</span>
+            </Button>
+          </Link>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenAddModal}
+            className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer font-medium"
+          >
+            <Plus className="size-3.5" />
+            <span>Add Workspace</span>
+            <span className="text-[10px] opacity-70 font-mono hidden sm:inline">
+              ({planQuota.ownedCount}/{planQuota.maxAllowed})
+            </span>
+          </Button>
+        )}
       </div>
     </header>
   );

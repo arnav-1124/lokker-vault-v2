@@ -12,7 +12,7 @@ import {
   WorkspaceRole,
 } from "@/types";
 import { appConfig } from "@/config/app";
-import { getCloudSession } from "@/lib/auth-session";
+import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -119,6 +119,30 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     fetchWorkspaces();
+
+    const handleAuthChange = () => {
+      const session = getCloudSession();
+      if (!session?.accessToken) {
+        setIsCloudActive(false);
+        setWorkspaces([]);
+        setActiveWorkspaceId(null);
+        setMembers([]);
+        setWorkspacePasswords([]);
+        setWorkspaceBookmarks([]);
+        setPlanQuota({ plan: "FREE", ownedCount: 0, maxAllowed: 1 });
+        setIsLoading(false);
+      } else {
+        setIsCloudActive(true);
+        fetchWorkspaces();
+      }
+    };
+
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
   }, [fetchWorkspaces]);
 
   // Active workspace object

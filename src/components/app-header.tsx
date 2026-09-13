@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Coffee,
   MoreVertical,
+  HelpCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -40,6 +41,7 @@ import {
 } from "@/lib/auth-session";
 import { appConfig } from "@/config/app";
 import { DonateModal } from "./modals/donate-modal";
+import { CloudUploadChoiceModal } from "@/components/modals/cloud-upload-choice-modal";
 
 const PATH_TITLE: Record<string, string> = {
   "/app": "Security Workspace",
@@ -111,9 +113,10 @@ export function AppHeader({
   );
 
   const { addToast } = useVaultUI();
-  const { syncStatus, lastSyncedAt, cloudItemCount, triggerCloudSync } = useVaultData();
+  const { syncStatus, lastSyncedAt, cloudItemCount, triggerCloudSync, migrateAllToCloudAndSync } = useVaultData();
   const [cloudSession, setCloudSession] = React.useState<CloudSessionUser | null>(() => getCloudSession());
   const [isDonateOpen, setIsDonateOpen] = React.useState(false);
+  const [isChoiceModalOpen, setIsChoiceModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const loadSession = () => {
@@ -129,8 +132,8 @@ export function AppHeader({
     };
   }, []);
 
-  const handleManualSync = async () => {
-    await triggerCloudSync({ force: true });
+  const handleManualSync = () => {
+    setIsChoiceModalOpen(true);
   };
 
   const handleSignOut = () => {
@@ -331,7 +334,7 @@ export function AppHeader({
                     className="gap-2 cursor-pointer py-1.5"
                   >
                     <RefreshCw className={`size-3.5 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
-                    <span>{syncStatus === "syncing" ? "Syncing with Cloud..." : "Sync Vault Now"}</span>
+                    <span>{syncStatus === "syncing" ? "Syncing with Cloud..." : "Sync to Cloud"}</span>
                   </DropdownMenuItem>
 
                   {onOpenCloudSyncModal && (
@@ -343,6 +346,13 @@ export function AppHeader({
                       <span>Cloud Settings & Backup</span>
                     </DropdownMenuItem>
                   )}
+
+                  <DropdownMenuItem asChild className="gap-2 cursor-pointer py-1.5">
+                    <Link href="/why-to-pay" className="flex items-center gap-2">
+                      <HelpCircle className="size-3.5 text-muted-foreground" />
+                      <span>Why to Pay?</span>
+                    </Link>
+                  </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
 
@@ -371,6 +381,19 @@ export function AppHeader({
                 </Button>
               </Link>
             )}
+
+            {/* Why to Pay Link Button on top bar */}
+            <Link href="/why-to-pay" className="hidden sm:inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground font-medium cursor-pointer"
+                title="Why Pay? Learn why Lokker is free and why cloud costs exist"
+              >
+                <HelpCircle className="size-3.5 text-primary" />
+                <span>Why Pay?</span>
+              </Button>
+            </Link>
 
             {/* Extension Quick Launch */}
             <Button
@@ -434,7 +457,7 @@ export function AppHeader({
                       <RefreshCw
                         className={`size-3.5 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`}
                       />
-                      <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Vault Now"}</span>
+                      <span>{syncStatus === "syncing" ? "Syncing..." : "Sync to Cloud"}</span>
                     </DropdownMenuItem>
 
                     {onOpenCloudSyncModal && (
@@ -447,6 +470,13 @@ export function AppHeader({
                       </DropdownMenuItem>
                     )}
 
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/why-to-pay" className="flex items-center gap-2">
+                        <HelpCircle className="size-3.5 text-primary" />
+                        <span>Why to Pay?</span>
+                      </Link>
+                    </DropdownMenuItem>
+
                     <DropdownMenuItem
                       onClick={handleSignOut}
                       className="gap-2 cursor-pointer text-destructive focus:text-destructive"
@@ -456,12 +486,20 @@ export function AppHeader({
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href="/signup?redirect=/app" className="flex items-center gap-2">
-                      <Cloud className="size-3.5 text-primary" />
-                      <span>Go Cloud (Optional)</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/signup?redirect=/app" className="flex items-center gap-2">
+                        <Cloud className="size-3.5 text-primary" />
+                        <span>Go Cloud (Optional)</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/why-to-pay" className="flex items-center gap-2">
+                        <HelpCircle className="size-3.5 text-primary" />
+                        <span>Why to Pay?</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
 
                 <DropdownMenuSeparator />
@@ -494,6 +532,20 @@ export function AppHeader({
           </div>
         </div>
       </div>
+
+      {/* Cloud Upload Choice Modal (1-Click Migration vs Selective) */}
+      <CloudUploadChoiceModal
+        isOpen={isChoiceModalOpen}
+        onClose={() => setIsChoiceModalOpen(false)}
+        onUploadAll={async () => {
+          await migrateAllToCloudAndSync();
+        }}
+        onUploadSelected={() => {
+          setIsChoiceModalOpen(false);
+          addToast("Edit any specific credential and click 'Update in Cloud' to save it in cloud.", "info");
+        }}
+        totalLocalItems={cloudItemCount}
+      />
 
       {/* Donate Modal */}
       <DonateModal isOpen={isDonateOpen} onClose={() => setIsDonateOpen(false)} />

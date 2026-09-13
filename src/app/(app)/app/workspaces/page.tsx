@@ -16,14 +16,55 @@ export default function WorkspacesEntryPointPage() {
   const { setIsCloudSyncModalOpen } = useVaultUI();
   const [isAddOpen, setIsAddOpen] = React.useState(false);
 
-  // If user has workspaces, auto-redirect to the first active workspace
+  // If user has workspaces AND is authenticated, auto-redirect to the first active workspace
   React.useEffect(() => {
-    if (!isLoading && workspaces.length > 0) {
+    if (!isLoading && isCloudActive && workspaces.length > 0) {
       const session = getCloudSession();
-      const userId = session?.id || "me";
-      router.replace(`/app/${userId}/workspace/${workspaces[0].id}`);
+      if (session?.accessToken) {
+        const userId = session.id || "me";
+        router.replace(`/app/${userId}/workspace/${workspaces[0].id}`);
+      }
     }
-  }, [isLoading, workspaces, router]);
+  }, [isLoading, isCloudActive, workspaces, router]);
+
+  // If user is signed out / not authenticated, show centered sign-in card
+  if (!isCloudActive) {
+    return (
+      <div className="flex-1 min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-6">
+        <div className="p-8 md:p-10 rounded-2xl border border-border-subtle bg-surface/60 backdrop-blur-xs text-center space-y-5 max-w-md w-full shadow-lg">
+          <div className="size-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto ring-8 ring-primary/5">
+            <Cloud className="size-7" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">
+              Sign In to Use Team Workspaces
+            </h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Team Workspaces provide zero-knowledge credential sharing and real-time synchronization. You must first sign in to your Lokker Cloud account to use this feature.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col gap-2.5">
+            <Button
+              size="lg"
+              onClick={() => setIsCloudSyncModalOpen(true)}
+              className="w-full h-10 text-xs font-semibold gap-2 shadow-xs cursor-pointer"
+            >
+              <Cloud className="size-4" />
+              <span>First sign-in to use this feature</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/app")}
+              className="w-full h-9 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              Return to Personal Vault
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -40,27 +81,7 @@ export default function WorkspacesEntryPointPage() {
         </div>
       </div>
 
-      {!isCloudActive ? (
-        <div className="p-8 rounded-2xl border border-border-subtle bg-surface/50 text-center space-y-4 max-w-lg mx-auto">
-          <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-            <Cloud className="size-6" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">Lokker Cloud Account Required</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Team Workspaces are end-to-end encrypted and synchronize across all team members in real-time. Please sign in or connect a cloud account to get started.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setIsCloudSyncModalOpen(true)}
-            className="h-9 text-xs font-medium gap-1.5 cursor-pointer"
-          >
-            <Cloud className="size-3.5" />
-            <span>Sign In to Lokker Cloud</span>
-          </Button>
-        </div>
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="p-12 text-center text-xs text-muted-foreground">
           Loading your workspaces...
         </div>

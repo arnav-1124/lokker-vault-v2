@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Check, ChevronsUpDown, Plus, ShieldCheck, User } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, Plus, ShieldCheck, User, Cloud } from "lucide-react";
 import { useWorkspace } from "@/context/workspace-context";
+import { useVaultUI } from "@/context/vault-ui-context";
 
 interface WorkspaceSwitcherProps {
   onOpenAddModal: () => void;
@@ -25,7 +26,9 @@ export function WorkspaceSwitcher({ onOpenAddModal, className }: WorkspaceSwitch
     activeWorkspace,
     selectWorkspace,
     planQuota,
+    isCloudActive,
   } = useWorkspace();
+  const { setIsCloudSyncModalOpen } = useVaultUI();
 
   const ownedWorkspaces = workspaces.filter((w) => w.role === "ADMIN");
   const joinedWorkspaces = workspaces.filter((w) => w.role === "MEMBER");
@@ -131,19 +134,31 @@ export function WorkspaceSwitcher({ onOpenAddModal, className }: WorkspaceSwitch
 
         <DropdownMenuSeparator className="my-1" />
 
-        {/* Action: Add Workspace */}
-        <DropdownMenuItem
-          onClick={onOpenAddModal}
-          className="flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md text-primary hover:text-primary cursor-pointer font-medium"
-        >
-          <div className="flex items-center gap-2">
-            <Plus className="size-3.5" />
-            <span>Create New Workspace</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground font-mono">
-            {planQuota.ownedCount}/{planQuota.maxAllowed}
-          </span>
-        </DropdownMenuItem>
+        {/* Action: Add Workspace or Sign In */}
+        {isCloudActive ? (
+          <DropdownMenuItem
+            onClick={onOpenAddModal}
+            className="flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md text-primary hover:text-primary cursor-pointer font-medium"
+          >
+            <div className="flex items-center gap-2">
+              <Plus className="size-3.5" />
+              <span>Create New Workspace</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {planQuota.ownedCount}/{planQuota.maxAllowed}
+            </span>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            onClick={() => setIsCloudSyncModalOpen(true)}
+            className="flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md text-primary hover:text-primary cursor-pointer font-medium"
+          >
+            <div className="flex items-center gap-2">
+              <Cloud className="size-3.5" />
+              <span>Sign In to Access Workspaces</span>
+            </div>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

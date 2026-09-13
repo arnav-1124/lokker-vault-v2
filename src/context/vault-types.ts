@@ -168,6 +168,7 @@ export interface VaultDataContextType {
   cloudItemCount: number;
   syncError: string | null;
   triggerCloudSync: (options?: { force?: boolean; masterPassword?: string }) => Promise<boolean>;
+  migrateAllToCloudAndSync: () => Promise<boolean>;
   deleteCloudBackup: () => Promise<boolean>;
 
   handleSavePassword: (entry: PasswordEntry) => Promise<void>;

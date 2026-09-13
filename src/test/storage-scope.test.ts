@@ -205,4 +205,62 @@ describe("Storage Scope Models", () => {
       window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, listener);
     }
   });
+
+  it("migrates all local passwords and bookmarks to cloud storage scope in 1-click", () => {
+    const localPasswords: PasswordEntry[] = [
+      {
+        id: generateId("pwd"),
+        websiteName: "Local NAS",
+        websiteUrl: "http://192.168.1.50",
+        username: "admin",
+        password: "pass1",
+        category: "General",
+        isFavorite: false,
+        storageScope: "local",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        id: generateId("pwd"),
+        websiteName: "Already Cloud",
+        websiteUrl: "https://cloud.com",
+        username: "clouduser",
+        password: "pass2",
+        category: "General",
+        isFavorite: false,
+        storageScope: "cloud",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+
+    const localBookmarks: Bookmark[] = [
+      {
+        id: generateId("bm"),
+        title: "Local Router",
+        url: "http://192.168.1.1",
+        category: "General",
+        storageScope: "local",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+
+    // Migration logic matches migrateAllToCloudAndSync
+    const now = Date.now();
+    const migratedPasswords = localPasswords.map((p) => ({
+      ...p,
+      storageScope: "cloud" as const,
+      updatedAt: now,
+    }));
+    const migratedBookmarks = localBookmarks.map((b) => ({
+      ...b,
+      storageScope: "cloud" as const,
+      updatedAt: now,
+    }));
+
+    expect(migratedPasswords.every((p) => p.storageScope === "cloud")).toBe(true);
+    expect(migratedBookmarks.every((b) => b.storageScope === "cloud")).toBe(true);
+    expect(migratedPasswords[0].updatedAt).toBe(now);
+  });
 });

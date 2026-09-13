@@ -247,6 +247,49 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [addToast]);
 
+  const migrateAllToCloudAndSync = React.useCallback(async (): Promise<boolean> => {
+    const session = getCloudSession();
+    if (!session?.accessToken) {
+      addToast("Please connect to Lokker Cloud first.", "error");
+      return false;
+    }
+    if (!isUnlocked) {
+      addToast("Please unlock your vault first to migrate credentials.", "info");
+      return false;
+    }
+
+    try {
+      // 1. Promote all local passwords and bookmarks to cloud storage scope
+      const updatedPasswords = passwordsRef.current.map((p) => ({
+        ...p,
+        storageScope: "cloud" as const,
+        updatedAt: Date.now(),
+      }));
+      const updatedBookmarks = bookmarksRef.current.map((b) => ({
+        ...b,
+        storageScope: "cloud" as const,
+        updatedAt: Date.now(),
+      }));
+
+      passwordsRef.current = updatedPasswords;
+      bookmarksRef.current = updatedBookmarks;
+
+      await saveAndEncryptPasswords(updatedPasswords);
+      setBookmarks(updatedBookmarks);
+      await saveAllBookmarks(updatedBookmarks);
+
+      // 2. Trigger force cloud sync to upload entire vault
+      const success = await triggerCloudSync({ force: true });
+      if (success) {
+        addToast("All local credentials successfully migrated and uploaded to Lokker Cloud.", "success");
+      }
+      return success;
+    } catch (err: any) {
+      addToast(err.message || "Failed to migrate credentials to cloud", "error");
+      return false;
+    }
+  }, [isUnlocked, saveAndEncryptPasswords, saveAllBookmarks, triggerCloudSync, addToast]);
+
   const scheduleAutoSync = React.useCallback(() => {
     const session = getCloudSession();
     if (!session?.accessToken || !isUnlocked) return;
@@ -655,6 +698,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
     cloudItemCount: effectiveCloudItemCount,
     syncError,
     triggerCloudSync,
+    migrateAllToCloudAndSync,
     deleteCloudBackup,
     handleSavePassword, handleDeletePassword, handleTogglePasswordFavorite,
     handleSaveBookmark, handleDeleteBookmark, handleToggleBookmarkFavorite,
