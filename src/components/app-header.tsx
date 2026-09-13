@@ -154,9 +154,9 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-[var(--z-sticky)] border-b border-border-subtle bg-background/95 backdrop-blur-sm">
-      <div className="relative flex h-14 items-center justify-between px-2.5 sm:px-6 gap-1.5 sm:gap-3">
+      <div className="flex h-14 items-center justify-between px-2.5 sm:px-5 gap-1.5 sm:gap-3">
         {/* Left Section: Mobile Menu + View Title */}
-        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 z-10 max-w-[28%] sm:max-w-[35%]">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px]">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -172,66 +172,41 @@ export function AppHeader({
               {viewTitle}
             </h1>
             {isUnlocked ? (
-              <Badge variant="outline" className="hidden lg:inline-flex text-[10px] text-success border-success/30 bg-success/10 py-0 px-1.5">
+              <Badge variant="outline" className="hidden sm:inline-flex text-[10px] text-success border-success/30 bg-success/10 py-0 px-1.5">
                 Unlocked
               </Badge>
             ) : (
-              <Badge variant="outline" className="hidden lg:inline-flex text-[10px] text-warning border-warning/30 bg-warning/10 py-0 px-1.5">
+              <Badge variant="outline" className="hidden sm:inline-flex text-[10px] text-warning border-warning/30 bg-warning/10 py-0 px-1.5">
                 Locked
               </Badge>
             )}
           </div>
         </div>
 
-        {/* Center: Donate Button (strictly visible on top of screen in center on ALL device widths) */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none z-20">
+        {/* Center: Donate Button (in normal flex flow with flex-1 and justify-center - ZERO COLLISION GUARANTEED) */}
+        <div className="flex-1 flex items-center justify-center min-w-0 px-1">
           <button
             type="button"
             id="btn-donate-header"
             onClick={() => setIsDonateOpen(true)}
-            className="pointer-events-auto inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/35 hover:border-amber-500/55 text-amber-500 dark:text-amber-400 font-medium text-xs shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer shrink-0 select-none group"
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/35 hover:border-amber-500/55 text-amber-500 dark:text-amber-400 font-medium text-xs shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer shrink-0 select-none group"
             title="Support Lokker — Buy Me a Coffee"
           >
             <Coffee className="size-3.5 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
             <span className="font-semibold tracking-tight text-[11px] sm:text-xs">Donate</span>
-            <span className="hidden md:inline text-[10px] text-amber-500/80 font-normal">☕ Buy Me a Coffee</span>
+            <span className="hidden 2xl:inline text-[10px] text-amber-500/80 font-normal">☕ Buy Me a Coffee</span>
           </button>
         </div>
 
-        {/* Desktop Search Bar (XL screens only so it never crowds the centered Donate button) */}
-        <div className="hidden xl:block flex-1 max-w-xs mr-auto ml-20">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search vault (/)"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              onFocus={(e) => {
-                e.target.blur();
-                onOpenCommandPalette();
-              }}
-              className="pl-8 pr-10 h-8 text-xs bg-surface border-border-subtle focus-visible:border-border-strong cursor-pointer"
-              readOnly
-            />
-            <button
-              type="button"
-              onClick={onOpenCommandPalette}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-background border border-border-subtle text-[10px] font-mono text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              ⌘K
-            </button>
-          </div>
-        </div>
-
         {/* Right Section: Actions */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0 z-10">
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 shrink-0">
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={onOpenCommandPalette}
-            className="xl:hidden text-muted-foreground cursor-pointer size-7 sm:size-8"
+            className="text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8"
             aria-label="Search"
+            title="Search vault (⌘K)"
           >
             <Search className="size-3.5 sm:size-4" />
           </Button>
@@ -241,13 +216,14 @@ export function AppHeader({
             <Button
               size="sm"
               onClick={onOpenNewItemModal}
-              className="h-7 sm:h-8 text-xs gap-1 sm:gap-1.5 shadow-xs font-medium cursor-pointer px-2 sm:px-3"
+              className="h-7 sm:h-8 text-xs gap-1 sm:gap-1.5 shadow-xs font-medium cursor-pointer px-2 sm:px-2.5 lg:px-3"
+              title={currentView === "bookmarks" ? "Add Bookmark" : "Add Password"}
             >
               <Plus className="size-3.5" />
-              <span className="hidden sm:inline">
+              <span className="hidden xl:inline">
                 {currentView === "bookmarks" ? "Add Bookmark" : "Add Password"}
               </span>
-              <span className="sm:hidden text-[11px]">Add</span>
+              <span className="hidden sm:inline xl:hidden text-xs">Add</span>
             </Button>
           )}
 
@@ -256,138 +232,115 @@ export function AppHeader({
             variant={isUnlocked ? "outline" : "default"}
             size="sm"
             onClick={onToggleLock}
-            className="h-7 sm:h-8 text-xs gap-1 cursor-pointer px-1.5 sm:px-2.5"
+            className="h-7 sm:h-8 text-xs gap-1 cursor-pointer px-2 sm:px-2.5"
             title={isUnlocked ? `Auto-locks in ${autoLockMinutes}m` : "Unlock Vault"}
           >
             {isUnlocked ? (
               <>
                 <Unlock className="size-3.5 text-success" />
-                <span className="hidden md:inline">Lock Vault</span>
+                <span className="hidden xl:inline">Lock Vault</span>
               </>
             ) : (
               <>
                 <Lock className="size-3.5" />
-                <span className="hidden md:inline">Unlock</span>
+                <span className="hidden xl:inline">Unlock</span>
               </>
             )}
           </Button>
 
-          {/* Desktop Actions (shown on md+ screens) */}
-          <div className="hidden md:flex items-center gap-2">
-            {/* Cloud Account Status & Actions */}
-            {cloudSession ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-hover text-xs font-medium cursor-pointer transition-colors shadow-2xs"
-                    title="Your Cloud Account & Backup"
-                  >
-                    <div className="relative flex items-center justify-center size-5 rounded-full bg-primary/15 text-primary font-bold text-[10px]">
-                      {cloudSession.name ? cloudSession.name.charAt(0).toUpperCase() : cloudSession.email.charAt(0).toUpperCase()}
-                      <span className="absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full bg-emerald-500 border border-background" />
-                    </div>
-                    <span className="hidden lg:inline max-w-[100px] truncate text-foreground">
-                      {cloudSession.name || cloudSession.email.split("@")[0]}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={`hidden xl:inline-flex text-[9px] py-0 px-1 gap-1 font-mono ${
-                        syncStatus === "syncing"
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : syncStatus === "synced"
-                          ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/10"
-                          : syncStatus === "error"
-                          ? "border-destructive/30 text-destructive bg-destructive/10"
-                          : "border-muted-foreground/30 text-muted-foreground bg-muted/10"
-                      }`}
-                    >
-                      <Cloud className={`size-2.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
-                      <span>
-                        {syncStatus === "syncing"
-                          ? "Syncing"
-                          : syncStatus === "synced"
-                          ? "Synced"
-                          : syncStatus === "error"
-                          ? "Issue"
-                          : "Active"}
-                      </span>
-                    </Badge>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60 p-1.5 text-xs">
-                  <div className="px-2 py-1.5 border-b border-border-subtle mb-1">
-                    <p className="font-semibold text-foreground truncate">{cloudSession.name || "Cloud Account"}</p>
-                    <p className="text-muted-foreground text-[11px] truncate">{cloudSession.email}</p>
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-primary border-primary/20 bg-primary/5">
-                        {cloudSession.role === "ADMIN" ? "Team Administrator" : "Personal Account"}
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {cloudItemCount} cloud items
-                      </span>
-                    </div>
+          {/* Cloud Account Status & Actions */}
+          {cloudSession ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center gap-1.5 sm:gap-2 h-7 sm:h-8 px-1.5 sm:px-2.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-hover text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                  title={`Cloud Account: ${cloudSession.name || cloudSession.email}`}
+                >
+                  <div className="relative flex items-center justify-center size-5 rounded-full bg-primary/15 text-primary font-bold text-[10px]">
+                    {cloudSession.name ? cloudSession.name.charAt(0).toUpperCase() : cloudSession.email.charAt(0).toUpperCase()}
+                    <span className="absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full bg-emerald-500 border border-background" />
                   </div>
+                  <span className="hidden xl:inline max-w-[90px] truncate text-foreground">
+                    {cloudSession.name || cloudSession.email.split("@")[0]}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60 p-1.5 text-xs">
+                <div className="px-2 py-1.5 border-b border-border-subtle mb-1">
+                  <p className="font-semibold text-foreground truncate">{cloudSession.name || "Cloud Account"}</p>
+                  <p className="text-muted-foreground text-[11px] truncate">{cloudSession.email}</p>
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-primary border-primary/20 bg-primary/5">
+                      {cloudSession.role === "ADMIN" ? "Team Administrator" : "Personal Account"}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {cloudItemCount} cloud items
+                    </span>
+                  </div>
+                </div>
 
+                <DropdownMenuItem
+                  onClick={handleManualSync}
+                  disabled={syncStatus === "syncing"}
+                  className="gap-2 cursor-pointer py-1.5"
+                >
+                  <RefreshCw className={`size-3.5 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
+                  <span>{syncStatus === "syncing" ? "Syncing with Cloud..." : "Sync to Cloud"}</span>
+                </DropdownMenuItem>
+
+                {onOpenCloudSyncModal && (
                   <DropdownMenuItem
-                    onClick={handleManualSync}
-                    disabled={syncStatus === "syncing"}
+                    onClick={onOpenCloudSyncModal}
                     className="gap-2 cursor-pointer py-1.5"
                   >
-                    <RefreshCw className={`size-3.5 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
-                    <span>{syncStatus === "syncing" ? "Syncing with Cloud..." : "Sync to Cloud"}</span>
+                    <Cloud className="size-3.5 text-muted-foreground" />
+                    <span>Cloud Settings & Backup</span>
                   </DropdownMenuItem>
+                )}
 
-                  {onOpenCloudSyncModal && (
-                    <DropdownMenuItem
-                      onClick={onOpenCloudSyncModal}
-                      className="gap-2 cursor-pointer py-1.5"
-                    >
-                      <Cloud className="size-3.5 text-muted-foreground" />
-                      <span>Cloud Settings & Backup</span>
-                    </DropdownMenuItem>
-                  )}
+                <DropdownMenuItem asChild className="gap-2 cursor-pointer py-1.5">
+                  <Link href="/app/why-to-pay" className="flex items-center gap-2">
+                    <HelpCircle className="size-3.5 text-muted-foreground" />
+                    <span>Why to Pay?</span>
+                  </Link>
+                </DropdownMenuItem>
 
-                  <DropdownMenuItem asChild className="gap-2 cursor-pointer py-1.5">
-                    <Link href="/app/why-to-pay" className="flex items-center gap-2">
-                      <HelpCircle className="size-3.5 text-muted-foreground" />
-                      <span>Why to Pay?</span>
-                    </Link>
-                  </DropdownMenuItem>
+                <DropdownMenuSeparator />
 
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    className="gap-2 cursor-pointer py-1.5 text-destructive focus:text-destructive focus:bg-destructive/10"
-                  >
-                    <LogOut className="size-3.5" />
-                    <span>Sign Out of Cloud</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link href="/signup?redirect=/app">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-medium cursor-pointer shadow-2xs"
-                  title="Lokker Cloud & Team Workspaces (100% Optional)"
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="gap-2 cursor-pointer py-1.5 text-destructive focus:text-destructive focus:bg-destructive/10"
                 >
-                  <Cloud className="size-3.5 text-primary shrink-0" />
-                  <span className="hidden lg:inline">Go Cloud</span>
-                  <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-full bg-primary/15 text-primary border border-primary/25">
-                    Optional
-                  </span>
-                </Button>
-              </Link>
-            )}
+                  <LogOut className="size-3.5" />
+                  <span>Sign Out of Cloud</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/signup?redirect=/app" className="hidden lg:inline-flex">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 sm:h-8 text-xs gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-medium cursor-pointer shadow-2xs"
+                title="Lokker Cloud & Team Workspaces (100% Optional)"
+              >
+                <Cloud className="size-3.5 text-primary shrink-0" />
+                <span className="hidden xl:inline">Go Cloud</span>
+                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-full bg-primary/15 text-primary border border-primary/25">
+                  Optional
+                </span>
+              </Button>
+            </Link>
+          )}
 
-            {/* Why to Pay Link Button on top bar */}
-            <Link href="/app/why-to-pay" className="hidden sm:inline-flex">
+          {/* Desktop-only secondary actions (shown on lg+ screens) */}
+          <div className="hidden lg:flex items-center gap-1 sm:gap-1.5">
+            {/* Why to Pay Link Button on top bar (shown on xl+ screens where there is plenty of room) */}
+            <Link href="/app/why-to-pay" className="hidden xl:inline-flex">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground font-medium cursor-pointer"
+                className="h-7 sm:h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground font-medium cursor-pointer"
                 title="Why Pay? Learn why Lokker is free and why cloud costs exist"
               >
                 <HelpCircle className="size-3.5 text-primary" />
@@ -402,7 +355,7 @@ export function AppHeader({
               onClick={onOpenExtensionGuide}
               aria-label="Extension Setup"
               title="Browser Extension"
-              className="text-muted-foreground hover:text-foreground cursor-pointer"
+              className="text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8"
             >
               <Puzzle className="size-3.5" />
             </Button>
@@ -414,21 +367,22 @@ export function AppHeader({
                 size="icon-sm"
                 onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
                 aria-label="Toggle Theme"
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
+                title={resolvedTheme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                className="text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8"
               >
                 {resolvedTheme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
               </Button>
             )}
           </div>
 
-          {/* Mobile More Options Dropdown (prevents top bar buttons from overflowing on small widths) */}
-          <div className="md:hidden">
+          {/* Mobile & Tablet More Options Dropdown (shown on < lg screens to guarantee zero overflow) */}
+          <div className="lg:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer size-7 sm:size-8"
                   aria-label="More Options"
                 >
                   <MoreVertical className="size-4" />
