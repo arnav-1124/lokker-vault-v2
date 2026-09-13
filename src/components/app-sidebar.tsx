@@ -32,6 +32,7 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +71,7 @@ const VIEW_TO_PATH: Record<ViewMode, string> = {
   extension: "/app/extension",
   guide: "/app/guide",
   settings: "/app/settings",
+  workspaces: "/app/workspaces",
 };
 
 interface AppSidebarProps {
@@ -203,6 +205,7 @@ export function AppSidebar({
   ];
 
   const systemNavItems = [
+    { id: "workspaces" as ViewMode, label: "Workspaces", icon: Building2 },
     { id: "extension" as ViewMode, label: "Browser Extension", icon: Puzzle },
     { id: "guide" as ViewMode, label: "Feature Guide", icon: BookOpen },
     { id: "settings" as ViewMode, label: "Settings", icon: SettingsIcon },

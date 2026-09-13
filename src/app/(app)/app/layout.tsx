@@ -1,10 +1,16 @@
 "use client";
 
+import * as React from "react";
+import { usePathname } from "next/navigation";
 import { useVault } from "@/context/vault-context";
 import { VaultProvider } from "@/context/vault-context";
+import { WorkspaceProvider } from "@/context/workspace-context";
 
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
+import { WorkspaceHeader } from "@/components/workspace/workspace-header";
+import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
+import { AddWorkspaceModal } from "@/components/modals/add-workspace-modal";
 import { MasterPasswordModal } from "@/components/modals/master-password-modal";
 import { BackupPasswordModal } from "@/components/modals/backup-password-modal";
 import { PasswordModal } from "@/components/modals/password-modal";
@@ -20,61 +26,85 @@ import { ToastContainer } from "@/components/toast-container";
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const vault = useVault();
+  const pathname = usePathname();
+  const isWorkspaceRoute = pathname?.includes("/workspace");
+  const [isAddWorkspaceOpen, setIsAddWorkspaceOpen] = React.useState(false);
+  const [isWorkspaceMobileOpen, setIsWorkspaceMobileOpen] = React.useState(false);
 
   return (
     <div className="flex h-screen bg-background text-foreground font-sans antialiased overflow-hidden select-none">
       {/* Sidebar */}
-      <AppSidebar
-        onSelectView={vault.navigateTo}
-        categories={vault.categories}
-        selectedCategory={vault.selectedCategory}
-        onSelectCategory={vault.setSelectedCategory}
-        isUnlocked={vault.isUnlocked}
-        onOpenCategoryManager={(parentId) => {
-          vault.setCategoryModalParentId(parentId);
-          vault.setIsCategoryModalOpen(true);
-        }}
-        onRenameCategory={vault.handleRenameCategory}
-        onDeleteCategory={vault.handleDeleteCategory}
-        bookmarkCount={vault.bookmarks.length}
-        passwordCount={vault.decryptedPasswords.length}
-        isMobileOpen={vault.isMobileSidebarOpen}
-        onCloseMobile={() => vault.setIsMobileSidebarOpen(false)}
-      />
+      {isWorkspaceRoute ? (
+        <WorkspaceSidebar
+          onOpenAddModal={() => setIsAddWorkspaceOpen(true)}
+          isMobileOpen={isWorkspaceMobileOpen}
+          onCloseMobile={() => setIsWorkspaceMobileOpen(false)}
+        />
+      ) : (
+        <AppSidebar
+          onSelectView={vault.navigateTo}
+          categories={vault.categories}
+          selectedCategory={vault.selectedCategory}
+          onSelectCategory={vault.setSelectedCategory}
+          isUnlocked={vault.isUnlocked}
+          onOpenCategoryManager={(parentId) => {
+            vault.setCategoryModalParentId(parentId);
+            vault.setIsCategoryModalOpen(true);
+          }}
+          onRenameCategory={vault.handleRenameCategory}
+          onDeleteCategory={vault.handleDeleteCategory}
+          bookmarkCount={vault.bookmarks.length}
+          passwordCount={vault.decryptedPasswords.length}
+          isMobileOpen={vault.isMobileSidebarOpen}
+          onCloseMobile={() => vault.setIsMobileSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Workspace Container */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto lokker-scrollbar">
-        <AppHeader
-          searchQuery={vault.searchQuery}
-          onSearchChange={vault.setSearchQuery}
-          isUnlocked={vault.isUnlocked}
-          autoLockMinutes={vault.settings.autoLockMinutes}
-          onToggleLock={() => {
-            if (vault.isUnlocked) vault.lockVault();
-            else vault.setIsMasterPasswordModalOpen(true);
-          }}
-          onOpenCommandPalette={() => vault.setIsCommandPaletteOpen(true)}
-          onOpenNewItemModal={() => {
-            if (vault.currentView === "bookmarks") {
-              vault.setEditingBookmark(null);
-              vault.setIsBookmarkModalOpen(true);
-            } else {
-              if (!vault.isUnlocked) {
-                vault.setIsMasterPasswordModalOpen(true);
+        {isWorkspaceRoute ? (
+          <WorkspaceHeader
+            onToggleMobileSidebar={() => setIsWorkspaceMobileOpen(!isWorkspaceMobileOpen)}
+            onOpenAddModal={() => setIsAddWorkspaceOpen(true)}
+          />
+        ) : (
+          <AppHeader
+            searchQuery={vault.searchQuery}
+            onSearchChange={vault.setSearchQuery}
+            isUnlocked={vault.isUnlocked}
+            autoLockMinutes={vault.settings.autoLockMinutes}
+            onToggleLock={() => {
+              if (vault.isUnlocked) vault.lockVault();
+              else vault.setIsMasterPasswordModalOpen(true);
+            }}
+            onOpenCommandPalette={() => vault.setIsCommandPaletteOpen(true)}
+            onOpenNewItemModal={() => {
+              if (vault.currentView === "bookmarks") {
+                vault.setEditingBookmark(null);
+                vault.setIsBookmarkModalOpen(true);
               } else {
-                vault.setEditingPassword(null);
-                vault.setIsPasswordModalOpen(true);
+                if (!vault.isUnlocked) {
+                  vault.setIsMasterPasswordModalOpen(true);
+                } else {
+                  vault.setEditingPassword(null);
+                  vault.setIsPasswordModalOpen(true);
+                }
               }
-            }
-          }}
-          onToggleMobileSidebar={() => vault.setIsMobileSidebarOpen(!vault.isMobileSidebarOpen)}
-          onOpenExtensionGuide={() => vault.setIsExtensionGuideOpen(true)}
-          onOpenCloudSyncModal={() => vault.setIsCloudSyncModalOpen(true)}
-        />
+            }}
+            onToggleMobileSidebar={() => vault.setIsMobileSidebarOpen(!vault.isMobileSidebarOpen)}
+            onOpenExtensionGuide={() => vault.setIsExtensionGuideOpen(true)}
+            onOpenCloudSyncModal={() => vault.setIsCloudSyncModalOpen(true)}
+          />
+        )}
 
         {/* Route content renders here */}
         <main className="flex-1 pb-16">{children}</main>
       </div>
+
+      <AddWorkspaceModal
+        isOpen={isAddWorkspaceOpen}
+        onClose={() => setIsAddWorkspaceOpen(false)}
+      />
 
       {/* Dialog Modals — shared across all routes */}
       <MasterPasswordModal
@@ -217,7 +247,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <VaultProvider>
-      <AppShell>{children}</AppShell>
+      <WorkspaceProvider>
+        <AppShell>{children}</AppShell>
+      </WorkspaceProvider>
     </VaultProvider>
   );
 }

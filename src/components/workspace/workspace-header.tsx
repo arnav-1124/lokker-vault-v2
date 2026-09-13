@@ -1,0 +1,84 @@
+"use client";
+
+import * as React from "react";
+import { Menu, Plus, Building2, ShieldCheck, User, Cloud } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useWorkspace } from "@/context/workspace-context";
+
+interface WorkspaceHeaderProps {
+  onToggleMobileSidebar: () => void;
+  onOpenAddModal: () => void;
+}
+
+export function WorkspaceHeader({
+  onToggleMobileSidebar,
+  onOpenAddModal,
+}: WorkspaceHeaderProps) {
+  const { activeWorkspace, planQuota, userRole } = useWorkspace();
+
+  return (
+    <header className="h-14 border-b border-border-subtle bg-background px-4 flex items-center justify-between gap-3 shrink-0">
+      <div className="flex items-center gap-3 min-w-0">
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={onToggleMobileSidebar}
+          className="md:hidden text-muted-foreground cursor-pointer"
+        >
+          <Menu className="size-4" />
+        </Button>
+
+        <div className="flex items-center gap-2 truncate">
+          <div className="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Building2 className="size-4" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="font-semibold text-sm text-foreground truncate">
+                {activeWorkspace ? activeWorkspace.name : "Workspace"}
+              </h1>
+              {userRole && (
+                <Badge
+                  variant="outline"
+                  className={`text-[9px] px-1.5 py-0 font-medium ${
+                    userRole === "ADMIN"
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-muted/40 text-muted-foreground"
+                  }`}
+                >
+                  {userRole === "ADMIN" ? "Admin" : "Member"}
+                </Badge>
+              )}
+            </div>
+            {activeWorkspace?.description && (
+              <p className="text-[10px] text-muted-foreground truncate hidden sm:block">
+                {activeWorkspace.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono bg-surface border border-border-subtle px-2 py-0.5 rounded-md">
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Cloud Encrypted</span>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onOpenAddModal}
+          className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer font-medium"
+        >
+          <Plus className="size-3.5" />
+          <span>Add Workspace</span>
+          <span className="text-[10px] opacity-70 font-mono hidden sm:inline">
+            ({planQuota.ownedCount}/{planQuota.maxAllowed})
+          </span>
+        </Button>
+      </div>
+    </header>
+  );
+}

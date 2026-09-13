@@ -26,6 +26,7 @@ const VIEW_TO_PATH: Record<ViewMode, string> = {
   extension: "/app/extension",
   guide: "/app/guide",
   settings: "/app/settings",
+  workspaces: "/app/workspaces",
 };
 
 const PATH_TO_VIEW: Record<string, ViewMode> = Object.fromEntries(

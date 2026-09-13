@@ -9,6 +9,8 @@ export interface Bookmark {
   tags?: string[];
   isFavorite?: boolean;
   storageScope?: StorageScope;
+  workspaceId?: string;
+  workspaceName?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -47,6 +49,8 @@ export interface PasswordEntry {
   tags?: string[];
   isFavorite: boolean;
   storageScope?: StorageScope;
+  workspaceId?: string;
+  workspaceName?: string;
   createdAt: number;
   updatedAt: number;
   history?: PasswordHistoryItem[];
@@ -208,11 +212,43 @@ export type ViewMode =
   | "favorites"
   | "guide"
   | "settings"
-  | "extension";
+  | "extension"
+  | "workspaces";
 
 export interface ToastMessage {
   id: string;
   text: string;
   type: "success" | "error" | "info";
+}
+
+export type WorkspacePlan = "FREE" | "PRO" | "PLUS";
+export type WorkspaceRole = "ADMIN" | "MEMBER";
+
+export interface Workspace {
+  id: string;
+  name: string;
+  description?: string | null;
+  adminUserId: string;
+  plan: WorkspacePlan;
+  role: WorkspaceRole;
+  memberCount: number;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  userId: string;
+  email: string;
+  name?: string | null;
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
+export interface WorkspacePlanQuota {
+  plan: WorkspacePlan;
+  ownedCount: number;
+  maxAllowed: number;
 }
 
