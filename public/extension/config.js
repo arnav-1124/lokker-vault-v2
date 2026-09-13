@@ -8,15 +8,22 @@
 
 (function () {
   // Public origin of the Lokker web app (no trailing slash).
-  const appOrigin = 'https://lokker-vault.vercel.app';
+  const appOrigin = 'https://lokker.space';
 
   // Exact hosts allowed to sync vault data into the extension over https.
   // Hostname substring matching is forbidden (spoofing).
-  const trustedHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'lokker-vault.vercel.app'];
+  const trustedHosts = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'lokker.space',
+    'www.lokker.space',
+    'lokker-vault.vercel.app',
+  ];
 
   // Anchored suffixes: only proper subdomains match (vault.e2b.app yes,
   // evil-e2b.app no). Add future production/preview hosts here.
-  const trustedHostSuffixes = ['.local', '.e2b.app'];
+  const trustedHostSuffixes = ['.local', '.e2b.app', '.lokker.space', '.vercel.app'];
 
   self.LOKKER_EXT_CONFIG = Object.freeze({
     appOrigin: appOrigin,

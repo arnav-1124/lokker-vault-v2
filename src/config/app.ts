@@ -11,12 +11,19 @@ const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
 
+const defaultProdUrl = "https://lokker.space";
+
 export const appConfig = {
   name: "Lokker",
   tagline: "Privacy-first password vault",
   description:
     "Lokker is a privacy-first, local-first password vault and browser security utility. Your secrets stay on your device.",
-  url: envUrl && envUrl.length > 0 ? envUrl : "http://localhost:3000",
+  url:
+    envUrl && envUrl.length > 0
+      ? envUrl
+      : process.env.NODE_ENV === "production"
+      ? defaultProdUrl
+      : "http://localhost:3000",
   apiUrl: envApiUrl && envApiUrl.length > 0 ? envApiUrl : "http://localhost:4000",
   posthogKey: posthogKey && posthogKey.length > 0 ? posthogKey : "phc_nRQnFW3CqDpRQk9PfZm45EFptNFLrJsy7zYp4Z3iRtSY",
   posthogHost: posthogHost && posthogHost.length > 0 ? posthogHost : "https://us.i.posthog.com",

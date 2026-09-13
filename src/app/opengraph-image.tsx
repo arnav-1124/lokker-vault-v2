@@ -159,7 +159,7 @@ export default async function Image() {
             <span style={{ color: "#22c55e" }}>✓</span> Manifest V3 Autofill
           </div>
           <div style={{ marginLeft: "auto", color: "#64748b" }}>
-            lokker-vault.vercel.app
+            lokker.space
           </div>
         </div>
       </div>
