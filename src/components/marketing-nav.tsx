@@ -114,7 +114,7 @@ export function MarketingNav() {
               {activeMenu === "features" && (
                 <div
                   onMouseEnter={() => handleMouseEnter("features")}
-                  className="absolute left-0 top-full mt-1.5 w-[560px] rounded-2xl border border-border-subtle bg-surface/98 backdrop-blur-xl shadow-2xl p-5 z-[var(--z-popover)] animate-in fade-in-0 zoom-in-95 duration-150"
+                  className="absolute left-0 top-full mt-1.5 w-[560px] rounded-2xl border border-border bg-popover dark:bg-[#0c1017] text-popover-foreground shadow-2xl p-5 z-[var(--z-popover)] animate-in fade-in-0 zoom-in-95 duration-150"
                 >
                   <div className="grid grid-cols-2 gap-5">
                     {/* Group A: Core Vault & Security */}
@@ -312,7 +312,7 @@ export function MarketingNav() {
               {activeMenu === "resources" && (
                 <div
                   onMouseEnter={() => handleMouseEnter("resources")}
-                  className="absolute left-0 top-full mt-1.5 w-[520px] rounded-2xl border border-border-subtle bg-surface/98 backdrop-blur-xl shadow-2xl p-5 z-[var(--z-popover)] animate-in fade-in-0 zoom-in-95 duration-150"
+                  className="absolute left-0 top-full mt-1.5 w-[520px] rounded-2xl border border-border bg-popover dark:bg-[#0c1017] text-popover-foreground shadow-2xl p-5 z-[var(--z-popover)] animate-in fade-in-0 zoom-in-95 duration-150"
                 >
                   <div className="grid grid-cols-2 gap-5">
                     {/* Column 1: Trust & Architecture */}
@@ -456,7 +456,7 @@ export function MarketingNav() {
               {activeMenu === "pricing" && (
                 <div
                   onMouseEnter={() => handleMouseEnter("pricing")}
-                  className="absolute left-0 top-full mt-1.5 w-[500px] rounded-2xl border border-border-subtle bg-surface/98 backdrop-blur-xl shadow-2xl p-5 z-[var(--z-popover)] animate-in fade-in-0 zoom-in-95 duration-150"
+                  className="absolute left-0 top-full mt-1.5 w-[500px] rounded-2xl border border-border bg-popover dark:bg-[#0c1017] text-popover-foreground shadow-2xl p-5 z-[var(--z-popover)] animate-in fade-in-0 zoom-in-95 duration-150"
                 >
                   <div className="space-y-4">
                     {/* Highlight: Why to Pay Philosophy */}
@@ -575,7 +575,7 @@ export function MarketingNav() {
 
       {/* Mobile Drawer Navigation (3 Sections Accordion) */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-border-subtle bg-surface/95 backdrop-blur-lg p-4 space-y-3 animate-in slide-in-from-top-2 duration-150">
+        <div className="md:hidden border-t border-border bg-popover dark:bg-[#0c1017] text-popover-foreground shadow-2xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-150">
           <div className="space-y-1.5">
             {/* Mobile Section 1: Features */}
             <div className="border border-border-subtle rounded-xl overflow-hidden bg-background">
