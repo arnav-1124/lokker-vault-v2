@@ -26,7 +26,7 @@ import {
   deleteCloudVault,
   mergeCloudVaultWithLocal,
 } from "@/lib/cloud-sync";
-import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import { getCloudSession, clearCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 import { appConfig } from "@/config/app";
 import { useVaultUI } from "./vault-ui-context";
 import { useVaultSecurity } from "./vault-security-context";
@@ -218,9 +218,17 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       } catch (err: any) {
         console.error("Cloud sync error:", err);
         setSyncStatus("error");
-        setSyncError(err.message || "Failed to synchronize with cloud");
+        let displayError = err.message || "Failed to synchronize with cloud";
+        if (
+          displayError.toLowerCase().includes("token has expired") ||
+          displayError.toLowerCase().includes("jwt expired")
+        ) {
+          displayError = "Your cloud session has expired. Please sign in again to sync your vault.";
+          clearCloudSession();
+        }
+        setSyncError(displayError);
         if (options?.force) {
-          addToast(err.message || "Unable to sync with cloud", "error");
+          addToast(displayError, "error");
         }
         return false;
       }
@@ -285,7 +293,15 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       }
       return success;
     } catch (err: any) {
-      addToast(err.message || "Failed to migrate credentials to cloud", "error");
+      let displayError = err.message || "Failed to migrate credentials to cloud";
+      if (
+        displayError.toLowerCase().includes("token has expired") ||
+        displayError.toLowerCase().includes("jwt expired")
+      ) {
+        displayError = "Your cloud session has expired. Please sign in again to sync your vault.";
+        clearCloudSession();
+      }
+      addToast(displayError, "error");
       return false;
     }
   }, [isUnlocked, saveAndEncryptPasswords, saveAllBookmarks, triggerCloudSync, addToast]);

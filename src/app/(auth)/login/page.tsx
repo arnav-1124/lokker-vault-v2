@@ -110,6 +110,7 @@ function LoginContent() {
         role: data.user.role,
         name: data.user.name,
         accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
       });
 
       // If local device does not have an initialized vault yet, check if there is a cloud vault to restore

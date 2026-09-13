@@ -145,6 +145,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
         role: data.user.role === "ADMIN" ? "ADMIN" : "USER",
         name: data.user.name,
         accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
       };
 
       setCloudSession(userSession);

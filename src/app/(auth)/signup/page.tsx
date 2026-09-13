@@ -156,6 +156,7 @@ function SignupContent() {
         role: data.user.role,
         name: data.user.name,
         accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
       });
 
       if (hasLocalVault) {

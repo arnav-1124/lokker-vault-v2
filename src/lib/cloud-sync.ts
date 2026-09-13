@@ -18,6 +18,7 @@ import {
   unwrapVek,
 } from "./crypto";
 import { reconcileMissingCategories } from "./category-tree";
+import { refreshCloudSession, clearCloudSession } from "./auth-session";
 
 export interface CloudKeyMeta {
   wrappedVek?: string;
@@ -102,6 +103,59 @@ export function prepareCloudSyncPayload(items: {
 /**
  * Encrypts cloud items with the active VEK and uploads the ciphertext to Lokker Server.
  */
+async function fetchWithAuthRetry(
+  url: string,
+  options: RequestInit,
+  currentAccessToken: string
+): Promise<{ res: Response; data: any }> {
+  let token = currentAccessToken;
+  let res = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 401) {
+    const refreshed = await refreshCloudSession();
+    if (refreshed?.accessToken) {
+      token = refreshed.accessToken;
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } else {
+      clearCloudSession();
+      throw new Error("Your cloud session has expired. Please sign in again to sync your vault.");
+    }
+  }
+
+  if (res.status === 404) {
+    return { res, data: { exists: false } };
+  }
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      clearCloudSession();
+      throw new Error("Your cloud session has expired. Please sign in again to sync your vault.");
+    }
+    const msg = data.message || `Request failed with status ${res.status}`;
+    if (msg.toLowerCase().includes("token has expired") || msg.toLowerCase().includes("jwt expired")) {
+      clearCloudSession();
+      throw new Error("Your cloud session has expired. Please sign in again to sync your vault.");
+    }
+    throw new Error(msg);
+  }
+
+  return { res, data };
+}
+
 export async function encryptAndUploadCloudVault(
   vek: CryptoKey,
   payload: CloudVaultPayload,
@@ -114,28 +168,25 @@ export async function encryptAndUploadCloudVault(
   const itemCount = payload.passwords.length + payload.bookmarks.length;
 
   // 2. Transmit ciphertext to server
-  const res = await fetch(`${apiBaseUrl}/api/vault/sync`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+  const { data } = await fetchWithAuthRetry(
+    `${apiBaseUrl}/api/vault/sync`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        encryptedBlob: cipherText,
+        iv,
+        wrappedVek: keyMeta?.wrappedVek,
+        salt: keyMeta?.salt,
+        version: payload.version,
+        itemCount,
+        clientUpdatedAt: payload.exportedAt,
+      }),
     },
-    body: JSON.stringify({
-      encryptedBlob: cipherText,
-      iv,
-      wrappedVek: keyMeta?.wrappedVek,
-      salt: keyMeta?.salt,
-      version: payload.version,
-      itemCount,
-      clientUpdatedAt: payload.exportedAt,
-    }),
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(data.message || `Unable to synchronize with cloud (status ${res.status})`);
-  }
+    accessToken
+  );
 
   return {
     success: true,
@@ -155,23 +206,13 @@ export async function downloadAndDecryptCloudVault(
   apiBaseUrl = appConfig.apiUrl,
   masterPassword?: string
 ): Promise<CloudDownloadResult> {
-  const res = await fetch(`${apiBaseUrl}/api/vault/sync`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const { res, data } = await fetchWithAuthRetry(
+    `${apiBaseUrl}/api/vault/sync`,
+    {},
+    accessToken
+  );
 
-  if (res.status === 404) {
-    return { exists: false, payload: null };
-  }
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(data.message || `Failed to retrieve cloud vault (status ${res.status})`);
-  }
-
-  if (!data.exists || !data.vault) {
+  if (res.status === 404 || !data.exists || !data.vault) {
     return { exists: false, payload: null };
   }
 
@@ -227,17 +268,13 @@ export async function deleteCloudVault(
   accessToken: string,
   apiBaseUrl = appConfig.apiUrl
 ): Promise<boolean> {
-  const res = await fetch(`${apiBaseUrl}/api/vault/sync`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
+  await fetchWithAuthRetry(
+    `${apiBaseUrl}/api/vault/sync`,
+    {
+      method: "DELETE",
     },
-  });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || "Failed to remove cloud backup");
-  }
+    accessToken
+  );
 
   return true;
 }
