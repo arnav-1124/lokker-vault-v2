@@ -35,6 +35,7 @@ import {
   clearCloudSession,
   CLOUD_AUTH_CHANGE_EVENT,
 } from "@/lib/auth-session";
+import { deriveAuthHash } from "@/lib/crypto";
 import { useVaultData } from "@/context/vault-data-context";
 
 interface CloudSyncModalProps {
@@ -119,16 +120,29 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
 
     try {
       const endpoint = authMode === "signup" ? "/api/auth/register" : "/api/auth/login";
-      const payload: Record<string, string> = { email, password };
+      const authHash = await deriveAuthHash(password, email);
+      const payload: Record<string, string> = { email, password: authHash };
       if (authMode === "signup" && name.trim()) {
         payload.name = name.trim();
       }
 
-      const res = await fetch(`${appConfig.apiUrl}${endpoint}`, {
+      let res = await fetch(`${appConfig.apiUrl}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      // Legacy fallback for signin if account was originally registered with plain password
+      if (!res.ok && authMode === "signin" && res.status === 401) {
+        const legacyRes = await fetch(`${appConfig.apiUrl}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (legacyRes.ok) {
+          res = legacyRes;
+        }
+      }
 
       const data = await res.json();
 
@@ -151,6 +165,8 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
           ? `Account created successfully! Role: ${userSession.role}`
           : "Logged in successfully to Lokker Cloud!"
       );
+      // Trigger cloud sync with the master password to restore remote VEK if needed
+      triggerCloudSync({ force: true, masterPassword: password }).catch(console.error);
       setPassword("");
     } catch (err: any) {
       setErrorMsg(
@@ -163,7 +179,21 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (session?.accessToken) {
+      try {
+        await fetch(`${appConfig.apiUrl}/api/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: "{}",
+        });
+      } catch (err) {
+        console.warn("Backend logout request error:", err);
+      }
+    }
     clearCloudSession();
     setSession(null);
     setSuccessMsg("Disconnected from cloud. Your vault remains 100% safe locally.");

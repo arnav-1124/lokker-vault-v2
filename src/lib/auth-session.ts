@@ -33,11 +33,7 @@ export function setCloudSession(session: CloudSessionUser): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(CLOUD_SESSION_STORAGE_KEY, JSON.stringify(session));
   document.cookie = `${CLOUD_SESSION_STORAGE_KEY}=1; path=/; max-age=604800; SameSite=Lax`;
-  identifyPostHogUser(session.id, {
-    email: session.email,
-    role: session.role,
-    name: session.name,
-  });
+  identifyPostHogUser(session.id);
   window.dispatchEvent(new CustomEvent(CLOUD_AUTH_CHANGE_EVENT, { detail: session }));
 }
 

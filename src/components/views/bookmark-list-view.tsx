@@ -13,6 +13,7 @@ import {
   KeyRound,
   Cloud,
   HardDrive,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,8 @@ import { formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree"
 
 interface BookmarkListViewProps {
   bookmarks: Bookmark[];
+  isUnlocked?: boolean;
+  onUnlockVaultClick?: () => void;
   selectedCategory: string | null;
   searchQuery: string;
   onToggleFavorite: (id: string) => void;
@@ -43,6 +46,8 @@ interface BookmarkListViewProps {
 
 export function BookmarkListView({
   bookmarks,
+  isUnlocked = true,
+  onUnlockVaultClick,
   selectedCategory,
   searchQuery,
   onToggleFavorite,
@@ -53,6 +58,26 @@ export function BookmarkListView({
   passwords = [],
   onNavigateCredential,
 }: BookmarkListViewProps) {
+  if (isUnlocked === false) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4 px-4">
+        <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-xs">
+          <Lock className="size-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Bookmarks are Locked</h2>
+          <p className="text-xs text-muted-foreground">
+            Unlock your vault with your master password or emergency recovery key to view bookmarks.
+          </p>
+        </div>
+        {onUnlockVaultClick && (
+          <Button onClick={onUnlockVaultClick} size="sm" className="h-9 px-6 text-xs font-medium cursor-pointer">
+            Unlock Vault
+          </Button>
+        )}
+      </div>
+    );
+  }
   // Helper: find linked credential for a bookmark by hostname
   const normalizeHost = (str: string) => {
     if (!str) return "";

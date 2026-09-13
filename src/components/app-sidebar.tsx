@@ -53,6 +53,7 @@ import { appConfig } from "@/config/app";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT, type CloudSessionUser } from "@/lib/auth-session";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
 import { buildCategoryTree, formatCategoryPath, getCategoryAncestors } from "@/lib/category-tree";
+import { useVaultUI } from "@/context/vault-ui-context";
 
 const VIEW_TO_PATH: Record<ViewMode, string> = {
   home: "/app",
@@ -102,6 +103,7 @@ export function AppSidebar({
   onCloseMobile,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const { setIsCloudSyncModalOpen } = useVaultUI();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [editingCatId, setEditingCatId] = React.useState<string | null>(null);
   const [editingCatName, setEditingCatName] = React.useState("");
@@ -573,7 +575,17 @@ export function AppSidebar({
 
           {/* Cloud Sync Callout */}
           {!isCollapsed ? (
-            <div className="p-3 rounded-xl bg-surface/70 border border-border-subtle space-y-2">
+            <div
+              onClick={() => {
+                if (cloudSession) {
+                  setIsCloudSyncModalOpen(true);
+                }
+              }}
+              className={`p-3 rounded-xl bg-surface/70 border border-border-subtle space-y-2 ${
+                cloudSession ? "cursor-pointer hover:bg-surface/90 hover:border-primary/30 transition-all shadow-2xs" : ""
+              }`}
+              title={cloudSession ? "Click to open Cloud Settings & Backup" : "Lokker Cloud"}
+            >
               {mounted && cloudSession ? (
                 <>
                   <div className="flex items-center justify-between">

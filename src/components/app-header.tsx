@@ -137,7 +137,11 @@ export function AppHeader({
     if (cloudSession?.accessToken) {
       fetch(`${appConfig.apiUrl}/api/auth/logout`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${cloudSession.accessToken}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cloudSession.accessToken}`,
+        },
+        body: "{}",
       }).catch(() => {});
     }
     clearCloudSession();

@@ -38,6 +38,7 @@ import {
   parseRecoveryKey,
   formatRecoveryKey,
   calculatePasswordStrength,
+  deriveAuthHash,
 } from "@/lib/crypto";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
 import { appConfig } from "@/config/app";
@@ -132,7 +133,8 @@ function SignupContent() {
         }
       }
 
-      const payload: Record<string, string> = { email, password };
+      const authHash = await deriveAuthHash(password, email);
+      const payload: Record<string, string> = { email, password: authHash };
       if (name.trim()) payload.name = name.trim();
 
       const res = await fetch(`${appConfig.apiUrl}/api/auth/register`, {

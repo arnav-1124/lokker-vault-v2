@@ -28,7 +28,9 @@ import {
   rotateMasterPassword,
   resetMasterPasswordWithRecoveryKey,
   rotateRecoveryKey,
+  deriveAuthHash,
 } from "@/lib/crypto";
+import { downloadAndDecryptCloudVault } from "@/lib/cloud-sync";
 import {
   registerWebAuthnCredential,
   authenticateWithWebAuthn,
@@ -54,6 +56,7 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
   const [isUnlocked, setIsUnlocked] = React.useState(false);
   const [derivedKey, setDerivedKey] = React.useState<CryptoKey | null>(null);
   const [decryptedPasswords, setDecryptedPasswords] = React.useState<PasswordEntry[]>([]);
+  const masterPasswordRef = React.useRef<string | null>(null);
 
   // Vault security policy settings
   const [settings, setSettingsState] = React.useState<VaultSettings>({
@@ -116,6 +119,7 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
   const lockVault = React.useCallback(() => {
     setIsUnlocked(false);
     setDerivedKey(null);
+    masterPasswordRef.current = null;
     setDecryptedPasswords([]);
     if (typeof window !== "undefined") {
       window.postMessage({ type: "LOKKER_VAULT_LOCKED" }, window.location.origin);
@@ -131,14 +135,54 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
     return () => clearTimeout(timer);
   }, [isUnlocked, settings.autoLockMinutes, lockVault]);
 
+  const updateVekAndMeta = React.useCallback(async (vek: CryptoKey, metaUpdates: Partial<VaultMetadata>) => {
+    setDerivedKey(vek);
+    setVaultMeta((prev) => {
+      const updated = prev ? { ...prev, ...metaUpdates } : ({ isInitialized: true, ...metaUpdates } as VaultMetadata);
+      saveVaultMeta(updated).catch(console.error);
+      return updated;
+    });
+  }, []);
+
   const handleMasterPasswordSubmit = async (
     password: string,
     isSetup: boolean,
     recoveryKey?: string
   ): Promise<boolean> => {
+    masterPasswordRef.current = password;
     if (isSetup) {
       if (!recoveryKey) return false;
       try {
+        // If an existing cloud session is found, attempt to restore from the remote encrypted vault
+        const sessionStr = typeof window !== "undefined" ? localStorage.getItem("lokker_cloud_session") : null;
+        if (sessionStr) {
+          try {
+            const session = JSON.parse(sessionStr);
+            if (session?.accessToken) {
+              const cloudRes = await downloadAndDecryptCloudVault(null, session.accessToken, appConfig.apiUrl, password);
+              if (cloudRes.exists && cloudRes.unwrappedVek && cloudRes.payload) {
+                const { meta } = await initializeEnvelopeVault(password, recoveryKey, cloudRes.payload.passwords);
+                if (cloudRes.remoteKeyMeta?.wrappedVek && cloudRes.remoteKeyMeta?.salt) {
+                  meta.salt = cloudRes.remoteKeyMeta.salt;
+                  meta.wrappedVekByPassword = typeof cloudRes.remoteKeyMeta.wrappedVek === "string"
+                    ? JSON.parse(cloudRes.remoteKeyMeta.wrappedVek)
+                    : cloudRes.remoteKeyMeta.wrappedVek;
+                }
+                await saveVaultMeta(meta);
+                setVaultMeta(meta);
+                setDerivedKey(cloudRes.unwrappedVek);
+                setDecryptedPasswords(cloudRes.payload.passwords);
+                setIsUnlocked(true);
+                setIsMasterPasswordModalOpen(false);
+                addToast("Cloud vault restored successfully!", "success");
+                return true;
+              }
+            }
+          } catch (cloudErr) {
+            console.log("No cloud vault restore needed or failed, continuing local setup:", cloudErr);
+          }
+        }
+
         const { meta, vek } = await initializeEnvelopeVault(password, recoveryKey, INITIAL_DEMO_VAULT_ITEMS);
         await saveVaultMeta(meta);
         setVaultMeta(meta);
@@ -257,13 +301,15 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
           try {
             const session = JSON.parse(sessionStr);
             if (session?.accessToken) {
+              const currentAuthHash = await deriveAuthHash(currentPassword, session.email);
+              const newAuthHash = await deriveAuthHash(newPassword, session.email);
               const res = await fetch(`${appConfig.apiUrl}/api/auth/change-password`, {
                 method: "PATCH",
                 headers: {
                   "Content-Type": "application/json",
                   Authorization: `Bearer ${session.accessToken}`,
                 },
-                body: JSON.stringify({ currentPassword, newPassword }),
+                body: JSON.stringify({ currentPassword: currentAuthHash, newPassword: newAuthHash }),
               });
 
               if (res.ok) {
@@ -304,13 +350,14 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
           try {
             const session = JSON.parse(sessionStr);
             if (session?.accessToken) {
+              const newAuthHash = await deriveAuthHash(newPassword, session.email);
               await fetch(`${appConfig.apiUrl}/api/auth/reset-password`, {
                 method: "PATCH",
                 headers: {
                   "Content-Type": "application/json",
                   Authorization: `Bearer ${session.accessToken}`,
                 },
-                body: JSON.stringify({ newPassword }),
+                body: JSON.stringify({ newPassword: newAuthHash }),
               });
             }
           } catch (cloudErr) {
@@ -376,7 +423,7 @@ export function VaultSecurityProvider({ children }: { children: React.ReactNode 
     vaultMeta, isUnlocked, derivedKey, decryptedPasswords,
     settings, updateSettings, setSettingsState,
     setVaultMeta, setIsUnlocked, setDerivedKey, setDecryptedPasswords,
-    lockVault,
+    lockVault, masterPasswordRef, updateVekAndMeta,
     handleMasterPasswordSubmit, handleUnlockWithRecoveryKey, handleUnlockWithWebAuthn,
     handleRegisterWebAuthn, handleUnregisterWebAuthn,
     handleVerifyMasterPassword, handleChangeMasterPassword, handleResetMasterPasswordWithRecoveryKey, handleRegenerateRecoveryKey,

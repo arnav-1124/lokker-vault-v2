@@ -750,3 +750,35 @@ export async function checkPasswordBreached(
   }
 }
 
+/**
+ * Derives a zero-knowledge authentication hash from a master password and email.
+ * This ensures the raw master password NEVER leaves the client, while providing
+ * a high-entropy credential for backend authentication.
+ */
+export async function deriveAuthHash(password: string, email: string): Promise<string> {
+  const enc = new TextEncoder();
+  const saltStr = `lokker-auth-v1:${email.trim().toLowerCase()}`;
+  const salt = enc.encode(saltStr);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256
+  );
+  const bytes = new Uint8Array(derivedBits);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+

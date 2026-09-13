@@ -9,6 +9,8 @@ export default function BookmarksPage() {
   return (
     <BookmarkListView
       bookmarks={vault.bookmarks}
+      isUnlocked={vault.isUnlocked}
+      onUnlockVaultClick={() => vault.setIsMasterPasswordModalOpen(true)}
       selectedCategory={vault.selectedCategory}
       searchQuery={vault.searchQuery}
       onToggleFavorite={vault.handleToggleBookmarkFavorite}

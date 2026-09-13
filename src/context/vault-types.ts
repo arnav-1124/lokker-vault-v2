@@ -134,6 +134,8 @@ export interface VaultSecurityContextType {
 
   // Handlers
   lockVault: () => void;
+  masterPasswordRef: React.MutableRefObject<string | null>;
+  updateVekAndMeta: (vek: CryptoKey, metaUpdates: Partial<VaultMetadata>) => Promise<void>;
   handleMasterPasswordSubmit: (password: string, isSetup: boolean, recoveryKey?: string) => Promise<boolean>;
   handleUnlockWithRecoveryKey: (recoveryKey: string) => Promise<boolean>;
   handleUnlockWithWebAuthn: () => Promise<boolean>;
@@ -165,7 +167,7 @@ export interface VaultDataContextType {
   lastSyncedAt: string | null;
   cloudItemCount: number;
   syncError: string | null;
-  triggerCloudSync: (options?: { force?: boolean }) => Promise<boolean>;
+  triggerCloudSync: (options?: { force?: boolean; masterPassword?: string }) => Promise<boolean>;
   deleteCloudBackup: () => Promise<boolean>;
 
   handleSavePassword: (entry: PasswordEntry) => Promise<void>;

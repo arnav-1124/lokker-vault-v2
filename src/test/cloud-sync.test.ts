@@ -7,7 +7,13 @@ import {
   deleteCloudVault,
   type CloudVaultPayload,
 } from "../lib/cloud-sync";
-import { generateVek } from "../lib/crypto";
+import {
+  generateVek,
+  generateRandomSalt,
+  bufferToBase64,
+  deriveKeyFromPassword,
+  wrapVek,
+} from "../lib/crypto";
 import type { Bookmark, Category, PasswordEntry } from "../types";
 
 describe("Zero-Knowledge Encrypted Cloud Sync", () => {
@@ -318,6 +324,92 @@ describe("Zero-Knowledge Encrypted Cloud Sync", () => {
       // Attempting to download with wrong VEK must fail with clear message
       await expect(
         downloadAndDecryptCloudVault(wrongVek, "token", "http://localhost:4000")
+      ).rejects.toThrow(/master password/i);
+    });
+
+    it("restores cloud vault on Device B using wrappedVek and Master Password", async () => {
+      const deviceAVek = await generateVek();
+      const masterPassword = "TestMasterPassword123!";
+      const salt = bufferToBase64(generateRandomSalt());
+      const kek = await deriveKeyFromPassword(masterPassword, salt);
+      const wrappedVek = await wrapVek(deviceAVek, kek);
+
+      const payload: CloudVaultPayload = {
+        passwords: [samplePasswords[0]],
+        bookmarks: [sampleBookmarks[0]],
+        categories: [],
+        exportedAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      let capturedBody: any = null;
+      global.fetch = vi.fn().mockImplementation(async (url: string, options?: any) => {
+        if (options?.method === "PUT") {
+          capturedBody = JSON.parse(options.body);
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true, updatedAt: new Date().toISOString() }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            exists: true,
+            vault: {
+              encryptedBlob: capturedBody.encryptedBlob,
+              iv: capturedBody.iv,
+              wrappedVek: capturedBody.wrappedVek,
+              salt: capturedBody.salt,
+              version: 1,
+              itemCount: 2,
+              updatedAt: new Date().toISOString(),
+            },
+          }),
+        };
+      });
+
+      // 1. Device A uploads with wrappedVek and salt
+      await encryptAndUploadCloudVault(
+        deviceAVek,
+        payload,
+        "token-a",
+        "http://localhost:4000",
+        {
+          wrappedVek: JSON.stringify(wrappedVek),
+          salt,
+        }
+      );
+
+      // Verify that wrappedVek and salt were sent in the payload
+      expect(capturedBody.wrappedVek).toBeDefined();
+      expect(capturedBody.salt).toBe(salt);
+
+      // 2. Device B has a DIFFERENT random VEK (or null)
+      const deviceBVek = await generateVek();
+
+      // Device B attempts download with masterPassword
+      const restoreResult = await downloadAndDecryptCloudVault(
+        deviceBVek,
+        "token-b",
+        "http://localhost:4000",
+        masterPassword
+      );
+
+      expect(restoreResult.exists).toBe(true);
+      expect(restoreResult.payload).toBeDefined();
+      expect(restoreResult.payload?.passwords[0].password).toBe("secretPassword1");
+      expect(restoreResult.unwrappedVek).toBeDefined();
+
+      // 3. If Device B supplies the wrong master password, it fails
+      await expect(
+        downloadAndDecryptCloudVault(
+          deviceBVek,
+          "token-b",
+          "http://localhost:4000",
+          "WrongMasterPassword999!"
+        )
       ).rejects.toThrow(/master password/i);
     });
   });

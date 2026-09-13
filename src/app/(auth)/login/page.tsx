@@ -19,7 +19,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { appConfig } from "@/config/app";
 import { getVaultMeta, saveVaultMeta } from "@/lib/db";
-import { generateRecoveryKey, initializeEnvelopeVault } from "@/lib/crypto";
+import {
+  generateRecoveryKey,
+  initializeEnvelopeVault,
+  deriveAuthHash,
+  unwrapVek,
+  decryptPayloadWithVek,
+  deriveKeyFromPassword,
+} from "@/lib/crypto";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
 import { setCloudSession } from "@/lib/auth-session";
 
@@ -71,11 +78,24 @@ function LoginContent() {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${appConfig.apiUrl}/api/auth/login`, {
+      const authHash = await deriveAuthHash(password, email);
+      let res = await fetch(`${appConfig.apiUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password: authHash }),
       });
+
+      // Fallback for legacy accounts
+      if (!res.ok && res.status === 401) {
+        const legacyRes = await fetch(`${appConfig.apiUrl}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (legacyRes.ok) {
+          res = legacyRes;
+        }
+      }
 
       const data = await res.json();
 
@@ -92,12 +112,51 @@ function LoginContent() {
         accessToken: data.accessToken,
       });
 
-      // If local device does not have an initialized vault yet, initialize it with this unified password
+      // If local device does not have an initialized vault yet, check if there is a cloud vault to restore
       const meta = await getVaultMeta();
       if (!meta || !meta.isInitialized) {
-        const recoveryKey = generateRecoveryKey();
-        const { meta: newMeta } = await initializeEnvelopeVault(password, recoveryKey, INITIAL_DEMO_VAULT_ITEMS);
-        await saveVaultMeta(newMeta);
+        let restoredFromCloud = false;
+        try {
+          const syncRes = await fetch(`${appConfig.apiUrl}/api/vault/sync`, {
+            headers: { Authorization: `Bearer ${data.accessToken}` },
+          });
+          const syncData = await syncRes.json().catch(() => ({}));
+          if (syncData.exists && syncData.vault?.wrappedVek && syncData.vault?.salt) {
+            const passwordKek = await deriveKeyFromPassword(password, syncData.vault.salt);
+            const parsedSlot =
+              typeof syncData.vault.wrappedVek === "string"
+                ? JSON.parse(syncData.vault.wrappedVek)
+                : syncData.vault.wrappedVek;
+            const recoveredVek = await unwrapVek(parsedSlot, passwordKek);
+            const decryptedPayload = await decryptPayloadWithVek<{ passwords: any[] }>(
+              syncData.vault.encryptedBlob,
+              syncData.vault.iv,
+              recoveredVek
+            );
+            const recoveryKey = generateRecoveryKey();
+            const { meta: newMeta } = await initializeEnvelopeVault(
+              password,
+              recoveryKey,
+              decryptedPayload.passwords || []
+            );
+            newMeta.salt = syncData.vault.salt;
+            newMeta.wrappedVekByPassword = parsedSlot;
+            await saveVaultMeta(newMeta);
+            restoredFromCloud = true;
+          }
+        } catch (cloudErr) {
+          console.warn("Could not restore from cloud vault, falling back to clean setup:", cloudErr);
+        }
+
+        if (!restoredFromCloud) {
+          const recoveryKey = generateRecoveryKey();
+          const { meta: newMeta } = await initializeEnvelopeVault(
+            password,
+            recoveryKey,
+            INITIAL_DEMO_VAULT_ITEMS
+          );
+          await saveVaultMeta(newMeta);
+        }
       }
 
       router.push(redirectPath);

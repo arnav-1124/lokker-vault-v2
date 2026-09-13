@@ -59,11 +59,23 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
   } = useVaultUI();
   const {
     vaultMeta, isUnlocked, derivedKey, decryptedPasswords,
-    saveAndEncryptPasswords,
+    saveAndEncryptPasswords, masterPasswordRef, updateVekAndMeta,
   } = useVaultSecurity();
 
   const [bookmarks, setBookmarks] = React.useState<Bookmark[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
+
+  // Stable refs to eliminate stale closure bugs during debounced/async sync operations
+  const passwordsRef = React.useRef(decryptedPasswords);
+  passwordsRef.current = decryptedPasswords;
+  const bookmarksRef = React.useRef(bookmarks);
+  bookmarksRef.current = bookmarks;
+  const categoriesRef = React.useRef(categories);
+  categoriesRef.current = categories;
+  const derivedKeyRef = React.useRef(derivedKey);
+  derivedKeyRef.current = derivedKey;
+  const vaultMetaRef = React.useRef(vaultMeta);
+  vaultMetaRef.current = vaultMeta;
 
   // Cloud Sync state
   const [syncStatus, setSyncStatus] = React.useState<"idle" | "syncing" | "synced" | "error">("idle");
@@ -93,37 +105,57 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
 
   // Core Cloud Sync Orchestrator
   const triggerCloudSync = React.useCallback(
-    async (options?: { force?: boolean }): Promise<boolean> => {
+    async (options?: { force?: boolean; masterPassword?: string }): Promise<boolean> => {
       const session = getCloudSession();
       if (!session?.accessToken) {
         setSyncStatus("idle");
         return false;
       }
-      if (!isUnlocked || !derivedKey) {
+      if (!isUnlocked) {
         return false;
       }
 
       setSyncStatus("syncing");
       setSyncError(null);
 
+      const effectiveKey = derivedKeyRef.current;
+      const pwd = options?.masterPassword || masterPasswordRef.current || undefined;
+
       try {
         // 1. Download cloud vault (if any)
         const downloadResult = await downloadAndDecryptCloudVault(
-          derivedKey,
+          effectiveKey,
           session.accessToken,
-          appConfig.apiUrl
+          appConfig.apiUrl,
+          pwd
         );
 
-        let currentPasswords = decryptedPasswords;
-        let currentBookmarks = bookmarks;
-        let currentCategories = categories;
+        let currentPasswords = passwordsRef.current;
+        let currentBookmarks = bookmarksRef.current;
+        let currentCategories = categoriesRef.current;
+
+        // If remote VEK was unwrapped via master password, update local derivedKey & vaultMeta
+        if (downloadResult.unwrappedVek) {
+          const metaUpdates: any = {};
+          if (downloadResult.remoteKeyMeta?.salt) {
+            metaUpdates.salt = downloadResult.remoteKeyMeta.salt;
+          }
+          if (downloadResult.remoteKeyMeta?.wrappedVek) {
+            metaUpdates.wrappedVekByPassword =
+              typeof downloadResult.remoteKeyMeta.wrappedVek === "string"
+                ? JSON.parse(downloadResult.remoteKeyMeta.wrappedVek)
+                : downloadResult.remoteKeyMeta.wrappedVek;
+          }
+          await updateVekAndMeta(downloadResult.unwrappedVek, metaUpdates);
+          derivedKeyRef.current = downloadResult.unwrappedVek;
+        }
 
         if (downloadResult.exists && downloadResult.payload) {
           const merged = mergeCloudVaultWithLocal(
             {
-              passwords: decryptedPasswords,
-              bookmarks,
-              categories,
+              passwords: passwordsRef.current,
+              bookmarks: bookmarksRef.current,
+              categories: categoriesRef.current,
             },
             downloadResult.payload
           );
@@ -132,6 +164,10 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
             currentPasswords = merged.mergedPasswords;
             currentBookmarks = merged.mergedBookmarks;
             currentCategories = merged.mergedCategories;
+
+            passwordsRef.current = currentPasswords;
+            bookmarksRef.current = currentBookmarks;
+            categoriesRef.current = currentCategories;
 
             await saveAndEncryptPasswords(currentPasswords);
             setBookmarks(currentBookmarks);
@@ -149,11 +185,23 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
         });
 
         // 3. Encrypt and upload
+        const activeVek = derivedKeyRef.current || effectiveKey;
+        if (!activeVek) {
+          throw new Error("No encryption key available to sync cloud vault.");
+        }
+
+        const currentMeta = vaultMetaRef.current;
         const uploadResult = await encryptAndUploadCloudVault(
-          derivedKey,
+          activeVek,
           uploadPayload,
           session.accessToken,
-          appConfig.apiUrl
+          appConfig.apiUrl,
+          {
+            wrappedVek: currentMeta?.wrappedVekByPassword
+              ? JSON.stringify(currentMeta.wrappedVekByPassword)
+              : undefined,
+            salt: currentMeta?.salt,
+          }
         );
 
         setSyncStatus("synced");
@@ -177,7 +225,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [isUnlocked, derivedKey, decryptedPasswords, bookmarks, categories, saveAndEncryptPasswords, addToast]
+    [isUnlocked, updateVekAndMeta, saveAndEncryptPasswords, addToast]
   );
 
   const deleteCloudBackup = React.useCallback(async (): Promise<boolean> => {
@@ -201,14 +249,14 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
 
   const scheduleAutoSync = React.useCallback(() => {
     const session = getCloudSession();
-    if (!session?.accessToken || !isUnlocked || !derivedKey) return;
+    if (!session?.accessToken || !isUnlocked) return;
     if (autoSyncTimeoutRef.current) {
       clearTimeout(autoSyncTimeoutRef.current);
     }
     autoSyncTimeoutRef.current = setTimeout(() => {
       triggerCloudSync();
     }, 1500);
-  }, [isUnlocked, derivedKey, triggerCloudSync]);
+  }, [isUnlocked, triggerCloudSync]);
 
   // Trigger sync on unlock if cloud session exists
   const hasTriggeredInitialSyncRef = React.useRef(false);
@@ -401,8 +449,10 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       existingIndex >= 0
         ? decryptedPasswords.map((p) => (p.id === entry.id ? entry : p))
         : [entry, ...decryptedPasswords];
+    passwordsRef.current = updatedPwds;
     await saveAndEncryptPasswords(updatedPwds);
 
+    const isCloud = entry.storageScope === "cloud";
     const pwdHost = normalizeHost(entry.websiteUrl || entry.websiteName);
     const linkedBookmark = bookmarks.find((b) => normalizeHost(b.url || b.title) === pwdHost);
 
@@ -410,9 +460,11 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       if (skipSyncSuggestionRef.current) {
         // This save came from a linked-entry suggestion; don't mirror back.
         skipSyncSuggestionRef.current = false;
+        if (isCloud) scheduleAutoSync();
         addToast(existingIndex >= 0 ? "Password updated." : "Password stored.", "success");
         return;
       }
+      if (isCloud) scheduleAutoSync();
       addToast(existingIndex >= 0 ? "Password updated." : "Password stored.", "success");
       showConfirm(
         "Linked Bookmark Found",
@@ -429,7 +481,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Add-sync: creating a password entry creates its bookmark counterpart.
+    // Add-sync: creating a password entry creates its bookmark counterpart with matching storageScope.
     const newBm: Bookmark = {
       id: generateId("bm-sync"),
       title: entry.websiteName,
@@ -437,12 +489,17 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       category: entry.category || "General",
       isFavorite: !!entry.isFavorite,
       description: entry.notes || "",
+      storageScope: entry.storageScope,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    setBookmarks([newBm, ...bookmarks]);
+    const nextBookmarks = [newBm, ...bookmarks];
+    bookmarksRef.current = nextBookmarks;
+    setBookmarks(nextBookmarks);
     await saveBookmark(newBm);
-    scheduleAutoSync();
+    if (isCloud) {
+      scheduleAutoSync();
+    }
     addToast(
       existingIndex >= 0 ? "Password updated & bookmark linked." : "Password stored & synced to bookmarks.",
       "success"

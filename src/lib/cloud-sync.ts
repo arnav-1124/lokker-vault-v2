@@ -11,8 +11,18 @@
 
 import type { Bookmark, Category, PasswordEntry } from "@/types";
 import { appConfig } from "@/config/app";
-import { encryptPayloadWithVek, decryptPayloadWithVek } from "./crypto";
+import {
+  encryptPayloadWithVek,
+  decryptPayloadWithVek,
+  deriveKeyFromPassword,
+  unwrapVek,
+} from "./crypto";
 import { reconcileMissingCategories } from "./category-tree";
+
+export interface CloudKeyMeta {
+  wrappedVek?: string;
+  salt?: string;
+}
 
 export interface CloudVaultPayload {
   passwords: PasswordEntry[];
@@ -35,6 +45,8 @@ export interface CloudDownloadResult {
   updatedAt?: string;
   version?: number;
   itemCount?: number;
+  unwrappedVek?: CryptoKey;
+  remoteKeyMeta?: CloudKeyMeta;
 }
 
 /**
@@ -94,7 +106,8 @@ export async function encryptAndUploadCloudVault(
   vek: CryptoKey,
   payload: CloudVaultPayload,
   accessToken: string,
-  apiBaseUrl = appConfig.apiUrl
+  apiBaseUrl = appConfig.apiUrl,
+  keyMeta?: CloudKeyMeta
 ): Promise<CloudSyncResult> {
   // 1. Encrypt with VEK (AES-GCM 256-bit with random 12-byte IV)
   const { cipherText, iv } = await encryptPayloadWithVek(payload, vek);
@@ -110,6 +123,8 @@ export async function encryptAndUploadCloudVault(
     body: JSON.stringify({
       encryptedBlob: cipherText,
       iv,
+      wrappedVek: keyMeta?.wrappedVek,
+      salt: keyMeta?.salt,
       version: payload.version,
       itemCount,
       clientUpdatedAt: payload.exportedAt,
@@ -132,11 +147,13 @@ export async function encryptAndUploadCloudVault(
 
 /**
  * Downloads the encrypted vault from Lokker Server and decrypts it using the active VEK.
+ * Supports cross-device restore by unwrapping remote VEK using Master Password when available.
  */
 export async function downloadAndDecryptCloudVault(
-  vek: CryptoKey,
+  vek: CryptoKey | null,
   accessToken: string,
-  apiBaseUrl = appConfig.apiUrl
+  apiBaseUrl = appConfig.apiUrl,
+  masterPassword?: string
 ): Promise<CloudDownloadResult> {
   const res = await fetch(`${apiBaseUrl}/api/vault/sync`, {
     headers: {
@@ -158,22 +175,49 @@ export async function downloadAndDecryptCloudVault(
     return { exists: false, payload: null };
   }
 
-  const { encryptedBlob, iv, updatedAt, version, itemCount } = data.vault;
+  const { encryptedBlob, iv, wrappedVek, salt, updatedAt, version, itemCount } = data.vault;
 
-  try {
-    const payload = await decryptPayloadWithVek<CloudVaultPayload>(encryptedBlob, iv, vek);
-    return {
-      exists: true,
-      payload,
-      updatedAt,
-      version,
-      itemCount,
-    };
-  } catch (err) {
-    throw new Error(
-      "Unable to decrypt cloud vault with your current master password. If your password was changed on another device, please sign in with your latest master password."
-    );
+  // 1. Try decrypting directly with provided VEK if available
+  if (vek) {
+    try {
+      const payload = await decryptPayloadWithVek<CloudVaultPayload>(encryptedBlob, iv, vek);
+      return {
+        exists: true,
+        payload,
+        updatedAt,
+        version,
+        itemCount,
+        remoteKeyMeta: { wrappedVek, salt },
+      };
+    } catch {
+      // If direct VEK decryption fails, fall through to attempt unwrapping with master password below
+    }
   }
+
+  // 2. If direct decryption failed or vek was not provided, attempt to unwrap remote VEK using Master Password
+  if (wrappedVek && salt && masterPassword) {
+    try {
+      const parsedSlot = typeof wrappedVek === "string" ? JSON.parse(wrappedVek) : wrappedVek;
+      const kek = await deriveKeyFromPassword(masterPassword, salt);
+      const recoveredVek = await unwrapVek(parsedSlot, kek);
+      const payload = await decryptPayloadWithVek<CloudVaultPayload>(encryptedBlob, iv, recoveredVek);
+      return {
+        exists: true,
+        payload,
+        updatedAt,
+        version,
+        itemCount,
+        unwrappedVek: recoveredVek,
+        remoteKeyMeta: { wrappedVek, salt },
+      };
+    } catch (unwrapErr) {
+      console.error("Failed to unwrap remote VEK with master password:", unwrapErr);
+    }
+  }
+
+  throw new Error(
+    "Unable to decrypt cloud vault with your current master password. If your password was changed on another device, please sign in with your latest master password."
+  );
 }
 
 /**

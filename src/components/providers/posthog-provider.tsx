@@ -15,10 +15,15 @@ export function PostHogClientInit() {
       posthog.init(appConfig.posthogKey, {
         api_host: "/ingest",
         ui_host: "https://us.posthog.com",
-        person_profiles: "identified_only",
+        person_profiles: "never",
         capture_pageview: false, // Tracked manually below for App Router accuracy
-        capture_pageleave: true,
-        autocapture: true,
+        capture_pageleave: false,
+        autocapture: false,
+        disable_session_recording: true,
+        capture_dead_clicks: false,
+        disable_surveys: true,
+        mask_all_text: true,
+        mask_all_element_attributes: true,
       });
     }
   }, []);
@@ -50,11 +55,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Utility to identify user in PostHog on frontend
+ * Utility to identify user in PostHog on frontend.
+ * Zero-PII safe: never passes user email, names, or passwords.
  */
-export function identifyPostHogUser(userId: string, traits?: Record<string, any>) {
+export function identifyPostHogUser(userId: string, _traits?: Record<string, any>) {
   if (typeof window !== "undefined" && posthog) {
-    posthog.identify(userId, traits);
+    posthog.identify(userId);
   }
 }
 

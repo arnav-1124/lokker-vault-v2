@@ -20,6 +20,7 @@ import {
   decryptFileWithVek,
   encryptPayloadWithVek,
   decryptPayloadWithVek,
+  deriveAuthHash,
 } from "../lib/crypto";
 import { PasswordEntry, VaultMetadata } from "../types";
 import { AppError } from "../lib/errors";
@@ -345,5 +346,21 @@ describe("P0 Cryptographic Architecture & Regression Suite", () => {
     // Emergency recovery key still works
     const { passwords: recUnlocked } = await unwrapVekWithRecoveryKey(recoveryKey, updatedMeta);
     expect(recUnlocked).toHaveLength(2);
+  });
+
+  it("9. Derives deterministic zero-knowledge auth hashes with domain separation", async () => {
+    const password = "SuperSecretMasterPassword123!";
+    const emailA = "user@example.com";
+    const emailB = "other@example.com";
+
+    const hashA1 = await deriveAuthHash(password, emailA);
+    const hashA2 = await deriveAuthHash(password, "  USER@EXAMPLE.COM  "); // Case and whitespace trimmed
+    const hashB = await deriveAuthHash(password, emailB);
+
+    expect(hashA1).toBe(hashA2);
+    expect(hashA1).toHaveLength(64); // 256 bits = 64 hex chars
+    expect(hashA1).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashA1).not.toBe(password); // Never equal to raw password
+    expect(hashA1).not.toBe(hashB); // Domain separation per user email
   });
 });
