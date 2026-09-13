@@ -282,7 +282,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      router.push(`/app/${userId}/workspace/${workspaceId}${subpage}`);
+      router.push(`/app/workspace/${workspaceId}${subpage}`);
     },
     [pathname, router]
   );

@@ -73,11 +73,11 @@ export function WorkspaceSidebar({
   const [editingCatName, setEditingCatName] = React.useState("");
 
   // Safely derive basePath directly from URL pathname so clicks NEVER fall back to personal vault (/app)
-  const pathMatch = pathname?.match(/^(\/app\/[^/]+\/workspace\/[^/]+)/);
+  const pathMatch = pathname?.match(/^(\/app\/workspace\/[^/]+)/);
   const basePath = pathMatch
     ? pathMatch[1]
     : activeWorkspace
-    ? `/app/${activeWorkspace.adminUserId || "me"}/workspace/${activeWorkspace.id}`
+    ? `/app/workspace/${activeWorkspace.id}`
     : "";
 
   const navItems = [

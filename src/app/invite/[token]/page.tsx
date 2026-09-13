@@ -77,7 +77,7 @@ export default function InviteAcceptPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to accept invite");
 
-      router.push(`/app/${session.id}/workspace/${data.workspaceId}`);
+      router.push(`/app/workspace/${data.workspaceId}`);
     } catch (err: any) {
       setError(err.message || "Could not accept invitation");
       setIsAccepting(false);

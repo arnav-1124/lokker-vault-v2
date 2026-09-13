@@ -33,11 +33,11 @@ export default function WorkspaceOverviewPage() {
   const [copiedInvite, setCopiedInvite] = React.useState(false);
   const [isGeneratingInvite, setIsGeneratingInvite] = React.useState(false);
 
-  const pathMatch = pathname?.match(/^(\/app\/[^/]+\/workspace\/[^/]+)/);
+  const pathMatch = pathname?.match(/^(\/app\/workspace\/[^/]+)/);
   const basePath = pathMatch
     ? pathMatch[1]
     : activeWorkspace
-    ? `/app/${activeWorkspace.adminUserId || "me"}/workspace/${activeWorkspace.id}`
+    ? `/app/workspace/${activeWorkspace.id}`
     : "";
 
   const handleQuickInvite = async () => {

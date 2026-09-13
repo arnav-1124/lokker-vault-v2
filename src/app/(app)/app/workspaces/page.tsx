@@ -21,8 +21,7 @@ export default function WorkspacesEntryPointPage() {
     if (!isLoading && isCloudActive && workspaces.length > 0) {
       const session = getCloudSession();
       if (session?.accessToken) {
-        const userId = session.id || "me";
-        router.replace(`/app/${userId}/workspace/${workspaces[0].id}`);
+        router.replace(`/app/workspace/${workspaces[0].id}`);
       }
     }
   }, [isLoading, isCloudActive, workspaces, router]);
