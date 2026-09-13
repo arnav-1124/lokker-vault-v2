@@ -250,3 +250,21 @@ export function reconcileMissingCategories(
     addedCount: newCategories.length,
   };
 }
+
+/**
+ * Checks whether a category name already exists under the same parent scope (case-insensitive).
+ */
+export function isDuplicateCategoryName(
+  name: string,
+  parentId: string | undefined,
+  categories: Category[],
+  excludeId?: string
+): boolean {
+  const normalized = name.trim().toLowerCase();
+  const normalizedParent = parentId && parentId !== "none" ? parentId : undefined;
+  return categories.some((c) => {
+    if (excludeId && c.id === excludeId) return false;
+    const cParent = c.parentId && c.parentId !== "none" ? c.parentId : undefined;
+    return c.name.trim().toLowerCase() === normalized && cParent === normalizedParent;
+  });
+}

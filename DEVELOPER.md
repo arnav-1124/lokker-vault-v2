@@ -51,7 +51,7 @@ src/
 ├── hooks/                # Custom hooks (usePWA for offline and install prompt management)
 ├── lib/                  # Native Web Crypto, IndexedDB, Secret Sharing, Backup engine, Importers, TOTP, Watchtower
 ├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings, Workspaces)
-└── test/                 # Test suites (22 files, 164 tests: crypto, totp, backup, pwa, extension packaging, secret-sharing, workspaces, etc.)
+└── test/                 # Test suites (22 files, 165 tests: crypto, totp, backup, pwa, extension packaging, secret-sharing, workspaces, etc.)
 public/
 ├── extension/            # Manifest V3 browser extension (background, content, popup, vault)
 ├── icons/                # PWA icons (192x192, 512x512, maskable)
@@ -163,7 +163,7 @@ Vitest 4 + Testing Library, jsdom environment. Config: `vitest.config.mjs`.
 - `src/test/masked-email.test.ts`: 6 tests verifying BYOK header construction, SimpleLogin / Addy.io API payloads, active/paused toggles, and offline DuckDuckGo/custom alias generation.
 - `src/test/extension-packaging.test.ts`: 11 tests verifying Chrome Web Store / Edge Add-ons manifest constraints (description length <= 132, required fields, existing scripts/icons), OS junk filtering, and zero-dependency PKZIP binary generation.
 
-All 164 tests across 22 test suites pass cleanly.
+All 165 tests across 22 test suites pass cleanly.
 
 ## 8. Commands
 
@@ -171,7 +171,7 @@ All 164 tests across 22 test suites pass cleanly.
 npm install        # install dependencies
 npm run dev        # dev server on 0.0.0.0:3000 (Turbopack)
 npm run lint       # ESLint check
-npm test           # Run all unit tests (164 tests)
+npm test           # Run all unit tests (165 tests)
 npm run package:ext # Validate and package extension for Chrome Web Store & web download
 npm run build      # Production build
 npm start          # Serve production build

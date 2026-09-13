@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category } from "@/types";
-import { buildCategoryTree } from "@/lib/category-tree";
+import { buildCategoryTree, isDuplicateCategoryName } from "@/lib/category-tree";
 
 interface CategoryManagerModalProps {
   isOpen: boolean;
@@ -53,17 +53,20 @@ export function CategoryManagerModal({
   const [name, setName] = React.useState("");
   const [color, setColor] = React.useState(PRESET_COLORS[0]);
   const [selectedParentId, setSelectedParentId] = React.useState<string>(defaultParentId || "none");
+  const [error, setError] = React.useState<string | null>(null);
 
   // Synchronize input fields and selected parent whenever the modal is opened
   React.useEffect(() => {
     if (isOpen) {
       setName("");
+      setError(null);
       setSelectedParentId(defaultParentId || "none");
     }
   }, [isOpen, defaultParentId]);
 
   const handleClose = React.useCallback(() => {
     setName("");
+    setError(null);
     setColor(PRESET_COLORS[0]);
     setSelectedParentId("none");
     onClose();
@@ -71,9 +74,18 @@ export function CategoryManagerModal({
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
     const parentId = selectedParentId !== "none" ? selectedParentId : undefined;
-    onAddCategory(name.trim(), color, parentId);
+
+    // Check duplicate category names at the same hierarchy level (case-insensitive)
+    if (isDuplicateCategoryName(trimmed, parentId, categories)) {
+      setError(`A category named "${trimmed}" already exists at this level.`);
+      return;
+    }
+
+    setError(null);
+    onAddCategory(trimmed, color, parentId);
     setName("");
   };
 
@@ -101,7 +113,10 @@ export function CategoryManagerModal({
                   id="cat-name"
                   placeholder="Category name..."
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (error) setError(null);
+                  }}
                   className="h-8 text-xs bg-surface"
                 />
                 <Button id="btn-add-category" type="submit" size="sm" className="h-8 text-xs gap-1 px-3 cursor-pointer">
@@ -109,6 +124,11 @@ export function CategoryManagerModal({
                   <span>Add</span>
                 </Button>
               </div>
+              {error && (
+                <p className="text-[11px] text-destructive font-medium leading-tight">
+                  {error}
+                </p>
+              )}
 
               {/* Parent Category Selector — hierarchical */}
               <div className="space-y-1.5 pt-1">

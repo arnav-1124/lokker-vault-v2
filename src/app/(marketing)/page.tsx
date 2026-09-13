@@ -790,15 +790,15 @@ export default function MarketingHomePage() {
                   <Cloud className="size-3" />
                   <span>Optional Cloud Coordination</span>
                 </Badge>
-                <Badge variant="outline" className="text-amber-500 border-amber-500/20 bg-amber-500/5 text-xs">
-                  Backend Live • Teams Coming Soon
+                <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-xs">
+                  Backend & Workspaces Live
                 </Badge>
               </div>
               <h2 className="text-heading text-2xl sm:text-3xl font-semibold mb-3">
                 Zero-Knowledge Cloud Sync & Team Workspaces
               </h2>
               <p className="text-caption sm:text-sm text-muted-foreground leading-relaxed">
-                Prefer seamless cross-device synchronization? Lokker now features an optional, end-to-end encrypted
+                Prefer seamless cross-device synchronization? Lokker features an optional, end-to-end encrypted
                 coordination backend powered by Fastify v5 and Neon Serverless Postgres.
               </p>
             </div>
@@ -835,7 +835,7 @@ export default function MarketingHomePage() {
                   <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
                     <Users className="size-4.5" />
                   </div>
-                  <CardTitle className="text-base">Team Workspaces (Coming Soon)</CardTitle>
+                  <CardTitle className="text-base">Team Workspaces</CardTitle>
                   <CardDescription className="text-xs leading-relaxed">
                     Collaborative shared vaults with Role-Based Access Control (Admins and Members) to securely share credentials,
                     masked emails, and API keys across organizations without compromising personal zero-knowledge boundaries.

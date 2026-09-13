@@ -120,7 +120,7 @@ Run these commands locally before committing or deploying any code changes:
 # 1. Start local dev server (0.0.0.0:3000)
 npm run dev
 
-# 2. Run unit tests with Vitest (all 164 tests must pass across 22 suites)
+# 2. Run unit tests with Vitest (all 165 tests must pass across 22 suites)
 npm test
 
 # 3. Check for code syntax and styling issues

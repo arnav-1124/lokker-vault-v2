@@ -8,6 +8,7 @@ import {
   getCategoryAncestors,
   getCategoryFamilyNames,
   reconcileMissingCategories,
+  isDuplicateCategoryName,
 } from "@/lib/category-tree";
 
 describe("Category Tree Utilities", () => {
@@ -155,5 +156,20 @@ describe("Category Tree Utilities", () => {
     const nestedCats = sampleCategories.filter((c) => !!c.parentId);
     expect(nestedCats.length).toBeGreaterThanOrEqual(4);
     expect(sampleCategories.find((c) => c.id === "great-grandchild-1")?.parentId).toBe("grandchild-1");
+  });
+
+  it("detects and prevents duplicate category names under the same parent scope (case-insensitive)", () => {
+    // Root level duplicates
+    expect(isDuplicateCategoryName("work", undefined, sampleCategories)).toBe(true);
+    expect(isDuplicateCategoryName("  WORK  ", "none", sampleCategories)).toBe(true);
+    expect(isDuplicateCategoryName("Personal", undefined, sampleCategories)).toBe(true);
+    expect(isDuplicateCategoryName("New Unique Category", undefined, sampleCategories)).toBe(false);
+
+    // Child level duplicates
+    expect(isDuplicateCategoryName("engineering", "root-1", sampleCategories)).toBe(true);
+    expect(isDuplicateCategoryName("Engineering", "root-2", sampleCategories)).toBe(false); // allowed under different parent!
+
+    // Exclusion for renaming existing category
+    expect(isDuplicateCategoryName("Work", undefined, sampleCategories, "root-1")).toBe(false);
   });
 });

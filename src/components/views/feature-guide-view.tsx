@@ -23,7 +23,7 @@ export function FeatureGuideView({ onSelectView }: FeatureGuideViewProps) {
   const guideArticles = [
     {
       title: "Master Passwords & 3-Tier Envelope Encryption",
-      desc: "Understand how your master password derives a Key Encryption Key (KEK) to unwrap your 256-bit Vault Encryption Key (VEK) using PBKDF2 with 600,000 iterations.",
+      desc: "Understand how your master password derives a Key Encryption Key (KEK) to unwrap your 256-bit Vault Encryption Key (VEK) using PBKDF2 with 100,000 iterations.",
       icon: KeyRound,
       actionText: "View Vault",
       target: "passwords" as ViewMode,

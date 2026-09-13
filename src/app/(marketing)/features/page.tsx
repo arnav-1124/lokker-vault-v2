@@ -196,15 +196,15 @@ export default function FeaturesPage() {
       ),
     },
     {
-      num: "07",
+      num: "06",
       title: "Optional Cloud Sync & Team Workspaces",
-      tagline: "Encrypted Relay on Neon Postgres (In Active Development)",
+      tagline: "Zero-Knowledge Cloud Relay & Multi-Tenant Workspaces",
       desc: "Need cross-device synchronization or team collaboration? Lokker offers an optional, end-to-end encrypted cloud relay powered by Fastify v5 and Neon Serverless Postgres. Zero-knowledge guarantees ensure the server only stores encrypted blobs.",
       points: [
         "100% Optional: Lokker never mandates cloud signup — offline mode works forever",
         "Zero-Knowledge Boundary: PBKDF2 keys remain strictly on client devices",
         "Neon Serverless Postgres: Enterprise SQL backend with instant autoscaling",
-        "Team Workspaces (Coming Soon): Role-based access control (Admin & Member) for shared organization vaults",
+        "Team Workspaces: Role-based access control (Admin & Member) for shared organization vaults",
       ],
       icon: Cloud,
       preview: (

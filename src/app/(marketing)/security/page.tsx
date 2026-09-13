@@ -265,7 +265,7 @@ export default function SecurityArchitecturePage() {
                   <span>RBAC & Team Workspaces</span>
                 </h3>
                 <p>
-                  The upcoming team workspace layer enforces Role-Based Access Control (Admins, Managers, Members)
+                  The team workspace layer enforces Role-Based Access Control (Admins and Members)
                   at the server API level via Fastify middleware. Even with administrative rights, the server can only
                   coordinate sharing of encrypted keys — plaintext remains strictly zero-knowledge.
                 </p>
