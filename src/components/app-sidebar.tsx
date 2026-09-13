@@ -54,7 +54,7 @@ import { Category, ViewMode } from "@/types";
 import { appConfig } from "@/config/app";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT, type CloudSessionUser } from "@/lib/auth-session";
 import { LokkerBrandIcon } from "@/components/lokker-brand-icon";
-import { buildCategoryTree, formatCategoryPath, getCategoryAncestors } from "@/lib/category-tree";
+import { buildCategoryTree, formatCategoryPath, getCategoryAncestors, isDuplicateCategoryName } from "@/lib/category-tree";
 import { useVaultUI } from "@/context/vault-ui-context";
 import { usePWA } from "@/hooks/use-pwa";
 
@@ -390,8 +390,11 @@ export function AppSidebar({
                 const isEditing = editingCatId === cat.id;
 
                 const handleRenameSubmit = () => {
-                  if (isEditing && editingCatName.trim() && onRenameCategory) {
-                    onRenameCategory(cat.id, editingCatName.trim());
+                  const trimmed = editingCatName.trim();
+                  if (isEditing && trimmed && onRenameCategory) {
+                    if (!isDuplicateCategoryName(trimmed, cat.parentId, categories, cat.id)) {
+                      onRenameCategory(cat.id, trimmed);
+                    }
                   }
                   setEditingCatId(null);
                   setEditingCatName("");
