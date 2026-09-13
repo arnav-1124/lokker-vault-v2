@@ -116,37 +116,45 @@ async function generateIcons() {
     omitBackground: false,
   });
 
-  // 4. Also generate crisp 128x128 for extension
-  await page.setViewport({ width: 128, height: 128, deviceScaleFactor: 1 });
-  await page.setContent(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-            width: 128px;
-            height: 128px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-          }
-          svg {
-            width: 110px;
-            height: 110px;
-          }
-        </style>
-      </head>
-      <body>
-        ${svgContent}
-      </body>
-    </html>
-  `);
-  await page.screenshot({
-    path: path.resolve("public/extension/icons/icon128.png"),
-    omitBackground: true,
-  });
+  // 4. Generate extension icons (16x16, 48x48, 128x128)
+  const extIcons = [
+    { size: 16, svgSize: 14, file: "icon16.png" },
+    { size: 48, svgSize: 42, file: "icon48.png" },
+    { size: 128, svgSize: 110, file: "icon128.png" },
+  ];
+
+  for (const icon of extIcons) {
+    await page.setViewport({ width: icon.size, height: icon.size, deviceScaleFactor: 1 });
+    await page.setContent(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              width: ${icon.size}px;
+              height: ${icon.size}px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: transparent;
+            }
+            svg {
+              width: ${icon.svgSize}px;
+              height: ${icon.svgSize}px;
+            }
+          </style>
+        </head>
+        <body>
+          ${svgContent}
+        </body>
+      </html>
+    `);
+    await page.screenshot({
+      path: path.resolve(`public/extension/icons/${icon.file}`),
+      omitBackground: true,
+    });
+  }
 
   await browser.close();
   console.log("PWA and extension icons generated successfully in public/icons and public/extension/icons!");

@@ -120,15 +120,27 @@ Run these commands locally before committing or deploying any code changes:
 # 1. Start local dev server (0.0.0.0:3000)
 npm run dev
 
-# 2. Run unit tests with Vitest (62 tests must pass)
+# 2. Run unit tests with Vitest (all 164 tests must pass across 22 suites)
 npm test
 
 # 3. Check for code syntax and styling issues
 npm run lint
 
-# 4. Compile optimized production build locally to verify no type/route errors
+# 4. Package and validate the browser extension (Chrome Web Store & Web Vault download)
+npm run package:ext
+
+# 5. Compile optimized production build locally to verify no type/route errors
 npm run build
 ```
+
+### Browser Extension Packaging & Web Store Distribution
+The browser extension lives in `public/extension/`. Running `npm run package:ext`:
+1. **Validates Manifest**: Verifies Manifest V3 compliance, semantic versioning, description <= 132 chars (Chrome Web Store hard limit), and checks that all background workers, content scripts, popup files, and icons physically exist.
+2. **Filters Junk**: Strips OS metadata (`.DS_Store`, `Thumbs.db`, `desktop.ini`, `.git*`, `*.tmp`, `*.swp`).
+3. **Generates Dual Targets**:
+   - `dist/lokker-extension-v{version}.zip`: Production zip ready for uploading to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) and [Microsoft Edge Partner Center](https://partner.microsoft.com/dashboard/microsoftedge).
+   - `public/lokker-browser-extension-mv3.zip`: Production archive served directly to users clicking "Download Extension" on `/download` and `/app/extension`.
+4. **Calculates SHA-256 Checksum**: Outputs cryptographic hash for release auditing.
 
 ### IndexedDB Schema Migrations
 The local vault uses IndexedDB defined in [`src/lib/db.ts`](file:///c:/Users/Arnav112/OneDrive/Desktop/lokker-vault/src/lib/db.ts).

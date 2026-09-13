@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "package:ext": "node scripts/package-extension.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
