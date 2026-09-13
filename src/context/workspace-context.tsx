@@ -6,6 +6,7 @@ import {
   Workspace,
   WorkspaceMember,
   WorkspacePlanQuota,
+  WorkspaceActivityLog,
   PasswordEntry,
   Bookmark,
   Category,
@@ -36,6 +37,7 @@ interface WorkspaceContextType {
   createInvite: (workspaceId: string) => Promise<{ inviteToken: string; expiresAt: string }>;
   acceptInvite: (inviteToken: string) => Promise<{ workspaceId: string; workspaceName: string }>;
   leaveWorkspace: (workspaceId: string) => Promise<void>;
+  fetchWorkspaceActivity: (workspaceId?: string, limit?: number, offset?: number) => Promise<WorkspaceActivityLog[]>;
   saveWorkspacePassword: (entry: PasswordEntry) => Promise<void>;
   deleteWorkspacePassword: (id: string) => Promise<void>;
   toggleWorkspacePasswordFavorite: (id: string) => Promise<void>;
@@ -281,7 +283,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (pathname) {
         const parts = pathname.split("/");
         const lastPart = parts[parts.length - 1];
-        if (["passwords", "bookmarks", "members", "settings", "categories"].includes(lastPart)) {
+        if (["passwords", "bookmarks", "members", "settings", "categories", "activity"].includes(lastPart)) {
           subpage = `/${lastPart}`;
         }
       }
@@ -478,6 +480,35 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [workspaces, selectWorkspace, router]
+  );
+
+  // Fetch workspace activity logs
+  const fetchWorkspaceActivity = React.useCallback(
+    async (workspaceId?: string, limit = 50, offset = 0): Promise<WorkspaceActivityLog[]> => {
+      const targetId = workspaceId || activeWorkspaceId;
+      if (!targetId) return [];
+
+      const session = getCloudSession();
+      if (session?.accessToken) {
+        const res = await fetch(
+          `${appConfig.apiUrl}/api/workspaces/${targetId}/activity?limit=${limit}&offset=${offset}`,
+          {
+            headers: { Authorization: `Bearer ${session.accessToken}` },
+          }
+        );
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || "Failed to fetch workspace activity");
+        }
+
+        const data = await res.json();
+        return data.activity || [];
+      }
+
+      return [];
+    },
+    [activeWorkspaceId]
   );
 
   // Scoped Item CRUD
@@ -731,6 +762,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     createInvite,
     acceptInvite,
     leaveWorkspace,
+    fetchWorkspaceActivity,
     saveWorkspacePassword,
     deleteWorkspacePassword,
     toggleWorkspacePasswordFavorite,

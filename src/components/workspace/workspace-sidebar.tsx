@@ -21,6 +21,7 @@ import {
   Pencil,
   FolderPlus,
   Trash2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +108,11 @@ export function WorkspaceSidebar({
       label: "Members & Invites",
       href: `${basePath}/members`,
       icon: Users,
+    },
+    {
+      label: "Activity Log",
+      href: `${basePath}/activity`,
+      icon: History,
     },
     {
       label: "Workspace Settings",

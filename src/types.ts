@@ -252,3 +252,25 @@ export interface WorkspacePlanQuota {
   maxAllowed: number;
 }
 
+export interface WorkspaceActivityLog {
+  id: string;
+  workspaceId: string;
+  actorUserId: string | null;
+  action:
+    | "WORKSPACE_CREATED"
+    | "WORKSPACE_UPDATED"
+    | "MEMBER_INVITED"
+    | "MEMBER_JOINED"
+    | "MEMBER_REMOVED"
+    | "VAULT_SYNCED"
+    | string;
+  details: string;
+  metadata: Record<string, any> | null;
+  createdAt: string;
+  actor: {
+    id: string;
+    email: string;
+    name: string | null;
+  } | null;
+}
+
