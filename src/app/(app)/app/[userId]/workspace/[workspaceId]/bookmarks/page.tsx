@@ -20,12 +20,13 @@ export default function WorkspaceBookmarksPage() {
     activeWorkspace,
     workspaceBookmarks,
     workspaceCategories,
+    selectedWorkspaceCategory,
+    setSelectedWorkspaceCategory,
     saveWorkspaceBookmark,
     deleteWorkspaceBookmark,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
 
   // Add Bookmark Modal State
   const [isAddOpen, setIsAddOpen] = React.useState(false);
@@ -38,10 +39,10 @@ export default function WorkspaceBookmarksPage() {
       const matchesSearch =
         b.title.toLowerCase().includes(search.toLowerCase()) ||
         b.url.toLowerCase().includes(search.toLowerCase());
-      const matchesCat = !selectedCategory || b.category === selectedCategory;
+      const matchesCat = !selectedWorkspaceCategory || b.category === selectedWorkspaceCategory;
       return matchesSearch && matchesCat;
     });
-  }, [workspaceBookmarks, search, selectedCategory]);
+  }, [workspaceBookmarks, search, selectedWorkspaceCategory]);
 
   const handleCreateBookmark = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,9 +109,9 @@ export default function WorkspaceBookmarksPage() {
 
         <div className="flex items-center gap-1.5 overflow-x-auto lokker-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
           <Button
-            variant={selectedCategory === null ? "secondary" : "ghost"}
+            variant={selectedWorkspaceCategory === null ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => setSelectedWorkspaceCategory(null)}
             className="h-7 text-xs px-2.5 cursor-pointer rounded-full"
           >
             All ({workspaceBookmarks.length})
@@ -120,9 +121,11 @@ export default function WorkspaceBookmarksPage() {
             return (
               <Button
                 key={cat.id}
-                variant={selectedCategory === cat.name ? "secondary" : "ghost"}
+                variant={selectedWorkspaceCategory === cat.name ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => setSelectedCategory(selectedCategory === cat.name ? null : cat.name)}
+                onClick={() =>
+                  setSelectedWorkspaceCategory(selectedWorkspaceCategory === cat.name ? null : cat.name)
+                }
                 className="h-7 text-xs px-2.5 cursor-pointer rounded-full gap-1.5"
               >
                 <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />

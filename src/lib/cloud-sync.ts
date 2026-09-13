@@ -130,7 +130,10 @@ async function fetchWithAuthRetry(
       });
     } else {
       clearCloudSession();
-      throw new Error("Your cloud session has expired. Please sign in again to sync your vault.");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("lokker:open-cloud-sync-modal"));
+      }
+      throw new Error("Your cloud session has expired. To restore cloud sync and team workspaces, please sign back in to your Lokker Cloud account.");
     }
   }
 
@@ -141,14 +144,19 @@ async function fetchWithAuthRetry(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (res.status === 401) {
-      clearCloudSession();
-      throw new Error("Your cloud session has expired. Please sign in again to sync your vault.");
-    }
     const msg = data.message || `Request failed with status ${res.status}`;
-    if (msg.toLowerCase().includes("token has expired") || msg.toLowerCase().includes("jwt expired")) {
+    const isAuthError =
+      res.status === 401 ||
+      msg.toLowerCase().includes("token has expired") ||
+      msg.toLowerCase().includes("jwt expired") ||
+      msg.toLowerCase().includes("unauthorized");
+
+    if (isAuthError) {
       clearCloudSession();
-      throw new Error("Your cloud session has expired. Please sign in again to sync your vault.");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("lokker:open-cloud-sync-modal"));
+      }
+      throw new Error("Your cloud session has expired. To restore cloud sync and team workspaces, please sign back in to your Lokker Cloud account.");
     }
     throw new Error(msg);
   }

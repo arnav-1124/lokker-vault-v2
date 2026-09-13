@@ -221,10 +221,14 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
         let displayError = err.message || "Failed to synchronize with cloud";
         if (
           displayError.toLowerCase().includes("token has expired") ||
-          displayError.toLowerCase().includes("jwt expired")
+          displayError.toLowerCase().includes("jwt expired") ||
+          displayError.toLowerCase().includes("unauthorized")
         ) {
-          displayError = "Your cloud session has expired. Please sign in again to sync your vault.";
+          displayError = "Your cloud session has expired. To restore cloud sync and team workspaces, please sign back in to your Lokker Cloud account.";
           clearCloudSession();
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("lokker:open-cloud-sync-modal"));
+          }
         }
         setSyncError(displayError);
         if (options?.force) {
@@ -296,10 +300,14 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       let displayError = err.message || "Failed to migrate credentials to cloud";
       if (
         displayError.toLowerCase().includes("token has expired") ||
-        displayError.toLowerCase().includes("jwt expired")
+        displayError.toLowerCase().includes("jwt expired") ||
+        displayError.toLowerCase().includes("unauthorized")
       ) {
-        displayError = "Your cloud session has expired. Please sign in again to sync your vault.";
+        displayError = "Your cloud session has expired. To restore cloud sync and team workspaces, please sign back in to your Lokker Cloud account.";
         clearCloudSession();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("lokker:open-cloud-sync-modal"));
+        }
       }
       addToast(displayError, "error");
       return false;

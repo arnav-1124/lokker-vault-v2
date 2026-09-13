@@ -41,6 +41,9 @@ interface WorkspaceContextType {
   deleteWorkspaceBookmark: (id: string) => Promise<void>;
   saveWorkspaceCategory: (category: Category) => Promise<void>;
   deleteWorkspaceCategory: (id: string) => Promise<void>;
+  renameWorkspaceCategory: (id: string, newName: string) => Promise<void>;
+  selectedWorkspaceCategory: string | null;
+  setSelectedWorkspaceCategory: (category: string | null) => void;
 }
 
 const WorkspaceContext = React.createContext<WorkspaceContextType | null>(null);
@@ -68,10 +71,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [workspacePasswords, setWorkspacePasswords] = React.useState<PasswordEntry[]>([]);
   const [workspaceBookmarks, setWorkspaceBookmarks] = React.useState<Bookmark[]>([]);
   const [workspaceCategories, setWorkspaceCategories] = React.useState<Category[]>(DEFAULT_CATEGORIES);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [selectedWorkspaceCategory, setSelectedWorkspaceCategory] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return !!getCloudSession()?.accessToken;
+  });
   const [error, setError] = React.useState<string | null>(null);
 
-  const [isCloudActive, setIsCloudActive] = React.useState(false);
+  const [isCloudActive, setIsCloudActive] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return !!getCloudSession()?.accessToken;
+  });
 
   // Sync activeWorkspaceId from URL params if on a workspace route
   React.useEffect(() => {
@@ -524,11 +534,57 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [persistWorkspaceData]
   );
 
+  const renameWorkspaceCategory = React.useCallback(
+    async (id: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+
+      setWorkspaceCategories((prev) => {
+        const cat = prev.find((c) => c.id === id);
+        const oldName = cat?.name;
+        const next = prev.map((c) => (c.id === id ? { ...c, name: trimmed } : c));
+        persistWorkspaceData(undefined, undefined, next);
+
+        if (oldName && oldName !== trimmed) {
+          setSelectedWorkspaceCategory((curr) => (curr === oldName ? trimmed : curr));
+          setWorkspacePasswords((pwds) => {
+            const updated = pwds.map((p) => (p.category === oldName ? { ...p, category: trimmed } : p));
+            persistWorkspaceData(updated, undefined, undefined);
+            return updated;
+          });
+          setWorkspaceBookmarks((bms) => {
+            const updated = bms.map((b) => (b.category === oldName ? { ...b, category: trimmed } : b));
+            persistWorkspaceData(undefined, updated, undefined);
+            return updated;
+          });
+        }
+        return next;
+      });
+    },
+    [persistWorkspaceData]
+  );
+
   const deleteWorkspaceCategory = React.useCallback(
     async (id: string) => {
       setWorkspaceCategories((prev) => {
+        const catToDelete = prev.find((c) => c.id === id);
         const next = prev.filter((c) => c.id !== id);
         persistWorkspaceData(undefined, undefined, next);
+
+        if (catToDelete) {
+          setSelectedWorkspaceCategory((curr) => (curr === catToDelete.name ? null : curr));
+          const fallback = next[0]?.name || "General";
+          setWorkspacePasswords((pwds) => {
+            const updated = pwds.map((p) => (p.category === catToDelete.name ? { ...p, category: fallback } : p));
+            persistWorkspaceData(updated, undefined, undefined);
+            return updated;
+          });
+          setWorkspaceBookmarks((bms) => {
+            const updated = bms.map((b) => (b.category === catToDelete.name ? { ...b, category: fallback } : b));
+            persistWorkspaceData(undefined, updated, undefined);
+            return updated;
+          });
+        }
         return next;
       });
     },
@@ -545,6 +601,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     workspacePasswords,
     workspaceBookmarks,
     workspaceCategories,
+    selectedWorkspaceCategory,
+    setSelectedWorkspaceCategory,
     isLoading,
     isCloudActive,
     error,
@@ -562,6 +620,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     deleteWorkspaceBookmark,
     saveWorkspaceCategory,
     deleteWorkspaceCategory,
+    renameWorkspaceCategory,
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

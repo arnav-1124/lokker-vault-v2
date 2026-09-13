@@ -38,6 +38,12 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
   const [isImportBackupModalOpen, setIsImportBackupModalOpen] = React.useState(false);
   const [isBackupPasswordModalOpen, setIsBackupPasswordModalOpen] = React.useState(false);
   const [isCloudSyncModalOpen, setIsCloudSyncModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleOpenSync = () => setIsCloudSyncModalOpen(true);
+    window.addEventListener("lokker:open-cloud-sync-modal", handleOpenSync);
+    return () => window.removeEventListener("lokker:open-cloud-sync-modal", handleOpenSync);
+  }, []);
   const [pendingEncryptedBackup, setPendingEncryptedBackup] = React.useState<LokkerEncryptedBackupFile | null>(null);
   const [pendingUnencryptedBackup, setPendingUnencryptedBackup] = React.useState<LokkerBackupPayload | null>(null);
 

@@ -348,7 +348,7 @@ export function AppHeader({
                   )}
 
                   <DropdownMenuItem asChild className="gap-2 cursor-pointer py-1.5">
-                    <Link href="/why-to-pay" className="flex items-center gap-2">
+                    <Link href="/app/why-to-pay" className="flex items-center gap-2">
                       <HelpCircle className="size-3.5 text-muted-foreground" />
                       <span>Why to Pay?</span>
                     </Link>
@@ -383,7 +383,7 @@ export function AppHeader({
             )}
 
             {/* Why to Pay Link Button on top bar */}
-            <Link href="/why-to-pay" className="hidden sm:inline-flex">
+            <Link href="/app/why-to-pay" className="hidden sm:inline-flex">
               <Button
                 variant="ghost"
                 size="sm"
@@ -471,7 +471,7 @@ export function AppHeader({
                     )}
 
                     <DropdownMenuItem asChild className="cursor-pointer">
-                      <Link href="/why-to-pay" className="flex items-center gap-2">
+                      <Link href="/app/why-to-pay" className="flex items-center gap-2">
                         <HelpCircle className="size-3.5 text-primary" />
                         <span>Why to Pay?</span>
                       </Link>
@@ -494,7 +494,7 @@ export function AppHeader({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer">
-                      <Link href="/why-to-pay" className="flex items-center gap-2">
+                      <Link href="/app/why-to-pay" className="flex items-center gap-2">
                         <HelpCircle className="size-3.5 text-primary" />
                         <span>Why to Pay?</span>
                       </Link>

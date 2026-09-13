@@ -642,7 +642,7 @@ export function AppSidebar({
                   </Link>
                   <div className="text-center pt-0.5">
                     <Link
-                      href="/why-to-pay"
+                      href="/app/why-to-pay"
                       className="text-[9px] text-muted-foreground/80 hover:text-primary transition-colors underline decoration-dotted"
                     >
                       Why to pay? Learn more

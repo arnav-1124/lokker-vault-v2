@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { usePathname } from "next/navigation";
 import { useWorkspace } from "@/context/workspace-context";
 
 export default function WorkspaceOverviewPage() {
+  const pathname = usePathname();
   const {
     activeWorkspace,
     workspacePasswords,
@@ -31,7 +33,10 @@ export default function WorkspaceOverviewPage() {
   const [copiedInvite, setCopiedInvite] = React.useState(false);
   const [isGeneratingInvite, setIsGeneratingInvite] = React.useState(false);
 
-  const basePath = activeWorkspace
+  const pathMatch = pathname?.match(/^(\/app\/[^/]+\/workspace\/[^/]+)/);
+  const basePath = pathMatch
+    ? pathMatch[1]
+    : activeWorkspace
     ? `/app/${activeWorkspace.adminUserId || "me"}/workspace/${activeWorkspace.id}`
     : "";
 

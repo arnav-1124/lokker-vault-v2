@@ -24,12 +24,13 @@ export default function WorkspacePasswordsPage() {
     activeWorkspace,
     workspacePasswords,
     workspaceCategories,
+    selectedWorkspaceCategory,
+    setSelectedWorkspaceCategory,
     saveWorkspacePassword,
     deleteWorkspacePassword,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [revealedIds, setRevealedIds] = React.useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
@@ -47,10 +48,10 @@ export default function WorkspacePasswordsPage() {
         p.websiteName.toLowerCase().includes(search.toLowerCase()) ||
         p.username.toLowerCase().includes(search.toLowerCase()) ||
         p.websiteUrl.toLowerCase().includes(search.toLowerCase());
-      const matchesCat = !selectedCategory || p.category === selectedCategory;
+      const matchesCat = !selectedWorkspaceCategory || p.category === selectedWorkspaceCategory;
       return matchesSearch && matchesCat;
     });
-  }, [workspacePasswords, search, selectedCategory]);
+  }, [workspacePasswords, search, selectedWorkspaceCategory]);
 
   const handleCopyPassword = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -132,9 +133,9 @@ export default function WorkspacePasswordsPage() {
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto lokker-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
           <Button
-            variant={selectedCategory === null ? "secondary" : "ghost"}
+            variant={selectedWorkspaceCategory === null ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => setSelectedWorkspaceCategory(null)}
             className="h-7 text-xs px-2.5 cursor-pointer rounded-full"
           >
             All ({workspacePasswords.length})
@@ -144,9 +145,11 @@ export default function WorkspacePasswordsPage() {
             return (
               <Button
                 key={cat.id}
-                variant={selectedCategory === cat.name ? "secondary" : "ghost"}
+                variant={selectedWorkspaceCategory === cat.name ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => setSelectedCategory(selectedCategory === cat.name ? null : cat.name)}
+                onClick={() =>
+                  setSelectedWorkspaceCategory(selectedWorkspaceCategory === cat.name ? null : cat.name)
+                }
                 className="h-7 text-xs px-2.5 cursor-pointer rounded-full gap-1.5"
               >
                 <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
