@@ -157,11 +157,39 @@ export function TotpView({ passwords, onEditPassword, addToast }: TotpViewProps)
                   </div>
 
                   <div
-                    className={`flex items-center gap-1 text-xs font-mono font-semibold shrink-0 ${
+                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-semibold shrink-0 bg-surface-elevated border border-border-subtle ${
                       isExpiringSoon ? "text-destructive" : "text-primary"
                     }`}
                   >
-                    <Clock className="size-3" />
+                    <div className="relative size-4 flex items-center justify-center shrink-0">
+                      <svg className="size-4 -rotate-90">
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="6.5"
+                          className="stroke-muted/30"
+                          strokeWidth="1.75"
+                          fill="none"
+                        />
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="6.5"
+                          className={`${
+                            data.secondsRemaining <= 3
+                              ? "stroke-rose-500"
+                              : data.secondsRemaining <= 7
+                              ? "stroke-amber-400"
+                              : "stroke-primary"
+                          } transition-all duration-1000 ease-linear`}
+                          strokeWidth="1.75"
+                          fill="none"
+                          strokeDasharray={40.84}
+                          strokeDashoffset={40.84 * (1 - Math.max(0, Math.min(30, data.secondsRemaining)) / 30)}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </div>
                     <span>{data.secondsRemaining}s</span>
                   </div>
                 </div>

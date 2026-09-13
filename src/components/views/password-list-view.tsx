@@ -38,6 +38,7 @@ import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
 import { formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree";
 import { BreachBadge } from "@/components/ui/breach-badge";
 import { breachCache } from "@/hooks/use-breach-check";
+import { TotpCountdownPill } from "@/components/ui/totp-countdown-pill";
 
 interface PasswordListViewProps {
   passwords: PasswordEntry[];
@@ -361,6 +362,14 @@ export function PasswordListView({
                   )}
 
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {/* 2FA TOTP Quick Countdown Pill */}
+                    {item.totpSecret && (
+                      <TotpCountdownPill
+                        secret={item.totpSecret}
+                        onCopy={() => onCopyText("", "2FA Code")}
+                      />
+                    )}
+
                     {/* Copy Button */}
                     {item.password && (
                       <Button

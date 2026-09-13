@@ -43,6 +43,7 @@ import { WorkspacePasswordModal } from "@/components/workspace/workspace-passwor
 import { ConfirmationModal } from "@/components/modals/confirmation-modal";
 import { BreachBadge } from "@/components/ui/breach-badge";
 import { breachCache } from "@/hooks/use-breach-check";
+import { TotpCountdownPill } from "@/components/ui/totp-countdown-pill";
 
 export default function WorkspacePasswordsPage() {
   const router = useRouter();
@@ -493,6 +494,14 @@ export default function WorkspacePasswordsPage() {
                   )}
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* 2FA TOTP Quick Countdown Pill */}
+                    {item.totpSecret && (
+                      <TotpCountdownPill
+                        secret={item.totpSecret}
+                        onCopy={() => handleCopy(item.id + "-totp", "")}
+                      />
+                    )}
+
                     {/* Copy Password Button */}
                     {item.password && (
                       <Button
