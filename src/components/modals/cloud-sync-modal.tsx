@@ -162,7 +162,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
       setSession(userSession);
       setSuccessMsg(
         authMode === "signup"
-          ? `Account created successfully! Role: ${userSession.role}`
+          ? "Account created successfully! Welcome to Lokker Cloud."
           : "Logged in successfully to Lokker Cloud!"
       );
       // Trigger cloud sync with the master password to restore remote VEK if needed
@@ -171,7 +171,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
     } catch (err: any) {
       setErrorMsg(
         err.message?.includes("Failed to fetch")
-          ? "Unable to reach backend server. Please verify lokker-server is running on " + appConfig.apiUrl
+          ? "Unable to reach the cloud service. Please check your internet connection and try again."
           : err.message || "An unexpected error occurred"
       );
     } finally {
@@ -227,9 +227,9 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
           <div className="text-xs space-y-1">
             <p className="font-semibold text-foreground">Zero-Knowledge & Never Mandatory</p>
             <p className="text-muted-foreground leading-relaxed text-[11px]">
-              Lokker is local-first by default. Your master keys and vault records never leave your
-              device unencrypted. Cloud accounts are completely optional and only store encrypted blobs
-              on our Neon PostgreSQL backend.
+              Lokker is local-first by default. Your master password and vault records never leave your
+              device unencrypted. Cloud sync is completely optional and stores only securely encrypted
+              backups that only you can decrypt.
             </p>
           </div>
         </div>
@@ -266,7 +266,10 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                   </div>
 
                   <div className="pt-2 flex items-center justify-between border-t border-border-subtle">
-                    <span className="text-[11px] text-muted-foreground">Backend: Neon Serverless Postgres</span>
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
+                      <span>Cloud Sync Active</span>
+                    </span>
                     <Button
                       variant="outline"
                       size="sm"
@@ -287,7 +290,7 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                         className={`size-4 text-primary ${syncStatus === "syncing" ? "animate-spin" : ""}`}
                       />
                       <span className="text-xs font-semibold text-foreground">
-                        Encrypted Cloud Vault Relay
+                        Encrypted Cloud Backup
                       </span>
                     </div>
                     <Badge
@@ -387,8 +390,8 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                   </div>
 
                   <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
-                    🔒 Protected by zero-knowledge encryption. Only AES-GCM 256-bit ciphertext blobs are
-                    stored on the server. Local-only items remain exclusively on this device.
+                    🔒 Protected by zero-knowledge architecture. Your vault is fully encrypted on this device
+                    before syncing. Only your master password can unlock your data.
                   </p>
                 </div>
               </div>
@@ -516,12 +519,12 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                 <div className="flex items-center gap-2">
                   <h4 className="font-semibold text-foreground">Real-Time Encrypted Cloud Sync</h4>
                   <Badge variant="outline" className="text-[9px] px-1 py-0 text-success border-success/30">
-                    Backend Live
+                    Available Now
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Powered by Fastify v5 and Neon Serverless Postgres. Sync your credentials seamlessly between your
-                  desktop browser, mobile app, and the Chromium autofill extension.
+                  Sync your credentials seamlessly and securely between your desktop browser, mobile devices,
+                  and the Lokker browser extension.
                 </p>
               </div>
             </div>
@@ -531,21 +534,26 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                 <Lock className="size-4" />
               </div>
               <div className="space-y-0.5">
-                <h4 className="font-semibold text-foreground">Encrypted Serverless Snapshots</h4>
+                <h4 className="font-semibold text-foreground">Automatic Encrypted Backups</h4>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Never worry about device loss. Automatic encrypted backups protect against hardware failure,
-                  recoverable only with your local master password.
+                  Never worry about device loss. Automatic encrypted cloud backups protect against hardware failure,
+                  recoverable only with your master password.
                 </p>
               </div>
             </div>
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="pt-3 border-t border-border-subtle flex sm:justify-between items-center w-full">
-          <span className="text-[11px] text-muted-foreground">
+        <DialogFooter className="-mx-6 -mb-6 mt-6 px-6 py-3.5 border-t border-border-subtle bg-muted/30 flex flex-row items-center justify-between rounded-b-xl shrink-0">
+          <span className="text-xs text-muted-foreground">
             Prefer offline? Close this modal anytime.
           </span>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs cursor-pointer">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+          >
             Keep Vault Offline
           </Button>
         </DialogFooter>

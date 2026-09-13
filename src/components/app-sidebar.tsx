@@ -342,7 +342,7 @@ export function AppSidebar({
         </div>
 
         {/* Navigation Scrollable Body */}
-        <div className="flex-1 overflow-y-auto lokker-scrollbar px-2 py-4 space-y-6 text-xs">
+        <div className="flex-1 overflow-y-auto lokker-scrollbar px-2 py-3 space-y-4 text-xs">
           {/* Main Vault Section */}
           <div className="space-y-1">
             {!isCollapsed && (
@@ -350,7 +350,9 @@ export function AppSidebar({
                 Vault & Items
               </p>
             )}
-            {mainNavItems.map(renderNavItem)}
+            <div className="max-h-[220px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+              {mainNavItems.map(renderNavItem)}
+            </div>
           </div>
 
           {/* Categories Section with Nested Hierarchy */}
@@ -369,7 +371,8 @@ export function AppSidebar({
                 </button>
               </div>
 
-              {categoryTree.map((item) => {
+              <div className="max-h-[220px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+                {categoryTree.map((item) => {
                 const { category: cat, depth, hasChildren, childCount, ancestors } = item;
                 // If any ancestor is collapsed, hide this item
                 const isHiddenByAncestor = ancestors.some((a) => collapsedCatIds.has(a.id));
@@ -520,9 +523,10 @@ export function AppSidebar({
                   </div>
                 );
               })}
+              </div>
             </div>
           ) : (
-            <div className="space-y-1 pt-1 border-t border-border-subtle">
+            <div className="space-y-1 pt-1 border-t border-border-subtle max-h-[220px] overflow-y-auto lokker-scrollbar pr-0.5">
               {categoryTree.map((item) => (
                 <Tooltip key={item.category.id}>
                   <TooltipTrigger asChild>
@@ -560,7 +564,9 @@ export function AppSidebar({
                 Security & Utilities
               </p>
             )}
-            {utilityNavItems.map(renderNavItem)}
+            <div className="max-h-[200px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+              {utilityNavItems.map(renderNavItem)}
+            </div>
           </div>
 
           {/* System & Settings */}
@@ -570,7 +576,9 @@ export function AppSidebar({
                 System
               </p>
             )}
-            {systemNavItems.map(renderNavItem)}
+            <div className="max-h-[160px] overflow-y-auto lokker-scrollbar space-y-0.5 pr-1">
+              {systemNavItems.map(renderNavItem)}
+            </div>
           </div>
 
           {/* Cloud Sync Callout */}
