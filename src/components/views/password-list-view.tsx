@@ -39,6 +39,7 @@ import { formatCategoryPath, getCategoryFamilyNames } from "@/lib/category-tree"
 import { BreachBadge } from "@/components/ui/breach-badge";
 import { breachCache } from "@/hooks/use-breach-check";
 import { TotpCountdownPill } from "@/components/ui/totp-countdown-pill";
+import { ShareSecretModal } from "@/components/modals/share-secret-modal";
 
 interface PasswordListViewProps {
   passwords: PasswordEntry[];
@@ -73,6 +74,7 @@ export function PasswordListView({
 }: PasswordListViewProps) {
   const [revealedIds, setRevealedIds] = React.useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [sharingItem, setSharingItem] = React.useState<PasswordEntry | null>(null);
   const [rowBreachStatus, setRowBreachStatus] = React.useState<
     Record<string, { status: "checking" | "breached" | "clean" | "error"; count: number }>
   >({});
@@ -426,6 +428,15 @@ export function PasswordListView({
                             <span>Check Breach Status</span>
                           </DropdownMenuItem>
                         )}
+                        {item.password && (
+                          <DropdownMenuItem
+                            onClick={() => setSharingItem(item)}
+                            className="cursor-pointer"
+                          >
+                            <Link2 className="size-3 mr-1.5 text-primary" />
+                            <span>Share Expiring Link</span>
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => onToggleFavorite(item.id)} className="cursor-pointer">
                           <Star className="size-3 mr-1.5" />
                           <span>{item.isFavorite ? "Unfavorite" : "Favorite"}</span>
@@ -468,6 +479,14 @@ export function PasswordListView({
           })}
         </div>
       )}
+
+      {/* Zero-Knowledge Expiring Secret Modal */}
+      <ShareSecretModal
+        isOpen={!!sharingItem}
+        onClose={() => setSharingItem(null)}
+        initialTitle={sharingItem?.websiteName}
+        initialSecret={sharingItem?.password || ""}
+      />
     </div>
   );
 }

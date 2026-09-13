@@ -23,6 +23,7 @@ import {
   Bookmark as BookmarkIcon,
   X,
   ShieldAlert,
+  Link2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import { ConfirmationModal } from "@/components/modals/confirmation-modal";
 import { BreachBadge } from "@/components/ui/breach-badge";
 import { breachCache } from "@/hooks/use-breach-check";
 import { TotpCountdownPill } from "@/components/ui/totp-countdown-pill";
+import { ShareSecretModal } from "@/components/modals/share-secret-modal";
 
 export default function WorkspacePasswordsPage() {
   const router = useRouter();
@@ -99,6 +101,7 @@ export default function WorkspacePasswordsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingEntry, setEditingEntry] = React.useState<PasswordEntry | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [sharingEntry, setSharingEntry] = React.useState<PasswordEntry | null>(null);
 
   const categoryTree = React.useMemo(
     () => buildCategoryTree(workspaceCategories),
@@ -575,6 +578,16 @@ export default function WorkspacePasswordsPage() {
                           </DropdownMenuItem>
                         )}
 
+                        {item.password && (
+                          <DropdownMenuItem
+                            onClick={() => setSharingEntry(item)}
+                            className="cursor-pointer"
+                          >
+                            <Link2 className="size-3 mr-1.5 text-primary" />
+                            <span>Share Expiring Link</span>
+                          </DropdownMenuItem>
+                        )}
+
                         <DropdownMenuItem
                           onClick={() => toggleWorkspacePasswordFavorite(item.id)}
                           className="cursor-pointer"
@@ -671,6 +684,14 @@ export default function WorkspacePasswordsPage() {
         isDestructive={true}
         onConfirm={handleConfirmDelete}
         onClose={() => setDeletingId(null)}
+      />
+
+      {/* Zero-Knowledge Expiring Secret Modal */}
+      <ShareSecretModal
+        isOpen={!!sharingEntry}
+        onClose={() => setSharingEntry(null)}
+        initialTitle={sharingEntry?.websiteName}
+        initialSecret={sharingEntry?.password || ""}
       />
     </div>
   );
