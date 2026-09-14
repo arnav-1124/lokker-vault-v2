@@ -70,6 +70,7 @@ export function WorkspaceSidebar({
     userRole,
     isAdmin,
     workspaceFavoriteCount,
+    isRealtimeConnected,
   } = useWorkspace();
 
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -268,8 +269,27 @@ export function WorkspaceSidebar({
 
         {/* Workspace Switcher in Sidebar */}
         {!isCollapsed && (
-          <div className="px-3 pt-3.5 pb-1">
+          <div className="px-3 pt-3.5 pb-1 space-y-2">
             <WorkspaceSwitcher onOpenAddModal={onOpenAddModal} />
+
+            {/* Real-time SSE Live Sync Status Pill */}
+            <div className="flex items-center justify-between px-2.5 py-1 rounded-lg bg-surface/70 border border-border-subtle text-[10px]">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={`size-1.5 rounded-full ${
+                    isRealtimeConnected
+                      ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse"
+                      : "bg-muted-foreground/40"
+                  }`}
+                />
+                <span className="font-medium text-foreground">
+                  {isRealtimeConnected ? "Live Sync Active" : "Connecting..."}
+                </span>
+              </span>
+              <span className="font-mono text-muted-foreground/70 text-[9px]">
+                {isRealtimeConnected ? "SSE" : "Offline"}
+              </span>
+            </div>
           </div>
         )}
 

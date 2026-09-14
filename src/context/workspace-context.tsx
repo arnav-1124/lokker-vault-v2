@@ -20,6 +20,7 @@ import {
   encryptPayload,
   generateRandomSalt,
 } from "@/lib/crypto";
+import { useWorkspaceEvents } from "@/hooks/use-workspace-events";
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -66,6 +67,7 @@ interface WorkspaceContextType {
   exportWorkspaceEncrypted: (passphrase: string) => Promise<void>;
   exportWorkspaceCSV: () => void;
   exportWorkspaceJSON: () => void;
+  isRealtimeConnected: boolean;
 }
 
 const WorkspaceContext = React.createContext<WorkspaceContextType | null>(null);
@@ -444,6 +446,27 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("focus", handleFocus);
     };
   }, [activeWorkspaceId, isCloudActive, syncActiveWorkspace]);
+
+  // Real-Time Server-Sent Events (SSE) stream for live team sync
+  const { isConnected: isRealtimeConnected } = useWorkspaceEvents({
+    workspaceId: activeWorkspaceId,
+    accessToken: cloudSession?.accessToken || null,
+    enabled: !!activeWorkspaceId && !!cloudSession?.accessToken,
+    onVaultUpdated: React.useCallback(
+      (event) => {
+        if (event.actorUserId && event.actorUserId !== currentUserId) {
+          syncActiveWorkspace(true).catch(() => {});
+        }
+      },
+      [currentUserId, syncActiveWorkspace]
+    ),
+    onMembershipUpdated: React.useCallback(() => {
+      syncActiveWorkspace(true).catch(() => {});
+    }, [syncActiveWorkspace]),
+    onMemberJoined: React.useCallback(() => {
+      syncActiveWorkspace(true).catch(() => {});
+    }, [syncActiveWorkspace]),
+  });
 
   // Passive 30-second background polling interval
   React.useEffect(() => {
@@ -1238,6 +1261,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     exportWorkspaceEncrypted,
     exportWorkspaceCSV,
     exportWorkspaceJSON,
+    isRealtimeConnected,
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
