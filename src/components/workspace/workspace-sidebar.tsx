@@ -23,6 +23,9 @@ import {
   Trash2,
   History,
   Star,
+  ShieldCheck,
+  Sparkles,
+  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +139,27 @@ export function WorkspaceSidebar({
 
     return items;
   }, [basePath, isAdmin]);
+
+  const toolsItems = React.useMemo(
+    () => [
+      {
+        label: "Security Watchtower",
+        href: `${basePath}/security-audit`,
+        icon: ShieldCheck,
+      },
+      {
+        label: "Password Generator",
+        href: `${basePath}/generator`,
+        icon: Sparkles,
+      },
+      {
+        label: "Import & Export",
+        href: `${basePath}/import-export`,
+        icon: Database,
+      },
+    ],
+    [basePath]
+  );
 
   const categoryTree = React.useMemo(() => {
     return buildCategoryTree(workspaceCategories);
@@ -478,6 +502,48 @@ export function WorkspaceSidebar({
               </div>
             </div>
           )}
+
+          {/* Security & Tools Section */}
+          <div className="space-y-1.5">
+            {!isCollapsed && (
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Security & Tools
+              </p>
+            )}
+            <div className="space-y-1">
+              {toolsItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => {
+                      setSelectedWorkspaceCategory(null);
+                      onCloseMobile();
+                    }}
+                    className={`w-full flex items-center ${
+                      isCollapsed ? "justify-center px-0 py-2.5" : "justify-between px-3 py-2"
+                    } rounded-lg text-xs font-medium transition-all outline-none focus:outline-none focus-visible:outline-none select-none ${
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                        : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                    }`}
+                  >
+                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3 min-w-0"}`}>
+                      <Icon
+                        className={`size-4 shrink-0 ${
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
+                      {!isCollapsed && <span className="truncate">{item.label}</span>}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Management & Settings Section */}
           <div className="space-y-1.5">

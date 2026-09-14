@@ -127,7 +127,27 @@ export interface ParsedImportResult {
 export function parseJSONBackupText(jsonText: string): ParsedImportResult {
   const data = JSON.parse(jsonText);
 
-  // 1. Encrypted Lokker Backup
+  // 1. Lokker Workspace Encrypted Container (.lokker-ws)
+  if (
+    (data.format === "lokker-ws" || data.app === "Lokker Workspace") &&
+    data.crypto?.kdf?.salt &&
+    data.crypto?.cipher?.iv &&
+    data.payload
+  ) {
+    return {
+      isEncrypted: true,
+      encryptedBackup: {
+        cipherText: data.payload,
+        iv: data.crypto.cipher.iv,
+        salt: data.crypto.kdf.salt,
+      },
+      passwords: [],
+      bookmarks: [],
+      categories: [],
+    };
+  }
+
+  // 2. Encrypted Lokker Backup
   if (data.isEncryptedBackup && data.cipherText && data.iv && data.salt) {
     return {
       isEncrypted: true,
@@ -142,7 +162,7 @@ export function parseJSONBackupText(jsonText: string): ParsedImportResult {
     };
   }
 
-  // 2. Standard Plain Lokker Backup
+  // 3. Standard Plain Lokker Backup
   if (Array.isArray(data.passwords) || Array.isArray(data.bookmarks)) {
     return {
       isEncrypted: false,

@@ -14,6 +14,12 @@ import {
 } from "@/types";
 import { appConfig } from "@/config/app";
 import { getCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import {
+  bufferToBase64,
+  deriveKeyFromPassword,
+  encryptPayload,
+  generateRandomSalt,
+} from "@/lib/crypto";
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -56,6 +62,10 @@ interface WorkspaceContextType {
   lastWorkspaceSyncedAt: Date | null;
   syncActiveWorkspace: (silent?: boolean) => Promise<void>;
   workspaceFavoriteCount: number;
+  importWorkspaceCredentials: (entries: PasswordEntry[]) => Promise<{ importedCount: number; duplicateCount: number }>;
+  exportWorkspaceEncrypted: (passphrase: string) => Promise<void>;
+  exportWorkspaceCSV: () => void;
+  exportWorkspaceJSON: () => void;
 }
 
 const WorkspaceContext = React.createContext<WorkspaceContextType | null>(null);
@@ -1029,6 +1039,160 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [activeWorkspace, persistWorkspaceData]
   );
 
+  // Import credentials into active workspace
+  const importWorkspaceCredentials = React.useCallback(
+    async (entries: PasswordEntry[]) => {
+      if (!activeWorkspaceId) throw new Error("No active workspace");
+      if (activeWorkspace?.role && activeWorkspace.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can import workspace credentials");
+      }
+
+      const existingKeys = new Set(
+        rawWorkspacePasswords.map(
+          (p) => `${(p.websiteUrl || p.websiteName).trim().toLowerCase()}::${p.username.trim().toLowerCase()}`
+        )
+      );
+
+      const newItems: PasswordEntry[] = [];
+      let duplicateCount = 0;
+
+      for (const entry of entries) {
+        const key = `${(entry.websiteUrl || entry.websiteName).trim().toLowerCase()}::${entry.username.trim().toLowerCase()}`;
+        if (existingKeys.has(key)) {
+          duplicateCount++;
+        } else {
+          newItems.push({
+            ...entry,
+            id: entry.id && entry.id.startsWith("ws-pwd-") ? entry.id : `ws-pwd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            storageScope: "cloud",
+            createdAt: entry.createdAt || Date.now(),
+            updatedAt: Date.now(),
+          });
+          existingKeys.add(key);
+        }
+      }
+
+      if (newItems.length > 0) {
+        const merged = [...newItems, ...rawWorkspacePasswords];
+        setRawWorkspacePasswords(merged);
+        await persistWorkspaceData(merged, undefined, undefined);
+      }
+
+      return {
+        importedCount: newItems.length,
+        duplicateCount,
+      };
+    },
+    [activeWorkspaceId, activeWorkspace, rawWorkspacePasswords, persistWorkspaceData]
+  );
+
+  // Export encrypted .lokker-ws file
+  const exportWorkspaceEncrypted = React.useCallback(
+    async (passphrase: string) => {
+      if (!activeWorkspace) throw new Error("No active workspace");
+      if (!passphrase || passphrase.length < 8) {
+        throw new Error("Export passphrase must be at least 8 characters long");
+      }
+
+      const payload = {
+        version: 1,
+        type: "lokker-workspace-backup",
+        workspaceId: activeWorkspace.id,
+        workspaceName: activeWorkspace.name,
+        exportedAt: new Date().toISOString(),
+        passwords: rawWorkspacePasswords,
+        bookmarks: rawWorkspaceBookmarks,
+        categories: workspaceCategories,
+      };
+
+      const salt = generateRandomSalt(16);
+      const saltBase64 = bufferToBase64(salt);
+      const key = await deriveKeyFromPassword(passphrase, salt);
+      const { cipherText, iv } = await encryptPayload(payload, key, saltBase64);
+
+      const container = {
+        app: "Lokker Workspace",
+        format: "lokker-ws",
+        version: 1,
+        exportedAt: payload.exportedAt,
+        workspaceId: activeWorkspace.id,
+        crypto: {
+          kdf: { algorithm: "PBKDF2", hash: "SHA-256", iterations: 100000, salt: saltBase64 },
+          cipher: { algorithm: "AES-GCM", keyLength: 256, iv },
+        },
+        payload: cipherText,
+      };
+
+      const blob = new Blob([JSON.stringify(container, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const safeName = activeWorkspace.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `lokker-ws-${safeName}-${dateStr}.lokker-ws`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    [activeWorkspace, rawWorkspacePasswords, rawWorkspaceBookmarks, workspaceCategories]
+  );
+
+  // Export CSV
+  const exportWorkspaceCSV = React.useCallback(() => {
+    if (!activeWorkspace) return;
+    const headers = ["Title", "Website URL", "Username", "Password", "Notes", "Category", "2FA TOTP Secret", "Entry Type"];
+    const escapeCsv = (val?: string) => `"${(val || "").replace(/"/g, '""')}"`;
+
+    const rows = rawWorkspacePasswords.map((p) => [
+      escapeCsv(p.websiteName),
+      escapeCsv(p.websiteUrl),
+      escapeCsv(p.username),
+      escapeCsv(p.password),
+      escapeCsv(p.notes),
+      escapeCsv(p.category),
+      escapeCsv(p.totpSecret),
+      escapeCsv(p.entryType || "login"),
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = activeWorkspace.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `lokker-workspace-${safeName}-${dateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [activeWorkspace, rawWorkspacePasswords]);
+
+  // Export JSON
+  const exportWorkspaceJSON = React.useCallback(() => {
+    if (!activeWorkspace) return;
+    const payload = {
+      workspaceId: activeWorkspace.id,
+      workspaceName: activeWorkspace.name,
+      exportedAt: new Date().toISOString(),
+      passwords: rawWorkspacePasswords,
+      bookmarks: rawWorkspaceBookmarks,
+      categories: workspaceCategories,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = activeWorkspace.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `lokker-workspace-${safeName}-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [activeWorkspace, rawWorkspacePasswords, rawWorkspaceBookmarks, workspaceCategories]);
+
   const value: WorkspaceContextType = {
     workspaces,
     activeWorkspace,
@@ -1070,6 +1234,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     lastWorkspaceSyncedAt,
     syncActiveWorkspace,
     workspaceFavoriteCount,
+    importWorkspaceCredentials,
+    exportWorkspaceEncrypted,
+    exportWorkspaceCSV,
+    exportWorkspaceJSON,
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
