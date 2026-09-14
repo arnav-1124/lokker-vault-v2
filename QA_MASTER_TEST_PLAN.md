@@ -32,6 +32,8 @@
 20. [Module 20: Accessibility, Keyboard Navigation & Focus Trapping](#module-20-accessibility-keyboard-navigation--focus-trapping)
 21. [Module 21: Extreme Stress, High-Volume Data & Chaos Testing](#module-21-extreme-stress-high-volume-data--chaos-testing)
 22. [Module 22: Biometric Passkey / WebAuthn Cloud Sign-In & Authentication](#module-22-biometric-passkey--webauthn-cloud-sign-in--authentication)
+23. [Module 23: 3-Tier Multi-Admin Governance, Activity Log RBAC & Category UX](#module-23-3-tier-multi-admin-governance-activity-log-rbac--category-ux)
+24. [Module 24: Workspace Live Sync & Per-User Distinct Favorites](#module-24-workspace-live-sync--per-user-distinct-favorites)
 
 ---
 
@@ -1047,6 +1049,74 @@
 
 ---
 
+## Module 24: Workspace Live Sync & Per-User Distinct Favorites
+
+### Test Case WSF-001: Manual Workspace Top Header Sync & Visual Feedback
+- **Priority**: P0 (Critical)
+- **Preconditions**: User is inside an active workspace with cloud connection.
+- **Test Steps**:
+  1. Inspect the top WorkspaceHeader toolbar.
+  2. Verify the `[ 🔄 Sync ]` button is visible.
+  3. Hover over the button: verify tooltip shows the last synchronized timestamp or "Sync workspace with team".
+  4. Click the `[ 🔄 Sync ]` button.
+  5. Verify the `RefreshCw` icon begins spinning (`animate-spin`) and label switches to `"Syncing..."`.
+  6. Upon completion (within ~300ms), verify the label turns to `"Synced!"` with an emerald icon before returning to `"Sync"`.
+  7. Verify network DevTools records successful `GET /api/workspaces/:id` and `GET /api/workspaces/:id/vault`.
+- **Expected Result**: Instant visual reassurance and hands-on synchronization trigger for workspace members.
+
+### Test Case WSF-002: Passive 30-Second Polling & Window Focus Auto-Sync
+- **Priority**: P0 (Critical)
+- **Preconditions**: Device A (Admin) and Device B (Member) open on the same workspace.
+- **Test Steps**:
+  1. On Device A (Admin), add a new shared password `"Staging Cluster Credentials"`.
+  2. On Device B (Member), do NOT press F5 or manually reload the browser window.
+  3. Switch browser tabs away from Lokker on Device B, wait 5 seconds, then switch back to the Lokker tab.
+  4. Verify the tab focus event (`visibilitychange`) immediately triggers a silent background sync.
+  5. Verify `"Staging Cluster Credentials"` appears in Device B's list automatically without full-page reloads.
+  6. Repeat on Device B without switching tabs; observe the passive 30-second background polling cycle. Verify new credentials appear automatically.
+- **Expected Result**: Members never have to manually refresh the browser to stay in sync with team updates.
+
+### Test Case WSF-003: Per-User Distinct Workspace Favorites Isolation
+- **Priority**: P0 (Critical)
+- **Preconditions**: Workspace with User A (Admin) and User B (Member).
+- **Test Steps**:
+  1. User A logs in, opens `/app/workspace/:id/passwords`, and clicks the Star icon on item `P-Alpha`.
+  2. Verify Star turns solid amber on User A's screen.
+  3. Inspect localStorage: verify key `lokker_ws_user_favorites_${wsId}_${userA_id}` contains `P-Alpha`.
+  4. User B logs in on Device B and opens the same workspace passwords page.
+  5. Verify `P-Alpha` is UNSTARRED (star is hollow/muted) for User B.
+  6. User B clicks the Star icon on item `P-Beta`.
+  7. Verify `P-Beta` is starred for User B.
+  8. Inspect User A's screen: verify `P-Beta` remains unstarred for User A.
+  9. Inspect remote workspace vault: verify the shared encrypted payload was NOT mutated by either favorite action.
+- **Expected Result**: Item starring in workspaces is strictly private and distinct to each individual user.
+
+### Test Case WSF-004: Dedicated Workspace Favorites Route & Navigation
+- **Priority**: P1 (High)
+- **Preconditions**: User has starred 1 password and 1 bookmark in the active workspace.
+- **Test Steps**:
+  1. Inspect the workspace sidebar under the `VAULT` section.
+  2. Verify the `Favorites` navigation item is present between `Bookmarks` and `Categories`.
+  3. Verify the count badge next to `Favorites` displays `"2"` with an amber-accented badge.
+  4. Click `Favorites`: verify navigation to `/app/workspace/:id/favorites`.
+  5. Verify the page splits into two dedicated sections: "Pinned Passwords (1)" and "Pinned Bookmarks (1)".
+  6. Click the Star button on the pinned bookmark to unpin it: verify it disappears from the list, the sidebar count decreases to `"1"`, and the bookmarks page updates accordingly.
+  7. Unpin the remaining password: verify the empty state appears with helpful "Browse Passwords" and "Browse Bookmarks" action buttons.
+- **Expected Result**: Seamless, dedicated access to favorited credentials and bookmarks within the workspace.
+
+### Test Case WSF-005: 1-Click Direct Star Button & 3-Dot Dropdown Synchronization
+- **Priority**: P1 (High)
+- **Preconditions**: User is on workspace passwords page.
+- **Test Steps**:
+  1. Locate any password row.
+  2. Verify there is a dedicated Star button directly on the card row next to Copy and Visit Website.
+  3. Click the direct Star button: verify solid amber fill.
+  4. Open the 3-dot dropdown menu for the same item: verify the menu item reflects `"Unfavorite"`.
+  5. Click `"Unfavorite"` in the dropdown menu: verify both the menu and the direct card Star button immediately revert to unstarred state.
+- **Expected Result**: Bidirectional synchronization between direct card button and dropdown actions.
+
+---
+
 ## Test Execution Tracking & Verification Sign-Off
 
 | Module | Test Cases Total | Passed | Failed | Blocked | QA Sign-off Date | Engineer |
@@ -1074,6 +1144,7 @@
 | 21. Stress & Chaos Testing | 2 | [ ] | [ ] | [ ] | | |
 | 22. Biometric Passkey / WebAuthn | 4 | [ ] | [ ] | [ ] | | |
 | 23. Multi-Admin & Category UX | 5 | [ ] | [ ] | [ ] | | |
-| **Total** | **58 Comprehensive Cases** | | | | | |
+| 24. Live Sync & User Favorites | 5 | [ ] | [ ] | [ ] | | |
+| **Total** | **63 Comprehensive Cases** | | | | | |
 
-*Note: This document is maintained on an incremental basis. As new features (e.g. 3-Tier Multi-Admin Governance, 1-Click Move to Category, Activity Log RBAC) are implemented, corresponding exhaustive test modules are appended directly to this plan.*
+*Note: This document is maintained on an incremental basis. As new features (e.g. 3-Tier Multi-Admin Governance, 1-Click Move to Category, Activity Log RBAC, Workspace Live Sync & Per-User Favorites) are implemented, corresponding exhaustive test modules are appended directly to this plan.*

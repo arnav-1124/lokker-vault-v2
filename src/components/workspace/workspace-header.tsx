@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { Menu, Plus, Building2, ShieldCheck, User, Cloud, Sun, Moon } from "lucide-react";
+import { Menu, Plus, Building2, ShieldCheck, User, Cloud, Sun, Moon, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkspace } from "@/context/workspace-context";
@@ -17,13 +17,28 @@ export function WorkspaceHeader({
   onToggleMobileSidebar,
   onOpenAddModal,
 }: WorkspaceHeaderProps) {
-  const { activeWorkspace, planQuota, userRole, isCloudActive } = useWorkspace();
+  const {
+    activeWorkspace,
+    planQuota,
+    userRole,
+    isCloudActive,
+    isSyncingWorkspace,
+    lastWorkspaceSyncedAt,
+    syncActiveWorkspace,
+  } = useWorkspace();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const [justSynced, setJustSynced] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSyncClick = async () => {
+    await syncActiveWorkspace(false);
+    setJustSynced(true);
+    setTimeout(() => setJustSynced(false), 2000);
+  };
 
   return (
     <header className="h-14 border-b border-border-subtle bg-background px-4 flex items-center justify-between gap-3 shrink-0">
@@ -73,6 +88,35 @@ export function WorkspaceHeader({
           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span>Cloud Encrypted</span>
         </div>
+
+        {/* Sync Workspace Button */}
+        {isCloudActive && activeWorkspace && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncClick}
+            disabled={isSyncingWorkspace}
+            title={
+              lastWorkspaceSyncedAt
+                ? `Last synced: ${lastWorkspaceSyncedAt.toLocaleTimeString()}`
+                : "Sync workspace with team"
+            }
+            className="h-8 text-xs gap-1.5 border-border-subtle hover:border-primary/40 text-muted-foreground hover:text-foreground cursor-pointer transition-all"
+          >
+            <RefreshCw
+              className={`size-3.5 ${
+                isSyncingWorkspace
+                  ? "animate-spin text-primary"
+                  : justSynced
+                  ? "text-emerald-500"
+                  : ""
+              }`}
+            />
+            <span className="hidden xs:inline font-medium">
+              {isSyncingWorkspace ? "Syncing..." : justSynced ? "Synced!" : "Sync"}
+            </span>
+          </Button>
+        )}
 
         {/* Theme Switcher Button */}
         {mounted && (

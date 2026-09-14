@@ -22,6 +22,7 @@ import {
   FolderPlus,
   Trash2,
   History,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ export function WorkspaceSidebar({
     renameWorkspaceCategory,
     userRole,
     isAdmin,
+    workspaceFavoriteCount,
   } = useWorkspace();
 
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -100,6 +102,12 @@ export function WorkspaceSidebar({
       href: `${basePath}/bookmarks`,
       icon: BookmarkIcon,
       count: workspaceBookmarks.length,
+    },
+    {
+      label: "Favorites",
+      href: `${basePath}/favorites`,
+      icon: Star,
+      count: workspaceFavoriteCount,
     },
   ];
 
@@ -281,8 +289,14 @@ export function WorkspaceSidebar({
                       />
                       {!isCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
-                    {!isCollapsed && typeof item.count === "number" && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-background border border-border-subtle text-muted-foreground shrink-0 ml-1">
+                    {!isCollapsed && typeof item.count === "number" && (item.label !== "Favorites" || item.count > 0) && (
+                      <span
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-md border shrink-0 ml-1 ${
+                          item.label === "Favorites" && item.count > 0
+                            ? "bg-amber-400/10 border-amber-400/30 text-amber-500 font-semibold"
+                            : "bg-background border-border-subtle text-muted-foreground"
+                        }`}
+                      >
                         {item.count}
                       </span>
                     )}

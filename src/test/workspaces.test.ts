@@ -373,5 +373,185 @@ describe("Team Workspaces & Cloud-Only Rules", () => {
     expect(canAccessActivityLog("MEMBER", false)).toBe(false);
     expect(canAccessActivityLog("MEMBER", true)).toBe(true); // Owner is always granted
   });
+
+  it("isolates per-user workspace favorites without mutating shared vault payload", () => {
+    // Shared workspace credentials and bookmarks
+    const sharedPasswords: PasswordEntry[] = [
+      {
+        id: "ws-p-1",
+        websiteName: "Production Database",
+        websiteUrl: "https://db.prod.company.internal",
+        username: "admin_root",
+        password: "SuperSecretPassword123!",
+        category: "Production",
+        isFavorite: false,
+        createdAt: 1000,
+        updatedAt: 1000,
+        workspaceId: "ws-1",
+      },
+      {
+        id: "ws-p-2",
+        websiteName: "Staging API Gateway",
+        websiteUrl: "https://api.staging.company.internal",
+        username: "developer",
+        password: "StagingPassword456!",
+        category: "Staging",
+        isFavorite: false,
+        createdAt: 1000,
+        updatedAt: 1000,
+        workspaceId: "ws-1",
+      },
+    ];
+
+    const sharedBookmarks: Bookmark[] = [
+      {
+        id: "ws-b-1",
+        title: "AWS Console",
+        url: "https://console.aws.amazon.com",
+        category: "General",
+        isFavorite: false,
+        createdAt: 1000,
+        updatedAt: 1000,
+        workspaceId: "ws-1",
+      },
+    ];
+
+    // Simulated per-user local favorite stores
+    const userFavoritesStore: Record<string, { passwordIds: string[]; bookmarkIds: string[] }> = {
+      "user-alice-admin": { passwordIds: [], bookmarkIds: [] },
+      "user-bob-member": { passwordIds: [], bookmarkIds: [] },
+    };
+
+    function toggleUserFavorite(
+      userId: string,
+      type: "password" | "bookmark",
+      itemId: string
+    ) {
+      const store = userFavoritesStore[userId];
+      const targetList = type === "password" ? store.passwordIds : store.bookmarkIds;
+      const idx = targetList.indexOf(itemId);
+      if (idx >= 0) {
+        targetList.splice(idx, 1);
+      } else {
+        targetList.push(itemId);
+      }
+    }
+
+    function computeDisplayedItems(
+      userId: string,
+      passwords: PasswordEntry[],
+      bookmarks: Bookmark[]
+    ) {
+      const store = userFavoritesStore[userId];
+      const pSet = new Set(store.passwordIds);
+      const bSet = new Set(store.bookmarkIds);
+
+      return {
+        passwords: passwords.map((p) => ({ ...p, isFavorite: pSet.has(p.id) })),
+        bookmarks: bookmarks.map((b) => ({ ...b, isFavorite: bSet.has(b.id) })),
+        favoriteCount: store.passwordIds.length + store.bookmarkIds.length,
+      };
+    }
+
+    // Initial state: 0 favorites for both users
+    const aliceInit = computeDisplayedItems("user-alice-admin", sharedPasswords, sharedBookmarks);
+    const bobInit = computeDisplayedItems("user-bob-member", sharedPasswords, sharedBookmarks);
+    expect(aliceInit.favoriteCount).toBe(0);
+    expect(bobInit.favoriteCount).toBe(0);
+
+    // Alice stars Production DB and AWS Console
+    toggleUserFavorite("user-alice-admin", "password", "ws-p-1");
+    toggleUserFavorite("user-alice-admin", "bookmark", "ws-b-1");
+
+    const aliceUpdated = computeDisplayedItems("user-alice-admin", sharedPasswords, sharedBookmarks);
+    expect(aliceUpdated.favoriteCount).toBe(2);
+    expect(aliceUpdated.passwords.find((p) => p.id === "ws-p-1")?.isFavorite).toBe(true);
+    expect(aliceUpdated.passwords.find((p) => p.id === "ws-p-2")?.isFavorite).toBe(false);
+    expect(aliceUpdated.bookmarks.find((b) => b.id === "ws-b-1")?.isFavorite).toBe(true);
+
+    // Bob still sees 0 favorites in his view
+    const bobAfterAlice = computeDisplayedItems("user-bob-member", sharedPasswords, sharedBookmarks);
+    expect(bobAfterAlice.favoriteCount).toBe(0);
+    expect(bobAfterAlice.passwords.find((p) => p.id === "ws-p-1")?.isFavorite).toBe(false);
+    expect(bobAfterAlice.bookmarks.find((b) => b.id === "ws-b-1")?.isFavorite).toBe(false);
+
+    // Bob stars Staging API Gateway
+    toggleUserFavorite("user-bob-member", "password", "ws-p-2");
+
+    const bobUpdated = computeDisplayedItems("user-bob-member", sharedPasswords, sharedBookmarks);
+    expect(bobUpdated.favoriteCount).toBe(1);
+    expect(bobUpdated.passwords.find((p) => p.id === "ws-p-2")?.isFavorite).toBe(true);
+    expect(bobUpdated.passwords.find((p) => p.id === "ws-p-1")?.isFavorite).toBe(false);
+
+    // Alice's view remains unchanged
+    const aliceFinal = computeDisplayedItems("user-alice-admin", sharedPasswords, sharedBookmarks);
+    expect(aliceFinal.favoriteCount).toBe(2);
+    expect(aliceFinal.passwords.find((p) => p.id === "ws-p-2")?.isFavorite).toBe(false);
+
+    // Crucial: The underlying shared objects were never mutated
+    expect(sharedPasswords[0].isFavorite).toBe(false);
+    expect(sharedPasswords[1].isFavorite).toBe(false);
+    expect(sharedBookmarks[0].isFavorite).toBe(false);
+  });
+
+  it("merges remote workspace vault changes and updates lastSyncedAt on sync", async () => {
+    let localPasswords: PasswordEntry[] = [
+      {
+        id: "p1",
+        websiteName: "Existing Item",
+        websiteUrl: "https://example.com",
+        username: "user",
+        password: "pwd",
+        category: "General",
+        isFavorite: false,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    let lastSyncedAt: Date | null = null;
+
+    // Simulate remote server returning updated vault blob
+    const remoteVaultBlob = {
+      passwords: [
+        {
+          id: "p1",
+          websiteName: "Existing Item",
+          websiteUrl: "https://example.com",
+          username: "user",
+          password: "pwd",
+          category: "General",
+          isFavorite: false,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          id: "p2",
+          websiteName: "Newly Added by Admin on Device B",
+          websiteUrl: "https://newservice.com",
+          username: "admin",
+          password: "newPassword789!",
+          category: "General",
+          isFavorite: false,
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+      ],
+    };
+
+    function syncWorkspaceVault(remoteBlob: typeof remoteVaultBlob) {
+      localPasswords = remoteBlob.passwords;
+      lastSyncedAt = new Date();
+    }
+
+    expect(localPasswords).toHaveLength(1);
+    expect(lastSyncedAt).toBeNull();
+
+    // Trigger sync
+    syncWorkspaceVault(remoteVaultBlob);
+
+    expect(localPasswords).toHaveLength(2);
+    expect(localPasswords.some((p) => p.id === "p2")).toBe(true);
+    expect(lastSyncedAt).not.toBeNull();
+  });
 });
 

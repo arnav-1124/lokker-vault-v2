@@ -52,6 +52,10 @@ interface WorkspaceContextType {
   renameWorkspaceCategory: (id: string, newName: string) => Promise<void>;
   selectedWorkspaceCategory: string | null;
   setSelectedWorkspaceCategory: (category: string | null) => void;
+  isSyncingWorkspace: boolean;
+  lastWorkspaceSyncedAt: Date | null;
+  syncActiveWorkspace: (silent?: boolean) => Promise<void>;
+  workspaceFavoriteCount: number;
 }
 
 const WorkspaceContext = React.createContext<WorkspaceContextType | null>(null);
@@ -76,10 +80,19 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     maxAllowed: 1,
   });
   const [members, setMembers] = React.useState<WorkspaceMember[]>([]);
-  const [workspacePasswords, setWorkspacePasswords] = React.useState<PasswordEntry[]>([]);
-  const [workspaceBookmarks, setWorkspaceBookmarks] = React.useState<Bookmark[]>([]);
+  const [rawWorkspacePasswords, setRawWorkspacePasswords] = React.useState<PasswordEntry[]>([]);
+  const [rawWorkspaceBookmarks, setRawWorkspaceBookmarks] = React.useState<Bookmark[]>([]);
   const [workspaceCategories, setWorkspaceCategories] = React.useState<Category[]>(DEFAULT_CATEGORIES);
   const [selectedWorkspaceCategory, setSelectedWorkspaceCategory] = React.useState<string | null>(null);
+  const [isSyncingWorkspace, setIsSyncingWorkspace] = React.useState(false);
+  const [lastWorkspaceSyncedAt, setLastWorkspaceSyncedAt] = React.useState<Date | null>(null);
+
+  // Per-user workspace favorites: { passwordIds: string[]; bookmarkIds: string[] }
+  const [userWorkspaceFavorites, setUserWorkspaceFavorites] = React.useState<{
+    passwordIds: string[];
+    bookmarkIds: string[];
+  }>({ passwordIds: [], bookmarkIds: [] });
+
   const [isLoading, setIsLoading] = React.useState(() => {
     if (typeof window === "undefined") return false;
     return !!getCloudSession()?.accessToken;
@@ -145,8 +158,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setWorkspaces([]);
         setActiveWorkspaceId(null);
         setMembers([]);
-        setWorkspacePasswords([]);
-        setWorkspaceBookmarks([]);
+        setRawWorkspacePasswords([]);
+        setRawWorkspaceBookmarks([]);
+        setUserWorkspaceFavorites({ passwordIds: [], bookmarkIds: [] });
         setPlanQuota({ plan: "FREE", ownedCount: 0, maxAllowed: 1 });
         setIsLoading(false);
       } else {
@@ -175,6 +189,62 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const userRole = activeWorkspace?.role || (isOwner ? "ADMIN" : null);
   const isAdmin = userRole === "ADMIN" || isOwner;
 
+  // Key helper for per-user favorites storage
+  const getFavoritesKey = React.useCallback(
+    (wsId: string, uId?: string) => `lokker_ws_user_favorites_${wsId}_${uId || "anon"}`,
+    []
+  );
+
+  // Load user favorites for active workspace
+  React.useEffect(() => {
+    if (!activeWorkspaceId) {
+      setUserWorkspaceFavorites({ passwordIds: [], bookmarkIds: [] });
+      return;
+    }
+    const favKey = getFavoritesKey(activeWorkspaceId, currentUserId);
+    const rawFavs = localStorage.getItem(favKey);
+    if (rawFavs) {
+      try {
+        const parsed = JSON.parse(rawFavs);
+        setUserWorkspaceFavorites({
+          passwordIds: Array.isArray(parsed.passwordIds) ? parsed.passwordIds : [],
+          bookmarkIds: Array.isArray(parsed.bookmarkIds) ? parsed.bookmarkIds : [],
+        });
+      } catch {
+        setUserWorkspaceFavorites({ passwordIds: [], bookmarkIds: [] });
+      }
+    } else {
+      setUserWorkspaceFavorites({ passwordIds: [], bookmarkIds: [] });
+    }
+  }, [activeWorkspaceId, currentUserId, getFavoritesKey]);
+
+  // Compute displayed passwords with per-user isFavorite status
+  const workspacePasswords = React.useMemo(() => {
+    const favSet = new Set(userWorkspaceFavorites.passwordIds);
+    return rawWorkspacePasswords.map((p) => ({
+      ...p,
+      isFavorite: favSet.has(p.id),
+    }));
+  }, [rawWorkspacePasswords, userWorkspaceFavorites.passwordIds]);
+
+  // Compute displayed bookmarks with per-user isFavorite status
+  const workspaceBookmarks = React.useMemo(() => {
+    const favSet = new Set(userWorkspaceFavorites.bookmarkIds);
+    return rawWorkspaceBookmarks.map((b) => ({
+      ...b,
+      isFavorite: favSet.has(b.id),
+    }));
+  }, [rawWorkspaceBookmarks, userWorkspaceFavorites.bookmarkIds]);
+
+  // Compute distinct user workspace favorites count
+  const workspaceFavoriteCount = React.useMemo(() => {
+    const validPasswordIds = new Set(rawWorkspacePasswords.map((p) => p.id));
+    const validBookmarkIds = new Set(rawWorkspaceBookmarks.map((b) => b.id));
+    const countP = userWorkspaceFavorites.passwordIds.filter((id) => validPasswordIds.has(id)).length;
+    const countB = userWorkspaceFavorites.bookmarkIds.filter((id) => validBookmarkIds.has(id)).length;
+    return countP + countB;
+  }, [rawWorkspacePasswords, rawWorkspaceBookmarks, userWorkspaceFavorites]);
+
   // Load active workspace details (members, data) when activeWorkspaceId changes
   React.useEffect(() => {
     if (!activeWorkspaceId) return;
@@ -186,15 +256,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (localData) {
       try {
         const parsed = JSON.parse(localData);
-        setWorkspacePasswords(parsed.passwords || []);
-        setWorkspaceBookmarks(parsed.bookmarks || []);
+        setRawWorkspacePasswords(parsed.passwords || []);
+        setRawWorkspaceBookmarks(parsed.bookmarks || []);
         setWorkspaceCategories(parsed.categories || DEFAULT_CATEGORIES);
       } catch (err) {
         console.warn("Failed to parse local workspace data:", err);
       }
     } else {
-      setWorkspacePasswords([]);
-      setWorkspaceBookmarks([]);
+      setRawWorkspacePasswords([]);
+      setRawWorkspaceBookmarks([]);
       setWorkspaceCategories(DEFAULT_CATEGORIES);
     }
 
@@ -217,9 +287,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           if (data.exists && data.vault?.encryptedBlob) {
             try {
               const decrypted = JSON.parse(data.vault.encryptedBlob);
-              if (decrypted.passwords) setWorkspacePasswords(decrypted.passwords);
-              if (decrypted.bookmarks) setWorkspaceBookmarks(decrypted.bookmarks);
+              if (decrypted.passwords) setRawWorkspacePasswords(decrypted.passwords);
+              if (decrypted.bookmarks) setRawWorkspaceBookmarks(decrypted.bookmarks);
               if (decrypted.categories) setWorkspaceCategories(decrypted.categories);
+              setLastWorkspaceSyncedAt(new Date());
             } catch {
               // encrypted or different format
             }
@@ -238,8 +309,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     ) => {
       if (!activeWorkspaceId) return;
 
-      const p = newPasswords ?? workspacePasswords;
-      const b = newBookmarks ?? workspaceBookmarks;
+      const p = newPasswords ?? rawWorkspacePasswords;
+      const b = newBookmarks ?? rawWorkspaceBookmarks;
       const c = newCategories ?? workspaceCategories;
 
       const payload = {
@@ -269,13 +340,111 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
               itemCount: p.length + b.length,
             }),
           });
+          setLastWorkspaceSyncedAt(new Date());
         } catch (err) {
           console.warn("Could not sync workspace to cloud server:", err);
         }
       }
     },
-    [activeWorkspace, activeWorkspaceId, workspacePasswords, workspaceBookmarks, workspaceCategories]
+    [activeWorkspace, activeWorkspaceId, rawWorkspacePasswords, rawWorkspaceBookmarks, workspaceCategories]
   );
+
+  // Synchronize active workspace data and members from cloud server
+  const syncActiveWorkspace = React.useCallback(
+    async (silent = false) => {
+      if (!activeWorkspaceId) return;
+      const session = getCloudSession();
+      if (!session?.accessToken) return;
+
+      if (!silent) setIsSyncingWorkspace(true);
+
+      try {
+        const [wsRes, vaultRes] = await Promise.all([
+          fetch(`${appConfig.apiUrl}/api/workspaces/${activeWorkspaceId}`, {
+            headers: { Authorization: `Bearer ${session.accessToken}` },
+          }),
+          fetch(`${appConfig.apiUrl}/api/workspaces/${activeWorkspaceId}/vault`, {
+            headers: { Authorization: `Bearer ${session.accessToken}` },
+          }),
+        ]);
+
+        if (wsRes.ok) {
+          const wsData = await wsRes.json();
+          if (wsData.members) setMembers(wsData.members);
+          if (wsData.workspace) {
+            setWorkspaces((prev) =>
+              prev.map((w) => (w.id === activeWorkspaceId ? { ...w, ...wsData.workspace } : w))
+            );
+          }
+        }
+
+        if (vaultRes.ok) {
+          const vaultData = await vaultRes.json();
+          if (vaultData.exists && vaultData.vault?.encryptedBlob) {
+            try {
+              const decrypted = JSON.parse(vaultData.vault.encryptedBlob);
+              if (Array.isArray(decrypted.passwords)) setRawWorkspacePasswords(decrypted.passwords);
+              if (Array.isArray(decrypted.bookmarks)) setRawWorkspaceBookmarks(decrypted.bookmarks);
+              if (Array.isArray(decrypted.categories)) setWorkspaceCategories(decrypted.categories);
+
+              localStorage.setItem(
+                `lokker_ws_data_${activeWorkspaceId}`,
+                JSON.stringify({
+                  passwords: decrypted.passwords || [],
+                  bookmarks: decrypted.bookmarks || [],
+                  categories: decrypted.categories || DEFAULT_CATEGORIES,
+                  updatedAt: Date.now(),
+                })
+              );
+            } catch (err) {
+              console.warn("Failed to parse remote workspace vault payload:", err);
+            }
+          }
+        }
+
+        setLastWorkspaceSyncedAt(new Date());
+      } catch (err) {
+        console.warn("Workspace sync failed:", err);
+      } finally {
+        if (!silent) setIsSyncingWorkspace(false);
+      }
+    },
+    [activeWorkspaceId]
+  );
+
+  // Auto-sync on window/tab focus
+  React.useEffect(() => {
+    if (!activeWorkspaceId || !isCloudActive) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncActiveWorkspace(true);
+      }
+    };
+
+    const handleFocus = () => {
+      syncActiveWorkspace(true);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [activeWorkspaceId, isCloudActive, syncActiveWorkspace]);
+
+  // Passive 30-second background polling interval
+  React.useEffect(() => {
+    if (!activeWorkspaceId || !isCloudActive) return;
+
+    const interval = setInterval(() => {
+      syncActiveWorkspace(true);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [activeWorkspaceId, isCloudActive, syncActiveWorkspace]);
 
   // Switch workspace
   const selectWorkspace = React.useCallback(
@@ -591,7 +760,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         updatedAt: Date.now(),
       };
 
-      setWorkspacePasswords((prev) => {
+      setRawWorkspacePasswords((prev) => {
         const exists = prev.some((p) => p.id === entry.id);
         const next = exists ? prev.map((p) => (p.id === entry.id ? updatedEntry : p)) : [updatedEntry, ...prev];
 
@@ -616,7 +785,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
           const targetHost = normalizeHost(formattedUrl);
 
-          setWorkspaceBookmarks((bms) => {
+          setRawWorkspaceBookmarks((bms) => {
             const alreadyExists = bms.some((b) => normalizeHost(b.url || b.title) === targetHost);
             if (alreadyExists) {
               persistWorkspaceData(next, undefined, undefined);
@@ -655,24 +824,52 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Forbidden: Only workspace admins can delete workspace credentials");
       }
 
-      setWorkspacePasswords((prev) => {
+      setRawWorkspacePasswords((prev) => {
         const next = prev.filter((p) => p.id !== id);
         persistWorkspaceData(next, undefined, undefined);
         return next;
       });
-    },
-    [activeWorkspace, persistWorkspaceData]
-  );
 
-  const toggleWorkspacePasswordFavorite = React.useCallback(
-    async (id: string) => {
-      setWorkspacePasswords((prev) => {
-        const next = prev.map((p) => (p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
-        persistWorkspaceData(next, undefined, undefined);
-        return next;
+      // Also clean up per-user favorites if it was favorited
+      setUserWorkspaceFavorites((prev) => {
+        if (!prev.passwordIds.includes(id)) return prev;
+        const updated = {
+          ...prev,
+          passwordIds: prev.passwordIds.filter((pId) => pId !== id),
+        };
+        if (activeWorkspaceId) {
+          localStorage.setItem(
+            getFavoritesKey(activeWorkspaceId, currentUserId),
+            JSON.stringify(updated)
+          );
+        }
+        return updated;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, activeWorkspaceId, currentUserId, getFavoritesKey, persistWorkspaceData]
+  );
+
+  // Per-user distinct workspace password favorite toggle
+  const toggleWorkspacePasswordFavorite = React.useCallback(
+    async (id: string) => {
+      if (!activeWorkspaceId) return;
+      setUserWorkspaceFavorites((prev) => {
+        const set = new Set(prev.passwordIds);
+        if (set.has(id)) {
+          set.delete(id);
+        } else {
+          set.add(id);
+        }
+        const updated = {
+          ...prev,
+          passwordIds: Array.from(set),
+        };
+        const favKey = getFavoritesKey(activeWorkspaceId, currentUserId);
+        localStorage.setItem(favKey, JSON.stringify(updated));
+        return updated;
+      });
+    },
+    [activeWorkspaceId, currentUserId, getFavoritesKey]
   );
 
   const saveWorkspaceBookmark = React.useCallback(
@@ -688,7 +885,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         updatedAt: Date.now(),
       };
 
-      setWorkspaceBookmarks((prev) => {
+      setRawWorkspaceBookmarks((prev) => {
         const exists = prev.some((b) => b.id === entry.id);
         const next = exists ? prev.map((b) => (b.id === entry.id ? updatedEntry : b)) : [updatedEntry, ...prev];
         persistWorkspaceData(undefined, next, undefined);
@@ -704,24 +901,52 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Forbidden: Only workspace admins can delete workspace bookmarks");
       }
 
-      setWorkspaceBookmarks((prev) => {
+      setRawWorkspaceBookmarks((prev) => {
         const next = prev.filter((b) => b.id !== id);
         persistWorkspaceData(undefined, next, undefined);
         return next;
       });
-    },
-    [activeWorkspace, persistWorkspaceData]
-  );
 
-  const toggleWorkspaceBookmarkFavorite = React.useCallback(
-    async (id: string) => {
-      setWorkspaceBookmarks((prev) => {
-        const next = prev.map((b) => (b.id === id ? { ...b, isFavorite: !b.isFavorite } : b));
-        persistWorkspaceData(undefined, next, undefined);
-        return next;
+      // Also clean up per-user favorites if it was favorited
+      setUserWorkspaceFavorites((prev) => {
+        if (!prev.bookmarkIds.includes(id)) return prev;
+        const updated = {
+          ...prev,
+          bookmarkIds: prev.bookmarkIds.filter((bId) => bId !== id),
+        };
+        if (activeWorkspaceId) {
+          localStorage.setItem(
+            getFavoritesKey(activeWorkspaceId, currentUserId),
+            JSON.stringify(updated)
+          );
+        }
+        return updated;
       });
     },
-    [persistWorkspaceData]
+    [activeWorkspace, activeWorkspaceId, currentUserId, getFavoritesKey, persistWorkspaceData]
+  );
+
+  // Per-user distinct workspace bookmark favorite toggle
+  const toggleWorkspaceBookmarkFavorite = React.useCallback(
+    async (id: string) => {
+      if (!activeWorkspaceId) return;
+      setUserWorkspaceFavorites((prev) => {
+        const set = new Set(prev.bookmarkIds);
+        if (set.has(id)) {
+          set.delete(id);
+        } else {
+          set.add(id);
+        }
+        const updated = {
+          ...prev,
+          bookmarkIds: Array.from(set),
+        };
+        const favKey = getFavoritesKey(activeWorkspaceId, currentUserId);
+        localStorage.setItem(favKey, JSON.stringify(updated));
+        return updated;
+      });
+    },
+    [activeWorkspaceId, currentUserId, getFavoritesKey]
   );
 
   const saveWorkspaceCategory = React.useCallback(
@@ -757,12 +982,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
         if (oldName && oldName !== trimmed) {
           setSelectedWorkspaceCategory((curr) => (curr === oldName ? trimmed : curr));
-          setWorkspacePasswords((pwds) => {
+          setRawWorkspacePasswords((pwds) => {
             const updated = pwds.map((p) => (p.category === oldName ? { ...p, category: trimmed } : p));
             persistWorkspaceData(updated, undefined, undefined);
             return updated;
           });
-          setWorkspaceBookmarks((bms) => {
+          setRawWorkspaceBookmarks((bms) => {
             const updated = bms.map((b) => (b.category === oldName ? { ...b, category: trimmed } : b));
             persistWorkspaceData(undefined, updated, undefined);
             return updated;
@@ -787,12 +1012,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         if (catToDelete) {
           setSelectedWorkspaceCategory((curr) => (curr === catToDelete.name ? null : curr));
           const fallback = next[0]?.name || "General";
-          setWorkspacePasswords((pwds) => {
+          setRawWorkspacePasswords((pwds) => {
             const updated = pwds.map((p) => (p.category === catToDelete.name ? { ...p, category: fallback } : p));
             persistWorkspaceData(updated, undefined, undefined);
             return updated;
           });
-          setWorkspaceBookmarks((bms) => {
+          setRawWorkspaceBookmarks((bms) => {
             const updated = bms.map((b) => (b.category === catToDelete.name ? { ...b, category: fallback } : b));
             persistWorkspaceData(undefined, updated, undefined);
             return updated;
@@ -841,6 +1066,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     saveWorkspaceCategory,
     deleteWorkspaceCategory,
     renameWorkspaceCategory,
+    isSyncingWorkspace,
+    lastWorkspaceSyncedAt,
+    syncActiveWorkspace,
+    workspaceFavoriteCount,
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

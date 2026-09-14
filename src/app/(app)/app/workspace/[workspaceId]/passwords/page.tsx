@@ -550,6 +550,20 @@ export default function WorkspacePasswordsPage() {
                       </a>
                     )}
 
+                    {/* Star Favorite Button */}
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspacePasswordFavorite(item.id)}
+                      className="p-1.5 text-muted-foreground hover:text-amber-400 transition-colors cursor-pointer rounded-md hover:bg-surface-elevated border border-border-subtle/60"
+                      title={item.isFavorite ? "Unpin from favorites" : "Pin to favorites"}
+                    >
+                      <Star
+                        className={`size-3.5 ${
+                          item.isFavorite ? "text-amber-400 fill-amber-400" : ""
+                        }`}
+                      />
+                    </button>
+
                     {/* Dropdown Menu for options */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
