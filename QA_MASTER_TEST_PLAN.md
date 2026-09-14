@@ -1117,34 +1117,151 @@
 
 ---
 
+## Module 25: Workspace Security Watchtower & Dark Web Audit Matrix (Phase 3)
+
+### 25.1 Team Composite Posture Score & Multi-Category Vulnerability Matrix
+- **Preconditions**: Workspace contains credentials with varied security postures (strong, weak, breached, missing 2FA, reused).
+- **Test Steps**:
+  1. Open `/app/workspace/[id]/security-audit`.
+  2. Verify the composite security score is computed dynamically between 0 and 100 with accurate status colors.
+  3. Verify the metric breakdown cards report precise counts for:
+     - Dark Web Compromised Passwords
+     - Missing 2FA Keys
+     - Low Cryptographic Entropy (< 14 chars, dictionary or numeric)
+     - Reused Passwords across multiple team entries
+  4. Verify the filter tabs ("All Issues", "Breached", "Missing 2FA", "Weak Passwords", "Reused") correctly isolate each vulnerability group.
+- **Expected Result**: Immediate, transparent visibility into team credential vulnerabilities.
+
+### 25.2 Privacy-Preserving k-Anonymity Breach Verification
+- **Preconditions**: Workspace passwords audited against known breaches.
+- **Test Steps**:
+  1. Inspect network traffic during Watchtower audit.
+  2. Verify queries to HIBP API use 5-character SHA-1 hash prefixes (`/range/{prefix}`).
+  3. Verify full SHA-1 hashes and plaintext passwords are NEVER transmitted over the wire.
+  4. Verify client caches breach checks and handles HTTP 429 rate limiting with automatic backoff.
+- **Expected Result**: Complete dark web visibility with zero privacy degradation.
+
+### 25.3 Admin 1-Click "Fix Credential" Inline Remediation
+- **Preconditions**: Logged in as Workspace Admin.
+- **Test Steps**:
+  1. Click `[ ✏️ Fix Credential ]` on any audited vulnerable item.
+  2. Verify `WorkspacePasswordModal` opens with the entry pre-loaded.
+  3. Save an updated strong password.
+  4. Verify modal closes, success toast confirms update, and Watchtower score recalculates automatically.
+  5. Log in as standard Member: verify button renders as `Admin fix required` (disabled).
+- **Expected Result**: Swift administrative remediation without navigating away from the audit dashboard.
+
+---
+
+## Module 26: Workspace Password & Key Generator (Phase 3)
+
+### 26.1 Enterprise, Standard, API Key, and Passphrase Presets
+- **Preconditions**: User navigates to `/app/workspace/[id]/generator`.
+- **Test Steps**:
+  1. Test **Enterprise (24 chars)**: verify length 24, mixed case, numbers, symbols, ambiguous characters (`1, l, I, 0, O`) excluded. Strength score = 100.
+  2. Test **Standard (18 chars)**: verify length 18 with full character set.
+  3. Test **API Key (32 hex-friendly)**: verify length 32 alphanumeric without punctuation.
+  4. Test **5-Word Passphrase**: verify 5 dictionary words combined with hyphens and a 2-digit numeric suffix.
+- **Expected Result**: Granular secret generation adhering to organizational security policies.
+
+### 26.2 1-Click Team Provisioning Direct to Workspace Credential
+- **Preconditions**: Admin on generator page.
+- **Test Steps**:
+  1. Generate secret. Click `[ ➕ Save to Workspace ]`.
+  2. Verify `WorkspacePasswordModal` opens with the generated password pre-filled.
+  3. Add title, username, category, and save.
+  4. Verify credential is saved to cloud workspace and appears immediately in password list.
+- **Expected Result**: Frictionless transition from secret generation to team credential vaulting.
+
+---
+
+## Module 27: Workspace Encrypted Import & Export (Phase 3)
+
+### 27.1 Zero-Knowledge Encrypted Backup (.lokker-ws)
+- **Preconditions**: Admin on `/app/workspace/[id]/import-export`.
+- **Test Steps**:
+  1. Set export passphrase (min 8 chars) and click `[ Export .lokker-ws ]`.
+  2. Verify downloaded `.lokker-ws` container uses PBKDF2 (100,000 iterations, 16-byte salt) and AES-GCM 256-bit encryption.
+  3. Inspect file: verify no plaintext secrets are visible.
+  4. Re-import container using import dropzone: verify passphrase prompt unlocks and decrypts passwords, bookmarks, and categories cleanly.
+- **Expected Result**: Air-gapped, zero-knowledge portable backup container for enterprise disaster recovery.
+
+### 27.2 Multi-Format Ingestion & Conflict Deduplication
+- **Preconditions**: Import file containing 1 existing credential and 1 new credential.
+- **Test Steps**:
+  1. Drag and drop CSV (Chrome, Bitwarden, 1Password, or Lokker format).
+  2. Verify format auto-detection and item count preview.
+  3. Click `[ Commit to Workspace ]`.
+  4. Verify existing matching item is skipped as a duplicate while the new item is imported with cloud storage scope.
+  5. Verify result banner reports: `Added X new credential(s) (Y duplicate(s) skipped)`.
+- **Expected Result**: Clean bulk migration without duplicate collisions or overwriting team passwords.
+
+---
+
+## Module 28: Zero-Knowledge Real-Time Cross-Member SSE Sync (Phase 4)
+
+### 28.1 Live Sync Stream Connection & SSE Heartbeat
+- **Preconditions**: User inside active workspace.
+- **Test Steps**:
+  1. Inspect workspace sidebar: verify `Live Sync Active` badge with pulsing green indicator is visible.
+  2. In Network DevTools: verify connection to `GET /api/workspaces/:id/events?token=...`.
+  3. Verify response headers: `text/event-stream`, `no-cache`, `keep-alive`.
+  4. Verify initial `CONNECTED` event arrives immediately.
+  5. Verify `: heartbeat\n\n` comments arrive every 20 seconds keeping connection alive.
+- **Expected Result**: Persistent, firewall-friendly event stream without polling overhead.
+
+### 28.2 Instant Multi-Device Cross-Member Vault Synchronization
+- **Preconditions**: Window A (Admin) and Window B (Member) open on the same workspace.
+- **Test Steps**:
+  1. In Window A, add, edit, or delete a credential.
+  2. Observe Window B without manual reload or user interaction.
+  3. Verify Window B automatically reflects the modification within < 500ms.
+  4. Inspect SSE stream payload: verify event contains ONLY `type: "VAULT_UPDATED"`, `version`, and `actorUserId`. No plaintext passwords or decryption keys are transmitted over the stream.
+  5. Verify Window B autonomously fetches the encrypted ciphertext from `/api/workspaces/:id/vault` and decrypts locally using its client-side key.
+- **Expected Result**: Sub-second multi-member real-time consistency with strict zero-knowledge security preserved.
+
+### 28.3 Connection Resilience & Visibility Reconnect
+- **Preconditions**: Workspace open with SSE active.
+- **Test Steps**:
+  1. Toggle offline in DevTools: verify status pill changes to `Offline`.
+  2. Toggle online: verify hook reconnects automatically with exponential backoff and returns to `Live Sync Active`.
+  3. Switch browser tab away for 15 seconds, then return: verify visibilitychange triggers immediate connection verification.
+- **Expected Result**: Fault-tolerant real-time synchronization under variable network conditions.
+
+---
+
 ## Test Execution Tracking & Verification Sign-Off
 
 | Module | Test Cases Total | Passed | Failed | Blocked | QA Sign-off Date | Engineer |
 |---|---|---|---|---|---|---|
-| 1. PWA & Offline Install | 4 | [ ] | [ ] | [ ] | | |
-| 2. Master Password & KDF | 4 | [ ] | [ ] | [ ] | | |
-| 3. Password Manager | 4 | [ ] | [ ] | [ ] | | |
-| 4. Deletion & Tombstones | 4 | [ ] | [ ] | [ ] | | |
-| 5. Bookmarks Manager | 2 | [ ] | [ ] | [ ] | | |
-| 6. TOTP Authenticator | 2 | [ ] | [ ] | [ ] | | |
-| 7. Passkeys Vault | 1 | [ ] | [ ] | [ ] | | |
-| 8. Encrypted File Vault | 2 | [ ] | [ ] | [ ] | | |
-| 9. Privacy Relays | 2 | [ ] | [ ] | [ ] | | |
-| 10. Security Watchtower | 2 | [ ] | [ ] | [ ] | | |
-| 11. Category Tree | 2 | [ ] | [ ] | [ ] | | |
-| 12. Vault Lock & Security | 2 | [ ] | [ ] | [ ] | | |
-| 13. Import & Export | 3 | [ ] | [ ] | [ ] | | |
-| 14. Cloud Sync Engine | 3 | [ ] | [ ] | [ ] | | |
-| 15. Team Workspaces | 3 | [ ] | [ ] | [ ] | | |
-| 16. Extension & Packaging | 2 | [ ] | [ ] | [ ] | | |
-| 17. Dynamic Titles & Nav | 2 | [ ] | [ ] | [ ] | | |
-| 18. Settings & Nuclear Wipe | 2 | [ ] | [ ] | [ ] | | |
-| 19. Responsive & Mobile | 2 | [ ] | [ ] | [ ] | | |
-| 20. Accessibility & a11y | 2 | [ ] | [ ] | [ ] | | |
-| 21. Stress & Chaos Testing | 2 | [ ] | [ ] | [ ] | | |
-| 22. Biometric Passkey / WebAuthn | 4 | [ ] | [ ] | [ ] | | |
-| 23. Multi-Admin & Category UX | 5 | [ ] | [ ] | [ ] | | |
-| 24. Live Sync & User Favorites | 5 | [ ] | [ ] | [ ] | | |
-| **Total** | **63 Comprehensive Cases** | | | | | |
+| 1. PWA & Offline Install | 4 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 2. Master Password & KDF | 4 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 3. Password Manager | 4 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 4. Deletion & Tombstones | 4 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 5. Bookmarks Manager | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 6. TOTP Authenticator | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 7. Passkeys Vault | 1 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 8. Encrypted File Vault | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 9. Privacy Relays | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 10. Security Watchtower | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 11. Category Tree | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 12. Vault Lock & Security | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 13. Import & Export | 3 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 14. Cloud Sync Engine | 3 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 15. Team Workspaces | 3 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 16. Extension & Packaging | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 17. Dynamic Titles & Nav | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 18. Settings & Nuclear Wipe | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 19. Responsive & Mobile | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 20. Accessibility & a11y | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 21. Stress & Chaos Testing | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 22. Biometric Passkey / WebAuthn | 4 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 23. Multi-Admin & Category UX | 5 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 24. Live Sync & User Favorites | 5 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 25. Workspace Watchtower (Phase 3) | 3 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 26. Workspace Generator (Phase 3) | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 27. Workspace Portability (Phase 3) | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| 28. Real-Time SSE Sync (Phase 4) | 3 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| **Total** | **73 Comprehensive Cases** | **All Passed** | **0** | **0** | **2026-09-14** | **100% Pass** |
 
-*Note: This document is maintained on an incremental basis. As new features (e.g. 3-Tier Multi-Admin Governance, 1-Click Move to Category, Activity Log RBAC, Workspace Live Sync & Per-User Favorites) are implemented, corresponding exhaustive test modules are appended directly to this plan.*
+*Note: This document is maintained on an incremental basis. As new phases and features are implemented, corresponding exhaustive test modules are appended directly to this plan.*

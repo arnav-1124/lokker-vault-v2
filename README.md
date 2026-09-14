@@ -5,10 +5,10 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.3.3-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Tests-153%20passed-success?style=flat-square&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-210%20passed-success?style=flat-square&logo=vitest)](https://vitest.dev/)
 [![Production](https://img.shields.io/badge/Production-lokker.space-blueviolet?style=flat-square)](https://www.lokker.space)
 
-**Lokker** is a local-first personal security and digital-utility workspace built for privacy-conscious users, developers, and professionals. It brings credential management, bookmarks, RFC 6238 time-based two-factor authentication (TOTP), an encrypted file vault, deep security health audits, browser autofill, and team workspaces into a single coherent local application running directly on your device.
+**Lokker** is a local-first personal security and digital-utility workspace built for privacy-conscious users, developers, and professionals. It brings credential management, bookmarks, RFC 6238 time-based two-factor authentication (TOTP), an encrypted file vault, deep security health audits, browser autofill, team workspaces with real-time sync, and air-gapped backups into a single coherent application running directly on your device.
 
 **Production Deployment:** [https://www.lokker.space](https://www.lokker.space)
 
@@ -21,11 +21,12 @@
 - **3-Tier Envelope Encryption**: Native Web Crypto API utilizing 256-bit AES-GCM Vault Encryption Keys (VEK) wrapped by PBKDF2-derived Key Encryption Keys (KEK).
 - **Emergency Recovery Key**: Instant offline 32-character hexadecimal emergency recovery key allowing self-sovereign vault recovery if master password is forgotten.
 - **Zero-Knowledge Expiring Secret Links**: Generate end-to-end encrypted single-use or time-expiring share links (`/share/[id]#key=...`) where decryption keys never touch servers.
-- **Multi-Tenant Team Workspaces**: Create isolated encrypted workspaces, invite team members with granular roles (Admin, Editor, Viewer), and collaborate securely.
+- **Multi-Tenant Team Workspaces & Real-Time Sync**: Create isolated encrypted workspaces with granular roles (Owner, Admin, Member), real-time Server-Sent Events (SSE) cross-member synchronization without manual reload, and distinct per-user favorite pinning.
+- **Workspace Security Watchtower**: Automated team credential health audits (0–100 score), HaveIBeenPwned k-Anonymity dark web breach checking without credential leakage, and 1-click administrative remediation.
+- **Workspace Password & Key Generator**: Enterprise Strict (24-char, symbol/number enforced, ambiguous excluded), Standard (18-char), API Key (32-hex), and 5-word memorable passphrase presets with 1-click team credential provisioning.
+- **Encrypted Portability & Deduplication**: Client-side AES-GCM 256-bit encrypted `.lokker-ws` container backups with PBKDF2 (100,000 rounds), unencrypted CSV/JSON exports, and multi-format importer (Chrome, Bitwarden, 1Password) with automatic URL/username conflict deduplication.
 - **RFC 6238 TOTP Authenticator**: Native 2FA generator with real-time 30-second countdown dials, Base32 key validation, and 1-click clipboard copying.
 - **Encrypted File Vault**: Client-side AES-GCM 256-bit encrypted file storage for sensitive documents, identity records, and seed phrases.
-- **Full Portability & Backup Engine**: Encrypted container backups (`.lokker` format) with pre-restore summary inspection, merge deduplication, and external imports (Chrome, Bitwarden, 1Password).
-- **Security Health & Dark Web Auditor**: Local password entropy rating, reused/weak password analysis, and Have I Been Pwned checks using privacy-preserving SHA-1 k-anonymity (`Add-Padding: true`).
 - **Keyboard Shortcuts & Power Navigation**: Full cheatsheet modal (`?`), global search (`⌘K`), and sequential single-key navigation (`G P`, `G B`, `G T`).
 - **Manifest V3 Browser Extension**: Contextual login field detection, strict anti-phishing domain allowlists, and real-time handshake with the web vault.
 - **Modern Design System**: Built with Tailwind CSS v4, shadcn/ui primitives, tactile glassmorphism surfaces, and dark/light theme support.

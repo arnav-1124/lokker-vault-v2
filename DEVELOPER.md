@@ -45,13 +45,14 @@ src/
 ├── components/
 │   ├── modals/           # App modals (import-backup-modal, add-password, shortcuts-modal, share-secret-modal, etc.)
 │   ├── views/            # Workspace views (passwords, bookmarks, totp, security-audit, files, settings, import-export, masked-emails, passkeys)
+│   ├── workspace/        # Team workspace UI components (sidebar, security-audit-view, generator-view, import-export-view, switcher, modals)
 │   ├── ui/               # shadcn primitives in TypeScript
 │   └── theme-provider.tsx
-├── context/              # Decomposed vault context providers (UI, Nav, Security, Data, Backup)
-├── hooks/                # Custom hooks (usePWA for offline and install prompt management)
+├── context/              # Decomposed vault context providers & WorkspaceProvider
+├── hooks/                # Custom hooks (useWorkspaceEvents for real-time SSE sync, usePWA for offline/install, useBreachCheck)
 ├── lib/                  # Native Web Crypto, IndexedDB, Secret Sharing, Backup engine, Importers, TOTP, Watchtower
 ├── types.ts              # Canonical domain models (Passwords, Bookmarks, Backup, Files, Settings, Workspaces)
-└── test/                 # Test suites (22 files, 165 tests: crypto, totp, backup, pwa, extension packaging, secret-sharing, workspaces, etc.)
+└── test/                 # Test suites (27 files, 210 tests: crypto, totp, backup, pwa, extension packaging, secret-sharing, workspaces, workspace-phase3, workspace-realtime, etc.)
 public/
 ├── extension/            # Manifest V3 browser extension (background, content, popup, vault)
 ├── icons/                # PWA icons (192x192, 512x512, maskable)

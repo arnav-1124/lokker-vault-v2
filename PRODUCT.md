@@ -168,10 +168,14 @@ End-to-end encrypted single-use or time-expiring secret sharing (`/share/[id]#ke
 
 ### L. Multi-Tenant Team Workspaces (IMPLEMENTED)
 
-Encrypted collaborative workspaces for teams and organizations:
-- Cryptographic tenant isolation and role-based access control (Admin, Editor, Viewer).
+Encrypted collaborative workspaces for teams, startups, and enterprise organizations:
+- Cryptographic tenant isolation and role-based access control (Owner, Admin, Member).
 - Shared team credentials and bookmarks with audit logging and member invitations.
 - Dedicated authentication redirects ensuring logged-out access safely routes to signup/login.
+- **Workspace Security Watchtower (`/security-audit`)**: Dynamic composite health score (0–100), dark web k-Anonymity breach detection without credential leakage, weak & reused password auditing, missing 2FA token tracking, and 1-click administrative remediation.
+- **Workspace Password Generator (`/generator`)**: Enterprise Strict (24-char, symbol/number enforced, ambiguous excluded), Standard (18-char), API Key (32-hex), and 5-word memorable passphrase presets with 1-click team credential provisioning.
+- **Workspace Portability & Backup (`/import-export`)**: Client-side AES-GCM 256-bit encrypted `.lokker-ws` container backup with PBKDF2 (100,000 iterations), unencrypted CSV/JSON exports, and multi-format importer (Chrome, Bitwarden, 1Password) with URL/username deduplication.
+- **Zero-Knowledge Real-Time Cross-Member Sync (SSE)**: Fastify event streaming (`/api/workspaces/:id/events`) and client-side reactive hook broadcasting vault updates, member joins, and role adjustments in sub-second latency with pulsing green live sync status indicator. Real-time events contain only metadata descriptors, never transmitting plaintext secrets.
 
 ### M. Keyboard Shortcuts & Power Navigation (IMPLEMENTED)
 
