@@ -22,6 +22,7 @@ interface WorkspaceContextType {
   planQuota: WorkspacePlanQuota;
   userRole: WorkspaceRole | null;
   isAdmin: boolean;
+  isOwner: boolean;
   members: WorkspaceMember[];
   workspacePasswords: PasswordEntry[];
   workspaceBookmarks: Bookmark[];
@@ -37,6 +38,8 @@ interface WorkspaceContextType {
   createInvite: (workspaceId: string) => Promise<{ inviteToken: string; expiresAt: string }>;
   acceptInvite: (inviteToken: string) => Promise<{ workspaceId: string; workspaceName: string }>;
   leaveWorkspace: (workspaceId: string) => Promise<void>;
+  updateMemberRole: (targetUserId: string, role: "ADMIN" | "MEMBER") => Promise<void>;
+  removeMember: (targetUserId: string) => Promise<void>;
   fetchWorkspaceActivity: (workspaceId?: string, limit?: number, offset?: number) => Promise<WorkspaceActivityLog[]>;
   saveWorkspacePassword: (entry: PasswordEntry) => Promise<void>;
   deleteWorkspacePassword: (id: string) => Promise<void>;
@@ -166,8 +169,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return workspaces.find((w) => w.id === activeWorkspaceId) || null;
   }, [workspaces, activeWorkspaceId]);
 
-  const userRole = activeWorkspace?.role || null;
-  const isAdmin = userRole === "ADMIN";
+  const cloudSession = getCloudSession();
+  const currentUserId = cloudSession?.id;
+  const isOwner = !!(activeWorkspace && currentUserId && activeWorkspace.adminUserId === currentUserId);
+  const userRole = activeWorkspace?.role || (isOwner ? "ADMIN" : null);
+  const isAdmin = userRole === "ADMIN" || isOwner;
 
   // Load active workspace details (members, data) when activeWorkspaceId changes
   React.useEffect(() => {
@@ -482,6 +488,66 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [workspaces, selectWorkspace, router]
   );
 
+  // Update member role (promote/demote)
+  const updateMemberRole = React.useCallback(
+    async (targetUserId: string, newRole: "ADMIN" | "MEMBER") => {
+      if (!activeWorkspaceId) throw new Error("No active workspace");
+      const session = getCloudSession();
+      if (!session?.accessToken) throw new Error("Authentication required");
+
+      const res = await fetch(
+        `${appConfig.apiUrl}/api/workspaces/${activeWorkspaceId}/members/${targetUserId}/role`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify({ role: newRole }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update member role");
+      }
+
+      // Update in-memory members list
+      setMembers((prev) =>
+        prev.map((m) => (m.userId === targetUserId ? { ...m, role: newRole } : m))
+      );
+    },
+    [activeWorkspaceId]
+  );
+
+  // Remove member from workspace by admin
+  const removeMember = React.useCallback(
+    async (targetUserId: string) => {
+      if (!activeWorkspaceId) throw new Error("No active workspace");
+      const session = getCloudSession();
+      if (!session?.accessToken) throw new Error("Authentication required");
+
+      const res = await fetch(
+        `${appConfig.apiUrl}/api/workspaces/${activeWorkspaceId}/members/${targetUserId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to remove member");
+      }
+
+      // Remove from in-memory members list
+      setMembers((prev) => prev.filter((m) => m.userId !== targetUserId));
+    },
+    [activeWorkspaceId]
+  );
+
   // Fetch workspace activity logs
   const fetchWorkspaceActivity = React.useCallback(
     async (workspaceId?: string, limit = 50, offset = 0): Promise<WorkspaceActivityLog[]> => {
@@ -745,6 +811,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     planQuota,
     userRole,
     isAdmin,
+    isOwner,
     members,
     workspacePasswords,
     workspaceBookmarks,
@@ -762,6 +829,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     createInvite,
     acceptInvite,
     leaveWorkspace,
+    updateMemberRole,
+    removeMember,
     fetchWorkspaceActivity,
     saveWorkspacePassword,
     deleteWorkspacePassword,

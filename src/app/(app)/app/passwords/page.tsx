@@ -30,6 +30,9 @@ export default function PasswordsPage() {
         vault.setEditingBookmark(bm);
         vault.setIsBookmarkModalOpen(true);
       }}
+      onMoveCategory={(entry, newCat) => {
+        vault.handleSavePassword({ ...entry, category: newCat });
+      }}
     />
   );
 }

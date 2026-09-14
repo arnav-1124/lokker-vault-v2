@@ -103,23 +103,31 @@ export function WorkspaceSidebar({
     },
   ];
 
-  const managementItems = [
-    {
-      label: "Members & Invites",
-      href: `${basePath}/members`,
-      icon: Users,
-    },
-    {
-      label: "Activity Log",
-      href: `${basePath}/activity`,
-      icon: History,
-    },
-    {
+  const managementItems = React.useMemo(() => {
+    const items = [
+      {
+        label: "Members & Invites",
+        href: `${basePath}/members`,
+        icon: Users,
+      },
+    ];
+
+    if (isAdmin) {
+      items.push({
+        label: "Activity Log",
+        href: `${basePath}/activity`,
+        icon: History,
+      });
+    }
+
+    items.push({
       label: "Workspace Settings",
       href: `${basePath}/settings`,
       icon: SettingsIcon,
-    },
-  ];
+    });
+
+    return items;
+  }, [basePath, isAdmin]);
 
   const categoryTree = React.useMemo(() => {
     return buildCategoryTree(workspaceCategories);

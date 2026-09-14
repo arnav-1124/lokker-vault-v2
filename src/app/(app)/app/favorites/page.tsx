@@ -43,6 +43,9 @@ export default function FavoritesPage() {
               vault.setEditingPassword(p);
               vault.setIsPasswordModalOpen(true);
             }}
+            onMoveCategory={(bm, newCat) => {
+              vault.handleSaveBookmark({ ...bm, category: newCat });
+            }}
           />
         </div>
 
@@ -69,6 +72,9 @@ export default function FavoritesPage() {
                 vault.setIsPasswordModalOpen(true);
               }}
               categories={vault.categories}
+              onMoveCategory={(entry, newCat) => {
+                vault.handleSavePassword({ ...entry, category: newCat });
+              }}
             />
           </div>
         )}

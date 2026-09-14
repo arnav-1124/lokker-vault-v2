@@ -21,6 +21,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,8 @@ import { WorkspaceActivityLog } from "@/types";
 type ActivityCategory = "ALL" | "VAULT" | "MEMBERS" | "WORKSPACE";
 
 export default function WorkspaceActivityPage() {
-  const { activeWorkspace, fetchWorkspaceActivity, isLoading: isWorkspaceLoading } = useWorkspace();
+  const router = useRouter();
+  const { activeWorkspace, fetchWorkspaceActivity, isAdmin, isLoading: isWorkspaceLoading } = useWorkspace();
 
   const [activities, setActivities] = React.useState<WorkspaceActivityLog[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -181,6 +183,28 @@ export default function WorkspaceActivityPage() {
       return isoString;
     }
   };
+
+  if (!isWorkspaceLoading && !isAdmin) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
+        <div className="size-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+          <AlertCircle className="size-6" />
+        </div>
+        <h2 className="text-lg font-bold text-foreground">Access Restricted</h2>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Workspace activity logs and security audit trails are strictly restricted to Workspace Administrators.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => router.push(`/app/workspace/${activeWorkspace?.id || ""}`)}
+          className="text-xs cursor-pointer border-border-subtle"
+        >
+          Return to Workspace Overview
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">

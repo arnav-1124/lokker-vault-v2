@@ -982,6 +982,71 @@
 
 ---
 
+### Module 23: 3-Tier Multi-Admin Governance, Fast Category Movement & Activity RBAC
+
+#### 23.1 Multi-Admin Role Promotion and Demotion
+- **Preconditions**: User is logged in as Workspace Owner or Co-Admin with at least one Member in the workspace.
+- **Destructive/Adversarial Test Steps**:
+  1. Navigate to `/app/workspace/[id]/members`.
+  2. Locate a standard team member row. Verify role badge displays `Member`.
+  3. Click the `...` actions button next to the member.
+  4. Select `[ 🛡️ Promote to Admin ]`.
+  5. Verify confirmation modal prompts: `"Promote [Name] to Workspace Admin?"`.
+  6. Confirm promotion.
+  7. Verify role badge immediately reflects `Admin` (emerald/primary).
+  8. Log in as the newly promoted Co-Admin. Verify they now have full administrative powers (invite generation, category management, member role changes).
+  9. As the Co-Admin, demote another Co-Admin back to `Member`.
+  10. Confirm demotion dialog. Verify role badge returns to `Member`.
+- **Expected Result**: Co-Admins have complete administrative permissions and can safely promote and demote team members with explicit safety confirmation dialogs.
+
+#### 23.2 Owner Permanent Immutability & Protection Invariant
+- **Preconditions**: User is logged in as a Co-Admin (not the Owner).
+- **Destructive/Adversarial Test Steps**:
+  1. Navigate to `/app/workspace/[id]/members`.
+  2. Locate the Workspace Creator (Owner) row.
+  3. Verify Owner row has a distinct Gold/Amber `Owner` crown badge.
+  4. Verify the `...` action menu is absent or disabled for the Owner row; Co-Admins cannot demote or remove the Owner.
+  5. Send a forged `PATCH /api/workspaces/:id/members/:ownerId/role` payload `{ role: "MEMBER" }`.
+  6. Verify server strictly rejects request with `400 Bad Request` (`"The workspace creator/owner is permanently an Admin and cannot be demoted"`).
+  7. Send a forged `DELETE /api/workspaces/:id/members/:ownerId`.
+  8. Verify server strictly rejects request with `400 Bad Request` (`"The workspace creator/owner cannot be removed from the workspace"`).
+- **Expected Result**: Workspace Owner role is cryptographically and operationally immutable.
+
+#### 23.3 1-Click "Move to Category" without Full Edit Modal
+- **Preconditions**: Vault contains passwords and bookmarks across various categories.
+- **Destructive/Adversarial Test Steps**:
+  1. Navigate to `/app/passwords` (Personal Vault) or `/app/workspace/[id]/passwords` (Workspace).
+  2. Click the `...` menu on any credential card.
+  3. Hover or click `Move to Category`.
+  4. Verify nested submenu renders list of all categories with colored dots plus `None (Uncategorized)`.
+  5. Click a new category (e.g. `Production`).
+  6. Verify item immediately updates its category badge and filters accordingly without opening the full edit modal.
+  7. Repeat test for Bookmarks in both Personal and Workspace views.
+  8. Select `None (Uncategorized)` -> verify item defaults cleanly without crashing or corrupting category tree.
+- **Expected Result**: Category reorganization is fast and frictionless in one click.
+
+#### 23.4 Activity Log RBAC Restriction & Data Leak Prevention
+- **Preconditions**: User is logged in as a standard Team Member (not an Admin).
+- **Destructive/Adversarial Test Steps**:
+  1. In the workspace, inspect the sidebar navigation.
+  2. Verify `Activity Log` is completely hidden from the sidebar for non-admins.
+  3. Manually navigate to `/app/workspace/[id]/activity` in the browser address bar.
+  4. Verify page displays the `Access Restricted` state with an alert icon and return button, blocking audit data.
+  5. Attempt a direct API fetch: `curl -H "Authorization: Bearer <memberToken>" /api/workspaces/:id/activity`.
+  6. Verify backend strictly responds with `403 Forbidden` (`"Forbidden: Only workspace admins can perform this action"`).
+- **Expected Result**: Standard members cannot access organizational audit trails, preventing intelligence leaks.
+
+#### 23.5 "Keep Vault Offline" Visual Affirmation
+- **Preconditions**: Local vault is unlocked.
+- **Destructive/Adversarial Test Steps**:
+  1. Open the Cloud Sync Modal via header or settings.
+  2. Inspect the footer action.
+  3. Verify the dismiss button is an affirmative Emerald privacy badge: `[ 🛡️ Keep Vault Offline (100% Local) ]`.
+  4. Click the button; verify modal closes smoothly and local-first offline state is preserved.
+- **Expected Result**: Offline usage is framed as an affirmative privacy choice rather than an error or warning.
+
+---
+
 ## Test Execution Tracking & Verification Sign-Off
 
 | Module | Test Cases Total | Passed | Failed | Blocked | QA Sign-off Date | Engineer |
@@ -1008,6 +1073,7 @@
 | 20. Accessibility & a11y | 2 | [ ] | [ ] | [ ] | | |
 | 21. Stress & Chaos Testing | 2 | [ ] | [ ] | [ ] | | |
 | 22. Biometric Passkey / WebAuthn | 4 | [ ] | [ ] | [ ] | | |
-| **Total** | **53 Comprehensive Cases** | | | | | |
+| 23. Multi-Admin & Category UX | 5 | [ ] | [ ] | [ ] | | |
+| **Total** | **58 Comprehensive Cases** | | | | | |
 
-*Note: This document is maintained on an incremental basis. As new features (e.g. Feature 3 Biometric Passkey / WebAuthn Cloud Sign-In) are implemented, corresponding exhaustive test modules are appended directly to this plan.*
+*Note: This document is maintained on an incremental basis. As new features (e.g. 3-Tier Multi-Admin Governance, 1-Click Move to Category, Activity Log RBAC) are implemented, corresponding exhaustive test modules are appended directly to this plan.*

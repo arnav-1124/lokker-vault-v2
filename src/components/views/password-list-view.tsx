@@ -22,6 +22,7 @@ import {
   Cloud,
   HardDrive,
   ShieldAlert,
+  FolderInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, Category, PasswordEntry } from "@/types";
 import { calculatePasswordStrength, checkPasswordBreached } from "@/lib/crypto";
@@ -55,6 +59,7 @@ interface PasswordListViewProps {
   categories: Category[];
   bookmarks?: Bookmark[];
   onNavigateBookmark?: (bm: Bookmark) => void;
+  onMoveCategory?: (entry: PasswordEntry, newCategory: string) => void;
 }
 
 export function PasswordListView({
@@ -71,6 +76,7 @@ export function PasswordListView({
   categories,
   bookmarks = [],
   onNavigateBookmark,
+  onMoveCategory,
 }: PasswordListViewProps) {
   const [revealedIds, setRevealedIds] = React.useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
@@ -462,6 +468,35 @@ export function PasswordListView({
                           }
                           return null;
                         })()}
+                        {onMoveCategory && (
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="cursor-pointer">
+                              <FolderInput className="size-3 mr-1.5 text-muted-foreground" />
+                              <span>Move to Category</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-48 max-h-56 overflow-y-auto">
+                              <DropdownMenuItem
+                                onClick={() => onMoveCategory(item, "")}
+                                className="cursor-pointer"
+                              >
+                                <span className="text-muted-foreground italic text-[11px]">None (Uncategorized)</span>
+                              </DropdownMenuItem>
+                              {categories.map((cat) => (
+                                <DropdownMenuItem
+                                  key={cat.id}
+                                  onClick={() => onMoveCategory(item, cat.name)}
+                                  className="cursor-pointer flex items-center gap-2"
+                                >
+                                  <span
+                                    className="size-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: cat.color }}
+                                  />
+                                  <span className="truncate">{cat.name}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => onDelete(item.id)}

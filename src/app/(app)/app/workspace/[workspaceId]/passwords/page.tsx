@@ -24,6 +24,7 @@ import {
   X,
   ShieldAlert,
   Link2,
+  FolderInput,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, PasswordEntry } from "@/types";
 import { useWorkspace } from "@/context/workspace-context";
@@ -635,6 +639,36 @@ export default function WorkspacePasswordsPage() {
                             <BookmarkIcon className="size-3 mr-1.5 text-primary" />
                             <span>Linked Bookmark</span>
                           </DropdownMenuItem>
+                        )}
+
+                        {isAdmin && (
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="cursor-pointer">
+                              <FolderInput className="size-3 mr-1.5 text-muted-foreground" />
+                              <span>Move to Category</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-48 max-h-56 overflow-y-auto">
+                              <DropdownMenuItem
+                                onClick={() => saveWorkspacePassword({ ...item, category: "" })}
+                                className="cursor-pointer"
+                              >
+                                <span className="text-muted-foreground italic text-[11px]">None (Uncategorized)</span>
+                              </DropdownMenuItem>
+                              {workspaceCategories.map((cat) => (
+                                <DropdownMenuItem
+                                  key={cat.id}
+                                  onClick={() => saveWorkspacePassword({ ...item, category: cat.name })}
+                                  className="cursor-pointer flex items-center gap-2"
+                                >
+                                  <span
+                                    className="size-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: cat.color }}
+                                  />
+                                  <span className="truncate">{cat.name}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
                         )}
 
                         {isAdmin && (

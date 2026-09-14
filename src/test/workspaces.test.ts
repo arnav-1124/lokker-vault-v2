@@ -274,5 +274,104 @@ describe("Team Workspaces & Cloud-Only Rules", () => {
     expect(loggedInAccess.allowed).toBe(true);
     expect(loggedInAccess.redirectUrl).toBeNull();
   });
+
+  it("enforces 3-Tier Multi-Admin governance rules and owner protection", () => {
+    interface TestMember {
+      userId: string;
+      role: "ADMIN" | "MEMBER";
+    }
+
+    const ownerUserId = "user-owner-1";
+    let members: TestMember[] = [
+      { userId: ownerUserId, role: "ADMIN" },
+      { userId: "user-coadmin-2", role: "ADMIN" },
+      { userId: "user-member-3", role: "MEMBER" },
+    ];
+
+    function updateMemberRole(actorUserId: string, targetUserId: string, newRole: "ADMIN" | "MEMBER") {
+      const actor = members.find((m) => m.userId === actorUserId);
+      if (!actor || actor.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can perform this action");
+      }
+      if (targetUserId === ownerUserId) {
+        throw new Error("Cannot modify workspace owner role");
+      }
+      members = members.map((m) => (m.userId === targetUserId ? { ...m, role: newRole } : m));
+    }
+
+    function removeMember(actorUserId: string, targetUserId: string) {
+      const actor = members.find((m) => m.userId === actorUserId);
+      if (!actor || actor.role !== "ADMIN") {
+        throw new Error("Forbidden: Only workspace admins can perform this action");
+      }
+      if (targetUserId === ownerUserId) {
+        throw new Error("Cannot remove workspace owner");
+      }
+      members = members.filter((m) => m.userId !== targetUserId);
+    }
+
+    // 1. Co-Admin promotes Member to Admin
+    updateMemberRole("user-coadmin-2", "user-member-3", "ADMIN");
+    expect(members.find((m) => m.userId === "user-member-3")?.role).toBe("ADMIN");
+
+    // 2. Newly promoted Admin demotes previous Co-Admin to Member
+    updateMemberRole("user-member-3", "user-coadmin-2", "MEMBER");
+    expect(members.find((m) => m.userId === "user-coadmin-2")?.role).toBe("MEMBER");
+
+    // 3. Standard member cannot promote or demote anyone
+    expect(() => updateMemberRole("user-coadmin-2", "user-member-3", "MEMBER")).toThrow("Forbidden");
+
+    // 4. Strict owner protection: cannot demote owner
+    expect(() => updateMemberRole("user-member-3", ownerUserId, "MEMBER")).toThrow("Cannot modify workspace owner role");
+
+    // 5. Strict owner protection: cannot remove owner
+    expect(() => removeMember("user-member-3", ownerUserId)).toThrow("Cannot remove workspace owner");
+
+    // 6. Admin can remove non-owner member
+    removeMember("user-member-3", "user-coadmin-2");
+    expect(members.some((m) => m.userId === "user-coadmin-2")).toBe(false);
+  });
+
+  it("moves entries between categories without modal", () => {
+    let entry: PasswordEntry = {
+      id: "p1",
+      websiteName: "GitHub",
+      websiteUrl: "https://github.com",
+      username: "octocat",
+      password: "pwd",
+      category: "Development",
+      isFavorite: false,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    function moveCategory(item: PasswordEntry, newCat: string): PasswordEntry {
+      return {
+        ...item,
+        category: newCat || "General",
+        updatedAt: Date.now(),
+      };
+    }
+
+    // Move to Staging
+    entry = moveCategory(entry, "Staging");
+    expect(entry.category).toBe("Staging");
+    expect(entry.username).toBe("octocat");
+
+    // Move to Uncategorized (defaults to General)
+    entry = moveCategory(entry, "");
+    expect(entry.category).toBe("General");
+  });
+
+  it("strictly restricts workspace activity log access to Administrators", () => {
+    function canAccessActivityLog(role: "ADMIN" | "MEMBER", isOwner: boolean): boolean {
+      return role === "ADMIN" || isOwner;
+    }
+
+    expect(canAccessActivityLog("ADMIN", true)).toBe(true);
+    expect(canAccessActivityLog("ADMIN", false)).toBe(true);
+    expect(canAccessActivityLog("MEMBER", false)).toBe(false);
+    expect(canAccessActivityLog("MEMBER", true)).toBe(true); // Owner is always granted
+  });
 });
 

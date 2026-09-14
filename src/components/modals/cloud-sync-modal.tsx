@@ -714,12 +714,13 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
             Prefer offline? Close this modal anytime.
           </span>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onClose}
-            className="h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            className="h-8 text-xs font-medium border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/60 cursor-pointer gap-1.5 transition-all"
           >
-            Keep Vault Offline
+            <ShieldCheck className="size-3.5 text-emerald-400" />
+            <span>Keep Vault Offline (100% Local)</span>
           </Button>
         </DialogFooter>
       </DialogContent>
