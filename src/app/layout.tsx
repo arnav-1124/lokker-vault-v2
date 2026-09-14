@@ -16,6 +16,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { DynamicPageTitle } from "@/components/dynamic-page-title";
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#090d16" },
@@ -26,8 +28,8 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(appConfig.url),
   title: {
-    default: "Lokker — Local-First Zero-Knowledge Password Vault",
-    template: `%s · Lokker`,
+    default: "Lokker - Local-First Zero-Knowledge Password Vault",
+    template: `Lokker - %s`,
   },
   description: appConfig.description,
   applicationName: "Lokker",
@@ -115,6 +117,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             enableSystem
             disableTransitionOnChange
           >
+            <DynamicPageTitle />
             {children}
           </ThemeProvider>
         </PostHogProvider>
