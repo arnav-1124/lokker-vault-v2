@@ -967,6 +967,19 @@
   5. Verify PRF extension outputs 32-byte key $\rightarrow$ unwrap VEK $\rightarrow$ vault unlocks in under 500ms without typing Master Password.
 - **Expected Result**: Instant cryptographic biometric unlock with zero password exposure.
 
+### Test Case BIO-004: Passkey De-Registration & Local Device Revocation
+- **Priority**: P1 (High)
+- **Preconditions**: Passkey registered on device in BIO-001.
+- **Test Steps**:
+  1. Navigate to `/app/settings` or open Cloud Sync Modal.
+  2. In "Biometric Passkeys on this Device", locate the registered passkey entry.
+  3. Click "Remove".
+  4. Verify passkey is deleted from local device registry (`lokker_cloud_passkeys`).
+  5. Sign out of Lokker Cloud.
+  6. On `/login`, click "Sign in with Passkey".
+  7. Verify system cleanly informs user: `"No passkey was found on this device. Please sign in with your email & password first to register Windows Hello or Touch ID."`.
+- **Expected Result**: Immediate revocation prevents subsequent biometric sign-in attempts on revoked credentials.
+
 ---
 
 ## Test Execution Tracking & Verification Sign-Off
@@ -994,7 +1007,7 @@
 | 19. Responsive & Mobile | 2 | [ ] | [ ] | [ ] | | |
 | 20. Accessibility & a11y | 2 | [ ] | [ ] | [ ] | | |
 | 21. Stress & Chaos Testing | 2 | [ ] | [ ] | [ ] | | |
-| 22. Biometric Passkey / WebAuthn | 3 | [ ] | [ ] | [ ] | | |
-| **Total** | **52 Comprehensive Cases** | | | | | |
+| 22. Biometric Passkey / WebAuthn | 4 | [ ] | [ ] | [ ] | | |
+| **Total** | **53 Comprehensive Cases** | | | | | |
 
 *Note: This document is maintained on an incremental basis. As new features (e.g. Feature 3 Biometric Passkey / WebAuthn Cloud Sign-In) are implemented, corresponding exhaustive test modules are appended directly to this plan.*

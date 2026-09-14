@@ -14,6 +14,7 @@ import {
   LogOut,
   ExternalLink,
   Trash2,
+  Fingerprint,
 } from "lucide-react";
 import {
   Dialog,
@@ -39,6 +40,15 @@ import {
 import { deriveAuthHash } from "@/lib/crypto";
 import { useVaultData } from "@/context/vault-data-context";
 import { CloudUploadChoiceModal } from "./cloud-upload-choice-modal";
+import {
+  isPlatformPasskeyAvailable,
+  registerCloudPasskey,
+  authenticateCloudPasskey,
+  getRegisteredCloudPasskeys,
+  removeCloudPasskey,
+  getPasskeyDeviceName,
+  type CloudPasskeyDescriptor,
+} from "@/lib/cloud-passkey";
 
 type UserSession = CloudSessionUser;
 
@@ -87,11 +97,29 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeletingBackup, setIsDeletingBackup] = React.useState(false);
 
+  // Passkey states
+  const [passkeys, setPasskeys] = React.useState<CloudPasskeyDescriptor[]>([]);
+  const [isPasskeyLoading, setIsPasskeyLoading] = React.useState(false);
+  const [hasPasskeySupport, setHasPasskeySupport] = React.useState(true);
+  const [deviceName, setDeviceName] = React.useState("Windows Hello / Touch ID");
+
   // Load existing session from storage if any
   React.useEffect(() => {
-    setSession(getCloudSession());
+    isPlatformPasskeyAvailable().then(setHasPasskeySupport);
+    setDeviceName(getPasskeyDeviceName());
+    const currentSession = getCloudSession();
+    setSession(currentSession);
+    if (currentSession) {
+      setPasskeys(getRegisteredCloudPasskeys(currentSession.id));
+    }
     const handleAuthChange = () => {
-      setSession(getCloudSession());
+      const s = getCloudSession();
+      setSession(s);
+      if (s) {
+        setPasskeys(getRegisteredCloudPasskeys(s.id));
+      } else {
+        setPasskeys([]);
+      }
     };
     window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
     window.addEventListener("storage", handleAuthChange);
@@ -188,6 +216,46 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
     setSession(null);
     setSuccessMsg("Disconnected from cloud. Your vault remains 100% safe locally.");
     setErrorMsg(null);
+  };
+
+  const handlePasskeySignIn = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsPasskeyLoading(true);
+    try {
+      const restored = await authenticateCloudPasskey(email.trim() || undefined);
+      setSession(restored);
+      setSuccessMsg("Signed in with biometric passkey!");
+      triggerCloudSync({ force: true }).catch(console.error);
+    } catch (err: any) {
+      setErrorMsg(err.userMessage || err.message || "Passkey verification failed.");
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
+
+  const handleRegisterPasskey = async () => {
+    if (!session) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsPasskeyLoading(true);
+    try {
+      const created = await registerCloudPasskey(session);
+      setPasskeys(getRegisteredCloudPasskeys(session.id));
+      setSuccessMsg(`Passkey registered successfully for ${created.deviceName}!`);
+    } catch (err: any) {
+      setErrorMsg(err.userMessage || err.message || "Failed to register passkey.");
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
+
+  const handleRemovePasskey = (credentialId: string) => {
+    removeCloudPasskey(credentialId);
+    if (session) {
+      setPasskeys(getRegisteredCloudPasskeys(session.id));
+    }
+    setSuccessMsg("Passkey removed from this device.");
   };
 
   return (
@@ -384,6 +452,82 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                     before syncing. Only your master password can unlock your data.
                   </p>
                 </div>
+
+                {/* Biometric Passkeys (Windows Hello / Touch ID) Section */}
+                <div className="p-4 rounded-xl border border-border-subtle bg-background space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Fingerprint className="size-4 text-emerald-500" />
+                      <span className="text-xs font-semibold text-foreground">
+                        Biometric Passkeys on this Device
+                      </span>
+                    </div>
+                    {passkeys.length > 0 ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px]">
+                        {passkeys.length} Registered
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground border-border-subtle">
+                        None Linked
+                      </Badge>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Link your device's biometric authenticator ({deviceName}) to sign in to Lokker Cloud instantly without typing your cloud password.
+                  </p>
+
+                  {passkeys.length > 0 ? (
+                    <div className="space-y-2 pt-1">
+                      {passkeys.map((p) => (
+                        <div
+                          key={p.credentialId}
+                          className="p-2.5 rounded-lg bg-surface border border-border-subtle flex items-center justify-between text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <p className="font-medium text-foreground flex items-center gap-1.5">
+                              <Fingerprint className="size-3 text-emerald-500" />
+                              <span>{p.deviceName}</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Added {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemovePasskey(p.credentialId)}
+                            className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="size-3" />
+                            <span>Remove</span>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="pt-2 border-t border-border-subtle">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPasskeyLoading}
+                      onClick={handleRegisterPasskey}
+                      className="w-full h-8 text-xs gap-1.5 cursor-pointer font-medium border-border-subtle hover:bg-surface"
+                    >
+                      {isPasskeyLoading ? (
+                        <RefreshCw className="size-3.5 animate-spin text-primary" />
+                      ) : (
+                        <Fingerprint className="size-3.5 text-emerald-500" />
+                      )}
+                      <span>
+                        {passkeys.length > 0
+                          ? `Register Another Passkey (${deviceName})`
+                          : `Register ${deviceName} on this Device`}
+                      </span>
+                    </Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleAuthSubmit} className="space-y-3">
@@ -403,6 +547,37 @@ export function CloudSyncModal({ isOpen, onClose }: CloudSyncModalProps) {
                     {authMode === "signup" ? "Already have an account? Sign In" : "Need an account? Sign Up"}
                   </button>
                 </div>
+
+                {authMode === "signin" && hasPasskeySupport && (
+                  <div className="space-y-2 pt-1 pb-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isPasskeyLoading || isLoading}
+                      onClick={handlePasskeySignIn}
+                      className="w-full h-9 text-xs justify-center gap-2 border-border-subtle bg-surface hover:bg-surface/80 cursor-pointer"
+                    >
+                      {isPasskeyLoading ? (
+                        <>
+                          <RefreshCw className="size-3.5 animate-spin text-primary" />
+                          <span>Verifying {deviceName}...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="size-3.5 text-emerald-500" />
+                          <span>Sign In with Passkey ({deviceName})</span>
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="relative flex items-center justify-center">
+                      <div className="w-full border-t border-border-subtle" />
+                      <span className="bg-background px-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        or sign in with password
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {authMode === "signup" && (
                   <div className="space-y-1">

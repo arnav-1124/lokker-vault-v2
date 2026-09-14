@@ -17,6 +17,8 @@ import {
   WifiOff,
   Download,
   Laptop,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,6 +27,18 @@ import { Switch } from "@/components/ui/switch";
 import { VaultSettings } from "@/types";
 import { shouldSkipLocalSaveWarning, setSkipLocalSaveWarning } from "@/lib/storage-scope";
 import { usePWA } from "@/hooks/use-pwa";
+import {
+  getCloudSession,
+  type CloudSessionUser,
+  CLOUD_AUTH_CHANGE_EVENT,
+} from "@/lib/auth-session";
+import {
+  registerCloudPasskey,
+  getRegisteredCloudPasskeys,
+  removeCloudPasskey,
+  getPasskeyDeviceName,
+  type CloudPasskeyDescriptor,
+} from "@/lib/cloud-passkey";
 
 interface SettingsViewProps {
   settings: VaultSettings;
@@ -78,6 +92,13 @@ export function SettingsView({
   const [hasPlatformAuth, setHasPlatformAuth] = React.useState<boolean | null>(null);
   const [isWebAuthnSupported, setIsWebAuthnSupported] = React.useState<boolean | null>(null);
 
+  // Cloud Passkeys state
+  const [cloudSession, setCloudSessionState] = React.useState<CloudSessionUser | null>(null);
+  const [cloudPasskeys, setCloudPasskeys] = React.useState<CloudPasskeyDescriptor[]>([]);
+  const [isCloudPasskeyLoading, setIsCloudPasskeyLoading] = React.useState(false);
+  const [cloudPasskeyMsg, setCloudPasskeyMsg] = React.useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [cloudDeviceName, setCloudDeviceName] = React.useState("Windows Hello / Touch ID");
+
   // Sync toggle state with the actual registration status using the
   // render-adjust pattern (no setState inside an effect).
   const [prevRegistered, setPrevRegistered] = React.useState(isWebAuthnRegistered);
@@ -110,10 +131,55 @@ export function SettingsView({
     }
     checkWebAuthn();
     setLocalSaveWarningActive(!shouldSkipLocalSaveWarning());
+
+    const s = getCloudSession();
+    setCloudSessionState(s);
+    if (s) {
+      setCloudPasskeys(getRegisteredCloudPasskeys(s.id));
+    }
+    setCloudDeviceName(getPasskeyDeviceName());
+
+    const handleAuthChange = () => {
+      const current = getCloudSession();
+      setCloudSessionState(current);
+      if (current) {
+        setCloudPasskeys(getRegisteredCloudPasskeys(current.id));
+      } else {
+        setCloudPasskeys([]);
+      }
+    };
+    window.addEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+
     return () => {
       isMounted = false;
+      window.removeEventListener(CLOUD_AUTH_CHANGE_EVENT, handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
     };
   }, []);
+
+  const handleRegisterCloudPasskey = async () => {
+    if (!cloudSession) return;
+    setCloudPasskeyMsg(null);
+    setIsCloudPasskeyLoading(true);
+    try {
+      const created = await registerCloudPasskey(cloudSession);
+      setCloudPasskeys(getRegisteredCloudPasskeys(cloudSession.id));
+      setCloudPasskeyMsg({ text: `Passkey registered for ${created.deviceName}!`, type: "success" });
+    } catch (err: any) {
+      setCloudPasskeyMsg({ text: err.userMessage || err.message || "Passkey registration failed.", type: "error" });
+    } finally {
+      setIsCloudPasskeyLoading(false);
+    }
+  };
+
+  const handleRemoveCloudPasskey = (credentialId: string) => {
+    removeCloudPasskey(credentialId);
+    if (cloudSession) {
+      setCloudPasskeys(getRegisteredCloudPasskeys(cloudSession.id));
+    }
+    setCloudPasskeyMsg({ text: "Passkey removed from this device.", type: "success" });
+  };
 
   const handleToggleWebAuthn = async (checked: boolean) => {
     setWebAuthnError(null);
@@ -323,6 +389,123 @@ export function SettingsView({
             Logging into a website only requires your laptop to sign a challenge. Unlocking Lokker’s zero-knowledge vault requires the authenticator to deterministically calculate an AES-256 encryption key from hardware via the WebAuthn PRF extension. If your device biometrics do not support PRF, you can use a FIDO2 security key (such as a YubiKey 5.3+) or continue using your Master Password and Emergency Recovery Key.
           </p>
         </div>
+      </div>
+
+      {/* Cloud Account Biometric Passkey Sign-In Card */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-6 space-y-4 shadow-xs">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Fingerprint className="size-4 text-emerald-500" />
+              <h3 className="text-sm font-semibold text-foreground">
+                Cloud Account Biometric Passkey Sign-In
+              </h3>
+              {cloudPasskeys.length > 0 ? (
+                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px]">
+                  {cloudPasskeys.length} Registered
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  {cloudSession ? "None Linked" : "Cloud Account Required"}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
+              Use standard platform biometrics ({cloudDeviceName}) to sign into your Lokker Cloud account without typing passwords. Standard laptop biometrics (Windows Hello, Touch ID, Face ID) can securely authenticate your cloud identity.
+            </p>
+          </div>
+        </div>
+
+        {cloudPasskeyMsg && (
+          <div
+            className={`p-2.5 rounded-lg border text-xs flex items-center justify-between gap-2 ${
+              cloudPasskeyMsg.type === "success"
+                ? "bg-success/10 border-success/20 text-success"
+                : "bg-destructive/10 border-destructive/20 text-destructive"
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              {cloudPasskeyMsg.type === "success" ? (
+                <CheckCircle2 className="size-3.5 shrink-0" />
+              ) : (
+                <AlertCircle className="size-3.5 shrink-0" />
+              )}
+              <span>{cloudPasskeyMsg.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCloudPasskeyMsg(null)}
+              className="text-[10px] underline hover:no-underline cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {cloudSession ? (
+          <div className="space-y-3 pt-1">
+            {cloudPasskeys.length > 0 ? (
+              <div className="space-y-2">
+                {cloudPasskeys.map((p) => (
+                  <div
+                    key={p.credentialId}
+                    className="p-2.5 rounded-lg bg-background border border-border-subtle flex items-center justify-between text-xs"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-foreground flex items-center gap-1.5">
+                        <Fingerprint className="size-3.5 text-emerald-500" />
+                        <span>{p.deviceName}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-mono">
+                        Bound to {p.userEmail} • Added {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveCloudPasskey(p.credentialId)}
+                      className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="size-3" />
+                      <span>Remove</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No biometric passkeys linked on this browser for <span className="font-mono text-foreground">{cloudSession.email}</span>.
+              </p>
+            )}
+
+            <div className="pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isCloudPasskeyLoading}
+                onClick={handleRegisterCloudPasskey}
+                className="h-8 text-xs gap-1.5 cursor-pointer font-medium border-border-subtle hover:bg-background"
+              >
+                {isCloudPasskeyLoading ? (
+                  <RefreshCw className="size-3.5 animate-spin text-primary" />
+                ) : (
+                  <Fingerprint className="size-3.5 text-emerald-500" />
+                )}
+                <span>
+                  {cloudPasskeys.length > 0
+                    ? `Register Another Passkey (${cloudDeviceName})`
+                    : `Link ${cloudDeviceName} for Cloud Sign-In`}
+                </span>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 rounded-xl bg-background border border-border-subtle flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              Sign in to Lokker Cloud to link this device's {cloudDeviceName}.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Extension Autofill Security */}

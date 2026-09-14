@@ -29,6 +29,11 @@ import {
 } from "@/lib/crypto";
 import { INITIAL_DEMO_VAULT_ITEMS } from "@/lib/sampleData";
 import { setCloudSession } from "@/lib/auth-session";
+import {
+  authenticateCloudPasskey,
+  isPlatformPasskeyAvailable,
+  getPasskeyDeviceName,
+} from "@/lib/cloud-passkey";
 
 const STORAGE_KEY = "lokker_cloud_session";
 
@@ -41,8 +46,16 @@ function LoginContent() {
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [hasLocalVault, setHasLocalVault] = React.useState(false);
+  const [hasPasskeySupport, setHasPasskeySupport] = React.useState(true);
+  const [deviceName, setDeviceName] = React.useState("Windows Hello / Touch ID");
+
+  React.useEffect(() => {
+    isPlatformPasskeyAvailable().then(setHasPasskeySupport);
+    setDeviceName(getPasskeyDeviceName());
+  }, []);
 
   // Redirect if already logged in
   React.useEffect(() => {
@@ -172,6 +185,20 @@ function LoginContent() {
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setErrorMsg(null);
+    setIsPasskeyLoading(true);
+    try {
+      await authenticateCloudPasskey(email.trim() || undefined);
+      router.push(redirectPath);
+    } catch (err: any) {
+      const msg = err.userMessage || err.message || "Passkey authentication failed.";
+      setErrorMsg(msg);
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
+
   return (
     <AuthLayout mode="login">
       <div className="space-y-6">
@@ -201,14 +228,21 @@ function LoginContent() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              // Direct route to local passkey unlock if using local hardware
-              router.push("/app/passkeys");
-            }}
-            className="w-full h-9 text-xs justify-center gap-2 border-border-subtle bg-surface hover:bg-surface-hover cursor-pointer"
+            disabled={isPasskeyLoading || isLoading}
+            onClick={handlePasskeyLogin}
+            className="w-full h-9 text-xs justify-center gap-2 border-border-subtle bg-surface hover:bg-surface-hover cursor-pointer relative"
           >
-            <Fingerprint className="size-3.5" />
-            <span>Continue with Passkey (FIDO2)</span>
+            {isPasskeyLoading ? (
+              <>
+                <RefreshCw className="size-3.5 animate-spin text-primary" />
+                <span>Verifying {deviceName}...</span>
+              </>
+            ) : (
+              <>
+                <Fingerprint className="size-3.5 text-emerald-500" />
+                <span>Sign in with Passkey ({deviceName})</span>
+              </>
+            )}
           </Button>
         </div>
 
