@@ -24,17 +24,20 @@ import {
 
 interface WorkspaceGeneratorViewProps {
   workspaceName?: string;
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  canWrite?: boolean;
   onCopyText: (text: string, label: string) => void;
   onSaveAsCredential: (password: string) => void;
 }
 
 export function WorkspaceGeneratorView({
   workspaceName = "Workspace",
-  isAdmin,
+  isAdmin = false,
+  canWrite,
   onCopyText,
   onSaveAsCredential,
 }: WorkspaceGeneratorViewProps) {
+  const userCanWrite = canWrite !== undefined ? canWrite : isAdmin;
   const [mode, setMode] = React.useState<"random" | "passphrase">("random");
   const [length, setLength] = React.useState(22);
   const [includeUpper, setIncludeUpper] = React.useState(true);
@@ -384,7 +387,7 @@ export function WorkspaceGeneratorView({
         <div className="pt-4 border-t border-border-subtle flex items-center justify-end gap-3">
           <Button
             onClick={() => onSaveAsCredential(generatedPassword)}
-            disabled={!isAdmin}
+            disabled={!userCanWrite}
             size="sm"
             className="h-9 text-xs gap-1.5 font-medium cursor-pointer"
           >

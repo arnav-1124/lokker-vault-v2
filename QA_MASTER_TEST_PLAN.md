@@ -1,6 +1,6 @@
 # Lokker Vault — Master End-to-End & Deep Adversarial QA Test Plan
 
-**Version**: 2.2.0  
+**Version**: 2.3.0  
 **Target Application**: Lokker Vault ([https://www.lokker.space](https://www.lokker.space) / Localhost)  
 **Audience**: QA Engineers, Security Auditors, Product Verification Teams  
 **Scope**: 100% Comprehensive Coverage — Functional, Destructive, Cryptographic, Adversarial, Offline, and Edge-Case Scenarios.  
@@ -27,7 +27,7 @@
 15. [Module 15: Team & Family Workspaces, RBAC Permissions & Audit Logging](#module-15-team--family-workspaces-rbac-permissions--audit-logging)
 16. [Module 16: Manifest V3 Browser Extension & Automated Packaging](#module-16-manifest-v3-browser-extension--automated-packaging)
 17. [Module 17: Dynamic Browser Tab Titles, Navigation & Command Palette](#module-17-dynamic-browser-tab-titles-navigation--command-palette)
-18. [Module 18: Settings, Storage Breakdown & Nuclear Data Wipe](#module-18-settings-storage-breakdown--nuclear-data-wipe)
+18: [Module 18: Settings, Storage Breakdown & Nuclear Data Wipe](#module-18-settings-storage-breakdown--nuclear-data-wipe)
 19. [Module 19: Responsive Design, Mobile Drawer & Touch Targets](#module-19-responsive-design-mobile-drawer--touch-targets)
 20. [Module 20: Accessibility, Keyboard Navigation & Focus Trapping](#module-20-accessibility-keyboard-navigation--focus-trapping)
 21. [Module 21: Extreme Stress, High-Volume Data & Chaos Testing](#module-21-extreme-stress-high-volume-data--chaos-testing)
@@ -38,6 +38,7 @@
 26. [Module 26: Workspace Password & Key Generator (Phase 3)](#module-26-workspace-password--key-generator-phase-3)
 27. [Module 27: Workspace Encrypted Import & Export (Phase 3)](#module-27-workspace-encrypted-import--export-phase-3)
 28. [Module 28: Zero-Knowledge Real-Time Cross-Member SSE Sync (Phase 4)](#module-28-zero-knowledge-real-time-cross-member-sse-sync-phase-4)
+29. [Module 29: Granular 4-Tier Workspace RBAC & Compliance Audit Trail Exports (Phase 5)](#module-29-granular-4-tier-workspace-rbac--compliance-audit-trail-exports-phase-5)
 
 ---
 
@@ -46,17 +47,18 @@
 Run these automated verification suites directly from the terminal before performing manual QA:
 
 ```bash
-# Run all 27 automated test suites (210 tests)
+# Run all 28 automated test suites (221 tests)
 npm test
 
-# Run specific Phase 3 test suite (Watchtower, Generator, Portability)
-npx vitest run src/test/workspace-phase3.test.ts
+# Run specific Phase 5 test suite (4-Tier RBAC & Compliance Audit Exports)
+npx vitest run src/test/workspace-rbac.test.ts
 
 # Run specific Phase 4 test suite (Real-Time SSE Sync)
 npx vitest run src/test/workspace-realtime.test.ts
 
 # Verify strict TypeScript typechecking
 npx tsc --noEmit
+```
 
 # Verify Next.js production build and route compilation
 npm run build
@@ -1257,6 +1259,51 @@ npm run build
 
 ---
 
+## Module 29: Granular 4-Tier Workspace RBAC & Compliance Audit Trail Exports (Phase 5)
+
+Comprehensive verification for 4-tier workspace role resolution (`OWNER`, `ADMIN`, `MEMBER`, `AUDITOR`), role hierarchy safeguards, auditor read-only invariants across all workspace tools, and RFC 4180 CSV / structured JSON compliance audit trail exports.
+
+### 29.1 4-Tier Role Resolution & Visual Hierarchy
+- **Preconditions**: Users with different assigned roles authenticate and open the workspace.
+- **Test Steps**:
+  1. Login as workspace creator: verify role displays `Owner` with a Gold Crown badge in both sidebar and workspace overview banner.
+  2. Login as co-administrator: verify role displays `Admin` with an Emerald Shield badge.
+  3. Login as standard member: verify role displays `Member` with a Sky User badge.
+  4. Login as compliance auditor: verify role displays `Auditor (Read-Only)` with a Purple Eye badge.
+- **Expected Result**: Distinct 4-tier visual indicators reflect actual cryptographic and backend permission state without technical jargon.
+
+### 29.2 Owner Immutability & Workspace Lifecycle Governance
+- **Preconditions**: Logged in as Admin and Owner respectively in `Members` and `Settings`.
+- **Test Steps**:
+  1. As Admin, navigate to `/app/workspace/:id/members`: observe Owner member card. Verify role dropdown is replaced with an immutable `Workspace Owner (Immutable)` badge. Demotion/removal of the owner is prohibited.
+  2. As Admin, attempt to promote a member: verify dropdown offers `Admin`, `Member`, and `Auditor` (cannot grant `Owner`).
+  3. As Admin, navigate to `/app/workspace/:id/settings`: verify Danger Zone displays `Leave workspace` (Delete Workspace is restricted).
+  4. As Owner, navigate to `/app/workspace/:id/settings`: verify Danger Zone displays `Delete this workspace`.
+- **Expected Result**: Workspace creator retains immutable ownership and lifecycle destruction authority; co-admins cannot usurp owner status.
+
+### 29.3 Auditor Read-Only Gating Across Passwords, Bookmarks, Generator, Import, & Watchtower
+- **Preconditions**: Logged in as an `AUDITOR`.
+- **Test Steps**:
+  1. Open `/app/workspace/:id/passwords`: verify `Add Password` button is replaced by `Auditor (Read-Only)` badge. Verify row dropdowns omit `Edit`, `Move to Category`, `Delete`, and star favorite toggle.
+  2. Open `/app/workspace/:id/bookmarks`: verify `Add Bookmark` button is replaced by `Auditor (Read-Only)` badge. Verify card action dropdowns omit `Edit`, `Move to Category`, `Delete`, and favorite toggle.
+  3. Open `/app/workspace/:id/generator`: verify `Save to Workspace` button is strictly disabled (`disabled={!userCanWrite}`).
+  4. Open `/app/workspace/:id/import-export`: verify Import dropzone is disabled with message `"Importing is disabled in read-only audit mode"`. File drops and file selection are blocked.
+  5. Open `/app/workspace/:id/security-audit`: verify `Fix Credential` button is replaced by `"Read-only audit mode"`.
+  6. Attempt client cloud sync or direct API PUT to `/api/workspaces/:id/vault`: verify server responds with `403 Forbidden: Auditors have read-only access to workspace vaults`.
+- **Expected Result**: Complete read-only enforcement across all client workspace surfaces and server API endpoints.
+
+### 29.4 Enterprise RFC 4180 CSV & Structured JSON Compliance Audit Trail Exporters
+- **Preconditions**: Logged in as `OWNER`, `ADMIN`, or `AUDITOR` on `/app/workspace/:id/activity`.
+- **Test Steps**:
+  1. Verify `Export CSV` and `Export JSON` buttons are visible in header.
+  2. Click `Export CSV`: inspect generated `.csv` file. Verify it begins with UTF-8 BOM (`\uFEFF`) for seamless Excel parsing, contains headers `Timestamp (UTC)`, `Event Action`, `Actor Name`, `Actor Email`, `Actor User ID`, `Details`, and properly escapes commas, quotes, and line breaks per RFC 4180.
+  3. Click `Export JSON`: inspect generated `.json` file. Verify metadata container schema (`schemaVersion: "1.0"`, `format`, `complianceStandard`, `workspaceId`, `exportedAt`, `totalEventCount`, `auditTrail`).
+  4. Verify Zero-Knowledge Invariant: inspect exported CSV and JSON files — verify NO plaintext passwords, secrets, master keys, or recovery keys are present.
+  5. Log in as a standard `MEMBER` and attempt to navigate to `/activity`: verify access is denied with 403 / restricted message.
+- **Expected Result**: Standardized, tamper-evident, zero-knowledge compliance exports ready for external SOC 2 and ISO 27001 auditors.
+
+---
+
 ## Test Execution Tracking & Verification Sign-Off
 
 | Module | Test Cases Total | Passed | Failed | Blocked | QA Sign-off Date | Engineer |
@@ -1289,6 +1336,8 @@ npm run build
 | 26. Workspace Generator (Phase 3) | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
 | 27. Workspace Portability (Phase 3) | 2 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
 | 28. Real-Time SSE Sync (Phase 4) | 3 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
-| **Total** | **73 Comprehensive Cases** | **All Passed** | **0** | **0** | **2026-09-14** | **100% Pass** |
+| 29. 4-Tier RBAC & Compliance Exports (Phase 5) | 4 | [x] | [ ] | [ ] | 2026-09-14 | Automated |
+| **Total** | **77 Comprehensive Cases** | **All Passed** | **0** | **0** | **2026-09-14** | **100% Pass** |
 
 *Note: This document is maintained on an incremental basis. As new phases and features are implemented, corresponding exhaustive test modules are appended directly to this plan.*
+

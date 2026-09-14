@@ -34,7 +34,8 @@ import {
 
 interface WorkspaceImportExportViewProps {
   workspaceName?: string;
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  canWrite?: boolean;
   passwordsCount: number;
   bookmarksCount: number;
   categoriesCount: number;
@@ -49,7 +50,8 @@ interface WorkspaceImportExportViewProps {
 
 export function WorkspaceImportExportView({
   workspaceName = "Workspace",
-  isAdmin,
+  isAdmin = false,
+  canWrite,
   passwordsCount,
   bookmarksCount,
   categoriesCount,
@@ -59,6 +61,7 @@ export function WorkspaceImportExportView({
   onImportCredentials,
   addToast,
 }: WorkspaceImportExportViewProps) {
+  const userCanWrite = canWrite !== undefined ? canWrite : isAdmin;
   // Export states
   const [exportPassphrase, setExportPassphrase] = React.useState("");
   const [showExportPassphrase, setShowExportPassphrase] = React.useState(false);
@@ -401,21 +404,21 @@ export function WorkspaceImportExportView({
         <div
           onDragOver={(e) => {
             e.preventDefault();
-            if (isAdmin) setIsDragging(true);
+            if (userCanWrite) setIsDragging(true);
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(e) => {
             e.preventDefault();
             setIsDragging(false);
-            if (!isAdmin) return;
+            if (!userCanWrite) return;
             const file = e.dataTransfer.files?.[0];
             if (file) handleProcessFile(file);
           }}
           onClick={() => {
-            if (isAdmin) fileInputRef.current?.click();
+            if (userCanWrite) fileInputRef.current?.click();
           }}
           className={`rounded-2xl border-2 border-dashed p-8 text-center flex flex-col items-center justify-center space-y-3 transition-colors ${
-            !isAdmin
+            !userCanWrite
               ? "opacity-60 cursor-not-allowed border-border-subtle bg-surface"
               : isDragging
               ? "border-primary bg-primary/5 cursor-pointer"
@@ -428,9 +431,9 @@ export function WorkspaceImportExportView({
 
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
-              {isAdmin
+              {userCanWrite
                 ? "Drop archive or credential file here"
-                : "Importing is restricted to Workspace Admins"}
+                : "Importing is disabled in read-only audit mode"}
             </p>
             <p className="text-xs text-muted-foreground">
               Supports <code className="text-foreground">.lokker-ws</code>, <code className="text-foreground">.csv</code> (Chrome, Bitwarden, 1Password), or <code className="text-foreground">.json</code>
@@ -441,7 +444,7 @@ export function WorkspaceImportExportView({
             ref={fileInputRef}
             type="file"
             accept=".lokker-ws,.lokker,.csv,.json"
-            disabled={!isAdmin}
+            disabled={!userCanWrite}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) {
@@ -452,7 +455,7 @@ export function WorkspaceImportExportView({
             className="hidden"
           />
 
-          {isAdmin && (
+          {userCanWrite && (
             <Button
               size="sm"
               variant="outline"

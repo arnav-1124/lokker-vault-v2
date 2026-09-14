@@ -26,6 +26,9 @@ import {
   ShieldCheck,
   Sparkles,
   Database,
+  Crown,
+  Eye,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +72,9 @@ export function WorkspaceSidebar({
     renameWorkspaceCategory,
     userRole,
     isAdmin,
+    isOwner,
+    isAuditor,
+    canViewActivity,
     workspaceFavoriteCount,
     isRealtimeConnected,
   } = useWorkspace();
@@ -124,7 +130,7 @@ export function WorkspaceSidebar({
       },
     ];
 
-    if (isAdmin) {
+    if (canViewActivity) {
       items.push({
         label: "Activity Log",
         href: `${basePath}/activity`,
@@ -139,7 +145,7 @@ export function WorkspaceSidebar({
     });
 
     return items;
-  }, [basePath, isAdmin]);
+  }, [basePath, canViewActivity]);
 
   const toolsItems = React.useMemo(
     () => [
@@ -288,6 +294,36 @@ export function WorkspaceSidebar({
               </span>
               <span className="font-mono text-muted-foreground/70 text-[9px]">
                 {isRealtimeConnected ? "SSE" : "Offline"}
+              </span>
+            </div>
+
+            {/* User Workspace Role Badge */}
+            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-surface/70 border border-border-subtle text-[11px]">
+              <span className="flex items-center gap-1.5 font-medium">
+                {isOwner ? (
+                  <>
+                    <Crown className="size-3.5 text-amber-400 shrink-0" />
+                    <span className="text-amber-400 font-semibold">Owner</span>
+                  </>
+                ) : userRole === "ADMIN" ? (
+                  <>
+                    <ShieldCheck className="size-3.5 text-emerald-400 shrink-0" />
+                    <span className="text-emerald-400 font-semibold">Admin</span>
+                  </>
+                ) : isAuditor ? (
+                  <>
+                    <Eye className="size-3.5 text-purple-400 shrink-0" />
+                    <span className="text-purple-400 font-semibold">Auditor</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="size-3.5 text-sky-400 shrink-0" />
+                    <span className="text-sky-400 font-semibold">Member</span>
+                  </>
+                )}
+              </span>
+              <span className="text-[10px] text-muted-foreground/80 font-mono">
+                {isAuditor ? "Read-Only" : "Full Access"}
               </span>
             </div>
           </div>

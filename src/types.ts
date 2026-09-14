@@ -222,7 +222,7 @@ export interface ToastMessage {
 }
 
 export type WorkspacePlan = "FREE" | "PRO" | "PLUS";
-export type WorkspaceRole = "ADMIN" | "MEMBER";
+export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "AUDITOR";
 
 export interface Workspace {
   id: string;

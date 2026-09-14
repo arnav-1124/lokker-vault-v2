@@ -30,6 +30,11 @@ interface WorkspaceContextType {
   userRole: WorkspaceRole | null;
   isAdmin: boolean;
   isOwner: boolean;
+  isAuditor: boolean;
+  isReadOnly: boolean;
+  canWrite: boolean;
+  canManageMembers: boolean;
+  canViewActivity: boolean;
   members: WorkspaceMember[];
   workspacePasswords: PasswordEntry[];
   workspaceBookmarks: Bookmark[];
@@ -45,7 +50,7 @@ interface WorkspaceContextType {
   createInvite: (workspaceId: string) => Promise<{ inviteToken: string; expiresAt: string }>;
   acceptInvite: (inviteToken: string) => Promise<{ workspaceId: string; workspaceName: string }>;
   leaveWorkspace: (workspaceId: string) => Promise<void>;
-  updateMemberRole: (targetUserId: string, role: "ADMIN" | "MEMBER") => Promise<void>;
+  updateMemberRole: (targetUserId: string, role: "ADMIN" | "MEMBER" | "AUDITOR") => Promise<void>;
   removeMember: (targetUserId: string) => Promise<void>;
   fetchWorkspaceActivity: (workspaceId?: string, limit?: number, offset?: number) => Promise<WorkspaceActivityLog[]>;
   saveWorkspacePassword: (entry: PasswordEntry) => Promise<void>;
@@ -197,9 +202,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const cloudSession = getCloudSession();
   const currentUserId = cloudSession?.id;
-  const isOwner = !!(activeWorkspace && currentUserId && activeWorkspace.adminUserId === currentUserId);
-  const userRole = activeWorkspace?.role || (isOwner ? "ADMIN" : null);
-  const isAdmin = userRole === "ADMIN" || isOwner;
+  const isOwner = !!(
+    (activeWorkspace && currentUserId && activeWorkspace.adminUserId === currentUserId) ||
+    activeWorkspace?.role === "OWNER"
+  );
+  const userRole: WorkspaceRole | null = activeWorkspace?.role || (isOwner ? "OWNER" : null);
+  const isAdmin = userRole === "ADMIN" || userRole === "OWNER" || isOwner;
+  const isAuditor = userRole === "AUDITOR";
+  const isReadOnly = isAuditor;
+  const canWrite = !isAuditor;
+  const canManageMembers = isAdmin;
+  const canViewActivity = isAdmin || isAuditor;
 
   // Key helper for per-user favorites storage
   const getFavoritesKey = React.useCallback(
@@ -335,9 +348,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       // Local storage
       localStorage.setItem(`lokker_ws_data_${activeWorkspaceId}`, JSON.stringify(payload));
 
-      // Remote cloud sync if logged in and user is ADMIN
+      // Remote cloud sync if logged in and user has write permissions (not Auditor)
       const session = getCloudSession();
-      if (session?.accessToken && activeWorkspace?.role === "ADMIN") {
+      if (session?.accessToken && canWrite) {
         try {
           await fetch(`${appConfig.apiUrl}/api/workspaces/${activeWorkspaceId}/vault`, {
             method: "PUT",
@@ -692,7 +705,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   // Update member role (promote/demote)
   const updateMemberRole = React.useCallback(
-    async (targetUserId: string, newRole: "ADMIN" | "MEMBER") => {
+    async (targetUserId: string, newRole: "ADMIN" | "MEMBER" | "AUDITOR") => {
       if (!activeWorkspaceId) throw new Error("No active workspace");
       const session = getCloudSession();
       if (!session?.accessToken) throw new Error("Authentication required");
@@ -1224,6 +1237,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     userRole,
     isAdmin,
     isOwner,
+    isAuditor,
+    isReadOnly,
+    canWrite,
+    canManageMembers,
+    canViewActivity,
     members,
     workspacePasswords,
     workspaceBookmarks,

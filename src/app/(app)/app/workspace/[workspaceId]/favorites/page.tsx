@@ -58,6 +58,7 @@ export default function WorkspaceFavoritesPage() {
     saveWorkspacePassword,
     saveWorkspaceBookmark,
     isAdmin,
+    canWrite,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
@@ -391,14 +392,16 @@ export default function WorkspaceFavoritesPage() {
                           )}
 
                           {/* Unpin Favorite Button */}
-                          <button
-                            type="button"
-                            onClick={() => toggleWorkspacePasswordFavorite(item.id)}
-                            className="p-1.5 text-amber-500 hover:text-muted-foreground transition-colors cursor-pointer rounded-md hover:bg-surface-elevated border border-border-subtle/60"
-                            title="Unpin from favorites"
-                          >
-                            <Star className="size-3.5 fill-amber-400" />
-                          </button>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => toggleWorkspacePasswordFavorite(item.id)}
+                              className="p-1.5 text-amber-500 hover:text-muted-foreground transition-colors cursor-pointer rounded-md hover:bg-surface-elevated border border-border-subtle/60"
+                              title="Unpin from favorites"
+                            >
+                              <Star className="size-3.5 fill-amber-400" />
+                            </button>
+                          )}
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -411,7 +414,7 @@ export default function WorkspaceFavoritesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              {isAdmin && (
+                              {canWrite && (
                                 <DropdownMenuItem
                                   onClick={() => setEditingPassword(item)}
                                   className="cursor-pointer"
@@ -441,15 +444,17 @@ export default function WorkspaceFavoritesPage() {
                                 </DropdownMenuItem>
                               )}
 
-                              <DropdownMenuItem
-                                onClick={() => toggleWorkspacePasswordFavorite(item.id)}
-                                className="cursor-pointer"
-                              >
-                                <Star className="size-3 mr-1.5" />
-                                <span>Unfavorite</span>
-                              </DropdownMenuItem>
+                              {canWrite && (
+                                <DropdownMenuItem
+                                  onClick={() => toggleWorkspacePasswordFavorite(item.id)}
+                                  className="cursor-pointer"
+                                >
+                                  <Star className="size-3 mr-1.5" />
+                                  <span>Unfavorite</span>
+                                </DropdownMenuItem>
+                              )}
 
-                              {isAdmin && (
+                              {canWrite && (
                                 <DropdownMenuSub>
                                   <DropdownMenuSubTrigger className="cursor-pointer">
                                     <FolderInput className="size-3 mr-1.5 text-primary" />
@@ -510,14 +515,16 @@ export default function WorkspaceFavoritesPage() {
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => toggleWorkspaceBookmarkFavorite(item.id)}
-                            className="p-1 text-amber-500 hover:text-muted-foreground transition-colors cursor-pointer"
-                            title="Unpin from favorites"
-                          >
-                            <Star className="size-3.5 fill-amber-400" />
-                          </button>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => toggleWorkspaceBookmarkFavorite(item.id)}
+                              className="p-1 text-amber-500 hover:text-muted-foreground transition-colors cursor-pointer"
+                              title="Unpin from favorites"
+                            >
+                              <Star className="size-3.5 fill-amber-400" />
+                            </button>
+                          )}
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -530,7 +537,7 @@ export default function WorkspaceFavoritesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-40">
-                              {isAdmin && (
+                              {canWrite && (
                                 <DropdownMenuItem
                                   onClick={() => setEditingBookmark(item)}
                                   className="cursor-pointer"
@@ -560,7 +567,7 @@ export default function WorkspaceFavoritesPage() {
                                 </a>
                               </DropdownMenuItem>
 
-                              {isAdmin && (
+                              {canWrite && (
                                 <DropdownMenuSub>
                                   <DropdownMenuSubTrigger className="cursor-pointer">
                                     <FolderInput className="size-3 mr-1.5 text-primary" />

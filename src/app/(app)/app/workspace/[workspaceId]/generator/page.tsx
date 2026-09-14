@@ -13,6 +13,7 @@ export default function WorkspaceGeneratorPage() {
     workspaceCategories,
     saveWorkspacePassword,
     isAdmin,
+    canWrite,
   } = useWorkspace();
   const vault = useVault();
 
@@ -57,6 +58,7 @@ export default function WorkspaceGeneratorPage() {
       <WorkspaceGeneratorView
         workspaceName={activeWorkspace?.name || "Workspace"}
         isAdmin={isAdmin}
+        canWrite={canWrite}
         onCopyText={handleCopyText}
         onSaveAsCredential={handleSaveAsCredential}
       />

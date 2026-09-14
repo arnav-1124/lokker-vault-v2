@@ -13,6 +13,10 @@ import {
   Sparkles,
   Lock,
   Cloud,
+  Crown,
+  Shield,
+  Eye,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +31,10 @@ export default function WorkspaceOverviewPage() {
     workspaceBookmarks,
     members,
     userRole,
+    isOwner,
+    isAdmin,
+    isAuditor,
+    canManageMembers,
     createInvite,
   } = useWorkspace();
 
@@ -65,12 +73,39 @@ export default function WorkspaceOverviewPage() {
             <h1 className="text-xl font-bold tracking-tight text-foreground">
               {activeWorkspace ? activeWorkspace.name : "Team Workspace"}
             </h1>
-            <Badge
-              variant="outline"
-              className="text-[10px] px-2 py-0.5 border-primary/30 bg-primary/10 text-primary font-mono"
-            >
-              {userRole === "ADMIN" ? "Admin" : "Member"}
-            </Badge>
+            {isOwner ? (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-2 py-0.5 border-amber-500/30 bg-amber-500/10 text-amber-500 font-mono gap-1 inline-flex items-center"
+              >
+                <Crown className="size-3 text-amber-500" />
+                <span>Owner</span>
+              </Badge>
+            ) : isAdmin ? (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-2 py-0.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-500 font-mono gap-1 inline-flex items-center"
+              >
+                <Shield className="size-3 text-emerald-500" />
+                <span>Admin</span>
+              </Badge>
+            ) : isAuditor ? (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-2 py-0.5 border-purple-500/30 bg-purple-500/10 text-purple-500 font-mono gap-1 inline-flex items-center"
+              >
+                <Eye className="size-3 text-purple-500" />
+                <span>Auditor (Read-Only)</span>
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-2 py-0.5 border-sky-500/30 bg-sky-500/10 text-sky-500 font-mono gap-1 inline-flex items-center"
+              >
+                <User className="size-3 text-sky-500" />
+                <span>Member</span>
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-muted-foreground max-w-xl">
             {activeWorkspace?.description ||
@@ -78,7 +113,7 @@ export default function WorkspaceOverviewPage() {
           </p>
         </div>
 
-        {userRole === "ADMIN" && (
+        {canManageMembers && (
           <Button
             size="sm"
             onClick={handleQuickInvite}

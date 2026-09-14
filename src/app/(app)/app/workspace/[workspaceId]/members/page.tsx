@@ -17,6 +17,7 @@ import {
   Shield,
   UserMinus,
   ArrowUpRight,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,28 @@ export default function WorkspaceMembersPage() {
         try {
           await updateMemberRole(member.userId, "MEMBER");
           setActionSuccess(`Demoted ${displayName} to Team Member`);
+          setTimeout(() => setActionSuccess(null), 4000);
+        } catch (err: any) {
+          setError(err.message || "Failed to update role");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
+  const handleAssignAuditor = (member: { userId: string; name?: string | null; email: string }) => {
+    const displayName = member.name || member.email;
+    setConfirmModal({
+      isOpen: true,
+      title: "Assign Auditor Role (Read-Only)",
+      message: `Set ${displayName}'s role to Auditor? They will have read-only access to view credentials, passwords, and security watchtower audits, and will be able to view activity logs and export compliance reports. They cannot add, edit, or delete any credentials.`,
+      confirmText: "Assign Auditor Role",
+      isDestructive: false,
+      onConfirm: async () => {
+        try {
+          await updateMemberRole(member.userId, "AUDITOR");
+          setActionSuccess(`Updated ${displayName}'s role to Auditor`);
           setTimeout(() => setActionSuccess(null), 4000);
         } catch (err: any) {
           setError(err.message || "Failed to update role");
@@ -312,17 +335,25 @@ export default function WorkspaceMembersPage() {
                   ) : member.role === "ADMIN" ? (
                     <Badge
                       variant="outline"
-                      className="text-[10px] px-2 py-0.5 font-medium border-primary/40 bg-primary/10 text-primary gap-1 inline-flex items-center"
+                      className="text-[10px] px-2 py-0.5 font-medium border-emerald-500/40 bg-emerald-500/10 text-emerald-400 gap-1 inline-flex items-center"
                     >
-                      <ShieldCheck className="size-3 text-primary" />
+                      <ShieldCheck className="size-3 text-emerald-400" />
                       <span>Admin</span>
+                    </Badge>
+                  ) : member.role === "AUDITOR" ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-2 py-0.5 font-medium border-purple-500/40 bg-purple-500/10 text-purple-400 gap-1 inline-flex items-center"
+                    >
+                      <Eye className="size-3 text-purple-400" />
+                      <span>Auditor (Read-Only)</span>
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="text-[10px] px-2 py-0.5 font-medium border-border-subtle text-muted-foreground gap-1 inline-flex items-center"
+                      className="text-[10px] px-2 py-0.5 font-medium border-sky-500/40 bg-sky-500/10 text-sky-400 gap-1 inline-flex items-center"
                     >
-                      <User className="size-3 text-muted-foreground" />
+                      <User className="size-3 text-sky-400" />
                       <span>Member</span>
                     </Badge>
                   )}
@@ -339,22 +370,32 @@ export default function WorkspaceMembersPage() {
                           <MoreVertical className="size-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 text-xs">
-                        {member.role === "MEMBER" ? (
+                      <DropdownMenuContent align="end" className="w-52 text-xs">
+                        {member.role !== "ADMIN" && (
                           <DropdownMenuItem
                             onClick={() => handlePromoteToAdmin(member)}
                             className="cursor-pointer gap-2"
                           >
-                            <Shield className="size-3.5 text-primary" />
-                            <span>Promote to Admin</span>
+                            <Shield className="size-3.5 text-emerald-400" />
+                            <span>Make Admin</span>
                           </DropdownMenuItem>
-                        ) : (
+                        )}
+                        {member.role !== "MEMBER" && (
                           <DropdownMenuItem
                             onClick={() => handleDemoteToMember(member)}
                             className="cursor-pointer gap-2"
                           >
-                            <User className="size-3.5 text-muted-foreground" />
-                            <span>Demote to Member</span>
+                            <User className="size-3.5 text-sky-400" />
+                            <span>Make Member</span>
+                          </DropdownMenuItem>
+                        )}
+                        {member.role !== "AUDITOR" && (
+                          <DropdownMenuItem
+                            onClick={() => handleAssignAuditor(member)}
+                            className="cursor-pointer gap-2"
+                          >
+                            <Eye className="size-3.5 text-purple-400" />
+                            <span>Make Auditor (Read-Only)</span>
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />

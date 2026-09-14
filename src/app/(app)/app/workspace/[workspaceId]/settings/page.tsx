@@ -18,7 +18,16 @@ import { Badge } from "@/components/ui/badge";
 import { useWorkspace } from "@/context/workspace-context";
 
 export default function WorkspaceSettingsPage() {
-  const { activeWorkspace, userRole, updateWorkspace, deleteWorkspace, leaveWorkspace } = useWorkspace();
+  const {
+    activeWorkspace,
+    userRole,
+    isOwner,
+    isAdmin,
+    isAuditor,
+    updateWorkspace,
+    deleteWorkspace,
+    leaveWorkspace,
+  } = useWorkspace();
 
   const [name, setName] = React.useState(activeWorkspace?.name || "");
   const [description, setDescription] = React.useState(activeWorkspace?.description || "");
@@ -93,40 +102,48 @@ export default function WorkspaceSettingsPage() {
       </div>
 
       {/* General Settings Form */}
-      {userRole === "ADMIN" ? (
+      {isAdmin ? (
         <form onSubmit={handleSave} className="p-5 rounded-xl border border-border-subtle bg-surface/50 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">General Details</h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Workspace Name</Label>
+            <Label htmlFor="ws-name" className="text-xs">
+              Workspace Name <span className="text-destructive">*</span>
+            </Label>
             <Input
-              required
+              id="ws-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-8 text-xs bg-background border-border-subtle"
+              placeholder="e.g. Acme Engineering"
+              required
+              className="h-8 text-xs bg-background"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Description</Label>
+            <Label htmlFor="ws-desc" className="text-xs">
+              Description <span className="text-muted-foreground text-[10px]">(optional)</span>
+            </Label>
             <Textarea
+              id="ws-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="text-xs bg-background border-border-subtle resize-none"
+              placeholder="A brief summary of who has access and how credentials are partitioned..."
+              rows={3}
+              className="text-xs bg-background resize-none"
             />
           </div>
 
           {error && (
             <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
-              <AlertCircle className="size-4 shrink-0" />
+              <AlertCircle className="size-3.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {saveSuccess && (
             <div className="p-2.5 rounded-lg bg-success/10 border border-success/20 text-success text-xs flex items-center gap-2">
-              <Check className="size-4 shrink-0" />
+              <Check className="size-3.5 shrink-0" />
               <span>Workspace updated successfully!</span>
             </div>
           )}
@@ -142,7 +159,7 @@ export default function WorkspaceSettingsPage() {
           <h2 className="text-sm font-semibold text-foreground">{activeWorkspace?.name}</h2>
           <p className="text-muted-foreground">{activeWorkspace?.description || "No description provided."}</p>
           <Badge variant="outline" className="text-[10px] text-muted-foreground mt-2">
-            Member Access Only
+            {isAuditor ? "Auditor Read-Only Access" : "Member Access Only"}
           </Badge>
         </div>
       )}
@@ -182,12 +199,12 @@ export default function WorkspaceSettingsPage() {
       <div className="p-5 rounded-xl border border-destructive/20 bg-destructive/5 space-y-3">
         <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
 
-        {userRole === "ADMIN" ? (
+        {isOwner ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <div className="space-y-0.5">
               <p className="text-xs font-semibold text-foreground">Delete this workspace</p>
               <p className="text-[11px] text-muted-foreground">
-                Permanently delete this workspace and remove all shared credentials. This action cannot be undone.
+                Permanently delete this workspace and remove all shared credentials. This action can only be performed by the workspace owner.
               </p>
             </div>
 

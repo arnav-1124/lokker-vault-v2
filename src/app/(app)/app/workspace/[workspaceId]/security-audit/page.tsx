@@ -14,6 +14,7 @@ export default function WorkspaceSecurityAuditPage() {
     workspaceCategories,
     saveWorkspacePassword,
     isAdmin,
+    canWrite,
   } = useWorkspace();
   const vault = useVault();
 
@@ -40,6 +41,7 @@ export default function WorkspaceSecurityAuditPage() {
         workspaceName={activeWorkspace?.name || "Workspace"}
         passwords={workspacePasswords}
         isAdmin={isAdmin}
+        canWrite={canWrite}
         onEditPassword={handleEditPassword}
         addToast={vault.addToast}
       />

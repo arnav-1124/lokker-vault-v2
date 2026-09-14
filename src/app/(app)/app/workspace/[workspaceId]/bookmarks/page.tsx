@@ -54,6 +54,8 @@ export default function WorkspaceBookmarksPage() {
     deleteWorkspaceBookmark,
     toggleWorkspaceBookmarkFavorite,
     isAdmin,
+    isAuditor,
+    canWrite,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
@@ -164,7 +166,7 @@ export default function WorkspaceBookmarksPage() {
           </p>
         </div>
 
-        {isAdmin ? (
+        {canWrite ? (
           <Button
             size="sm"
             onClick={handleOpenAdd}
@@ -176,7 +178,7 @@ export default function WorkspaceBookmarksPage() {
         ) : (
           <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
             <Badge variant="outline" className="text-xs border-border-subtle bg-surface text-muted-foreground px-2.5 py-1">
-              Member (Read-Only)
+              {isAuditor ? "Auditor (Read-Only)" : "Read-Only"}
             </Badge>
           </div>
         )}
@@ -311,7 +313,7 @@ export default function WorkspaceBookmarksPage() {
               ? `No bookmarks found in category "${selectedWorkspaceCategory}".`
               : "Save shared team docs, repos, dashboards, and staging links here."}
           </p>
-          {isAdmin ? (
+          {canWrite ? (
             <Button
               size="sm"
               onClick={handleOpenAdd}
@@ -322,7 +324,9 @@ export default function WorkspaceBookmarksPage() {
             </Button>
           ) : (
             <p className="text-[11px] text-muted-foreground/80 italic">
-              Shared bookmarks added by workspace admins will appear here.
+              {isAuditor
+                ? "Auditor mode: shared bookmarks added by workspace members will appear here for audit review."
+                : "Shared bookmarks added by workspace members will appear here."}
             </p>
           )}
         </div>
@@ -352,18 +356,20 @@ export default function WorkspaceBookmarksPage() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => toggleWorkspaceBookmarkFavorite(item.id)}
-                        className="p-1 text-muted-foreground hover:text-amber-400 transition-colors cursor-pointer"
-                        title={item.isFavorite ? "Unpin from favorites" : "Pin to favorites"}
-                      >
-                        <Star
-                          className={`size-3.5 ${
-                            item.isFavorite ? "text-amber-400 fill-amber-400" : ""
-                          }`}
-                        />
-                      </button>
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={() => toggleWorkspaceBookmarkFavorite(item.id)}
+                          className="p-1 text-muted-foreground hover:text-amber-400 transition-colors cursor-pointer"
+                          title={item.isFavorite ? "Unpin from favorites" : "Pin to favorites"}
+                        >
+                          <Star
+                            className={`size-3.5 ${
+                              item.isFavorite ? "text-amber-400 fill-amber-400" : ""
+                            }`}
+                          />
+                        </button>
+                      )}
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -376,7 +382,7 @@ export default function WorkspaceBookmarksPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-36">
-                          {isAdmin && (
+                          {canWrite && (
                             <DropdownMenuItem
                               onClick={() => handleOpenEdit(item)}
                               className="cursor-pointer"
@@ -418,7 +424,7 @@ export default function WorkspaceBookmarksPage() {
                             </DropdownMenuItem>
                           )}
 
-                          {isAdmin && (
+                          {canWrite && (
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger className="cursor-pointer">
                                 <FolderInput className="size-3 mr-1.5 text-muted-foreground" />
@@ -448,7 +454,7 @@ export default function WorkspaceBookmarksPage() {
                             </DropdownMenuSub>
                           )}
 
-                          {isAdmin && (
+                          {canWrite && (
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem

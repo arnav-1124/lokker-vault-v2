@@ -64,6 +64,8 @@ export default function WorkspacePasswordsPage() {
     deleteWorkspacePassword,
     toggleWorkspacePasswordFavorite,
     isAdmin,
+    isAuditor,
+    canWrite,
   } = useWorkspace();
 
   const [search, setSearch] = React.useState("");
@@ -206,7 +208,7 @@ export default function WorkspacePasswordsPage() {
           </p>
         </div>
 
-        {isAdmin ? (
+        {canWrite ? (
           <Button
             size="sm"
             onClick={handleOpenAdd}
@@ -218,7 +220,7 @@ export default function WorkspacePasswordsPage() {
         ) : (
           <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
             <Badge variant="outline" className="text-xs border-border-subtle bg-surface text-muted-foreground px-2.5 py-1">
-              Member (Read-Only)
+              {isAuditor ? "Auditor (Read-Only)" : "Read-Only"}
             </Badge>
           </div>
         )}
@@ -354,7 +356,7 @@ export default function WorkspacePasswordsPage() {
               ? `No credentials found in category "${selectedWorkspaceCategory}".`
               : "Add shared passwords to this workspace so your team can securely access services."}
           </p>
-          {isAdmin ? (
+          {canWrite ? (
             <Button
               size="sm"
               onClick={handleOpenAdd}
@@ -365,7 +367,9 @@ export default function WorkspacePasswordsPage() {
             </Button>
           ) : (
             <p className="text-[11px] text-muted-foreground/80 italic">
-              Shared credentials added by workspace admins will appear here.
+              {isAuditor
+                ? "Auditor mode: shared credentials added by workspace members will appear here for audit review."
+                : "Shared credentials added by workspace members will appear here."}
             </p>
           )}
         </div>
@@ -551,18 +555,20 @@ export default function WorkspacePasswordsPage() {
                     )}
 
                     {/* Star Favorite Button */}
-                    <button
-                      type="button"
-                      onClick={() => toggleWorkspacePasswordFavorite(item.id)}
-                      className="p-1.5 text-muted-foreground hover:text-amber-400 transition-colors cursor-pointer rounded-md hover:bg-surface-elevated border border-border-subtle/60"
-                      title={item.isFavorite ? "Unpin from favorites" : "Pin to favorites"}
-                    >
-                      <Star
-                        className={`size-3.5 ${
-                          item.isFavorite ? "text-amber-400 fill-amber-400" : ""
-                        }`}
-                      />
-                    </button>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => toggleWorkspacePasswordFavorite(item.id)}
+                        className="p-1.5 text-muted-foreground hover:text-amber-400 transition-colors cursor-pointer rounded-md hover:bg-surface-elevated border border-border-subtle/60"
+                        title={item.isFavorite ? "Unpin from favorites" : "Pin to favorites"}
+                      >
+                        <Star
+                          className={`size-3.5 ${
+                            item.isFavorite ? "text-amber-400 fill-amber-400" : ""
+                          }`}
+                        />
+                      </button>
+                    )}
 
                     {/* Dropdown Menu for options */}
                     <DropdownMenu>
@@ -576,7 +582,7 @@ export default function WorkspacePasswordsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {isAdmin && (
+                        {canWrite && (
                           <DropdownMenuItem
                             onClick={() => handleOpenEdit(item)}
                             className="cursor-pointer"
@@ -606,13 +612,15 @@ export default function WorkspacePasswordsPage() {
                           </DropdownMenuItem>
                         )}
 
-                        <DropdownMenuItem
-                          onClick={() => toggleWorkspacePasswordFavorite(item.id)}
-                          className="cursor-pointer"
-                        >
-                          <Star className="size-3 mr-1.5" />
-                          <span>{item.isFavorite ? "Unfavorite" : "Favorite"}</span>
-                        </DropdownMenuItem>
+                        {canWrite && (
+                          <DropdownMenuItem
+                            onClick={() => toggleWorkspacePasswordFavorite(item.id)}
+                            className="cursor-pointer"
+                          >
+                            <Star className="size-3 mr-1.5" />
+                            <span>{item.isFavorite ? "Unfavorite" : "Favorite"}</span>
+                          </DropdownMenuItem>
+                        )}
 
                         {item.username && (
                           <DropdownMenuItem
@@ -655,7 +663,7 @@ export default function WorkspacePasswordsPage() {
                           </DropdownMenuItem>
                         )}
 
-                        {isAdmin && (
+                        {canWrite && (
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger className="cursor-pointer">
                               <FolderInput className="size-3 mr-1.5 text-muted-foreground" />
@@ -685,7 +693,7 @@ export default function WorkspacePasswordsPage() {
                           </DropdownMenuSub>
                         )}
 
-                        {isAdmin && (
+                        {canWrite && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem

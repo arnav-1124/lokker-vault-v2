@@ -21,7 +21,8 @@ import { analyzeWatchtowerSecurity } from "@/lib/watchtower";
 interface WorkspaceSecurityAuditViewProps {
   workspaceName?: string;
   passwords: PasswordEntry[];
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  canWrite?: boolean;
   onEditPassword: (p: PasswordEntry) => void;
   addToast: (text: string, type?: "success" | "error" | "info") => void;
 }
@@ -31,10 +32,12 @@ type FilterTab = "all" | "breached" | "2fa" | "weak" | "reused";
 export function WorkspaceSecurityAuditView({
   workspaceName = "Workspace",
   passwords,
-  isAdmin,
+  isAdmin = false,
+  canWrite,
   onEditPassword,
   addToast,
 }: WorkspaceSecurityAuditViewProps) {
+  const userCanWrite = canWrite !== undefined ? canWrite : isAdmin;
   const [checkingBreaches, setCheckingBreaches] = React.useState(false);
   const [checkingProgress, setCheckingProgress] = React.useState<{ current: number; total: number } | null>(null);
   const [breachResults, setBreachResults] = React.useState<Record<string, { breached: boolean; count: number }>>({});
@@ -330,7 +333,7 @@ export function WorkspaceSecurityAuditView({
                 </div>
               </div>
 
-              {isAdmin ? (
+              {userCanWrite ? (
                 <Button
                   size="sm"
                   variant="outline"
@@ -341,7 +344,7 @@ export function WorkspaceSecurityAuditView({
                   <span>Fix Credential</span>
                 </Button>
               ) : (
-                <span className="text-[10px] text-muted-foreground italic shrink-0">Admin fix required</span>
+                <span className="text-[10px] text-muted-foreground italic shrink-0">Read-only audit mode</span>
               )}
             </div>
           ))}

@@ -20,6 +20,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  Download,
+  FileCode,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -32,7 +34,14 @@ type ActivityCategory = "ALL" | "VAULT" | "MEMBERS" | "WORKSPACE";
 
 export default function WorkspaceActivityPage() {
   const router = useRouter();
-  const { activeWorkspace, fetchWorkspaceActivity, isAdmin, isLoading: isWorkspaceLoading } = useWorkspace();
+  const {
+    activeWorkspace,
+    fetchWorkspaceActivity,
+    isAdmin,
+    isAuditor,
+    canViewActivity,
+    isLoading: isWorkspaceLoading,
+  } = useWorkspace();
 
   const [activities, setActivities] = React.useState<WorkspaceActivityLog[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -61,6 +70,78 @@ export default function WorkspaceActivityPage() {
     },
     [activeWorkspace?.id, fetchWorkspaceActivity]
   );
+
+  // 1-Click RFC 4180 CSV Compliance Audit Trail Exporter
+  const exportCsvReport = React.useCallback(() => {
+    if (!activities.length) {
+      alert("No activity log entries to export.");
+      return;
+    }
+    const headers = ["Timestamp (UTC)", "Event Action", "Actor Name", "Actor Email", "Actor User ID", "Details"];
+    const rows = activities.map((act) => {
+      const actorName = (act.actor?.name || "Unknown").replace(/"/g, '""');
+      const actorEmail = (act.actor?.email || "").replace(/"/g, '""');
+      const actorId = (act.actor?.id || act.actorUserId || "").replace(/"/g, '""');
+      const details = (act.details || "").replace(/"/g, '""');
+      return `"${act.createdAt}","${act.action}","${actorName}","${actorEmail}","${actorId}","${details}"`;
+    });
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = (activeWorkspace?.name || "workspace").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    const dateStr = new Date().toISOString().split("T")[0];
+    a.href = url;
+    a.download = `lokker-compliance-audit-${safeName}-${dateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [activities, activeWorkspace?.name]);
+
+  // Structured JSON Compliance Audit Trail Exporter
+  const exportJsonReport = React.useCallback(() => {
+    if (!activities.length) {
+      alert("No activity log entries to export.");
+      return;
+    }
+    const report = {
+      complianceReport: {
+        schemaVersion: "1.0",
+        format: "Lokker Workspace Immutable Compliance Audit Trail",
+        complianceStandard: "SOC 2 Type II / ISO 27001 Annex A.12.4",
+        workspaceId: activeWorkspace?.id,
+        workspaceName: activeWorkspace?.name,
+        plan: activeWorkspace?.plan,
+        exportedAt: new Date().toISOString(),
+        totalEventCount: activities.length,
+        auditTrail: activities.map((act) => ({
+          id: act.id,
+          timestamp: act.createdAt,
+          action: act.action,
+          actor: {
+            name: act.actor?.name || null,
+            email: act.actor?.email || null,
+            userId: act.actor?.id || act.actorUserId || null,
+          },
+          details: act.details,
+          metadata: act.metadata,
+        })),
+      },
+    };
+    const jsonString = JSON.stringify(report, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = (activeWorkspace?.name || "workspace").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    const dateStr = new Date().toISOString().split("T")[0];
+    a.href = url;
+    a.download = `lokker-compliance-audit-${safeName}-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [activities, activeWorkspace]);
 
   React.useEffect(() => {
     loadActivities();
@@ -184,7 +265,7 @@ export default function WorkspaceActivityPage() {
     }
   };
 
-  if (!isWorkspaceLoading && !isAdmin) {
+  if (!isWorkspaceLoading && !canViewActivity) {
     return (
       <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
         <div className="size-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
@@ -192,7 +273,7 @@ export default function WorkspaceActivityPage() {
         </div>
         <h2 className="text-lg font-bold text-foreground">Access Restricted</h2>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Workspace activity logs and security audit trails are strictly restricted to Workspace Administrators.
+          Workspace activity logs and security audit trails are restricted to Workspace Administrators and Compliance Auditors.
         </p>
         <Button
           size="sm"
@@ -214,6 +295,9 @@ export default function WorkspaceActivityPage() {
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <History className="size-5 text-primary" />
             <span>Workspace Activity Log</span>
+            <Badge variant="outline" className="text-[10px] font-mono border-border-subtle bg-surface/50 text-muted-foreground">
+              SOC 2 & ISO 27001 Ready
+            </Badge>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Real-time immutable audit trail for{" "}
@@ -224,7 +308,32 @@ export default function WorkspaceActivityPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action Controls & Compliance Export */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportCsvReport}
+            disabled={isLoading || !activities.length}
+            className="h-8 text-xs gap-1.5 border-border-subtle bg-card hover:bg-card/80 text-foreground cursor-pointer"
+            title="Download RFC 4180 CSV table for external auditors"
+          >
+            <Download className="size-3.5 text-primary" />
+            <span>Export CSV</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportJsonReport}
+            disabled={isLoading || !activities.length}
+            className="h-8 text-xs gap-1.5 border-border-subtle bg-card hover:bg-card/80 text-foreground cursor-pointer"
+            title="Download structured JSON compliance audit report"
+          >
+            <FileCode className="size-3.5 text-emerald-400" />
+            <span>Export JSON</span>
+          </Button>
+
           <Button
             size="sm"
             variant="outline"

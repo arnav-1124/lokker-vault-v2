@@ -9,6 +9,7 @@ export default function WorkspaceImportExportPage() {
   const {
     activeWorkspace,
     isAdmin,
+    canWrite,
     workspacePasswords,
     workspaceBookmarks,
     workspaceCategories,
@@ -23,6 +24,7 @@ export default function WorkspaceImportExportPage() {
     <WorkspaceImportExportView
       workspaceName={activeWorkspace?.name || "Workspace"}
       isAdmin={isAdmin}
+      canWrite={canWrite}
       passwordsCount={workspacePasswords.length}
       bookmarksCount={workspaceBookmarks.length}
       categoriesCount={workspaceCategories.length}
