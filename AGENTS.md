@@ -127,6 +127,14 @@ Product context: PRODUCT.md. Architecture: DEVELOPER.md.
     product surface. If uncertain about scope: ask or stop — never guess
     into new features. If uncertain about a technical fact: verify against
     documentation.
+28. **Single Incremental QA Master Test Plan Rule (MANDATORY)**:
+    - **Single Test Plan**: Do NOT create multiple test markdown files (e.g., NEVER create `WHAT_TO_TEST.md`, `TESTING.md`, or separate phase-by-phase test files).
+    - **Incremental Maintenance**: Maintain ONLY ONE master test plan: `QA_MASTER_TEST_PLAN.md`.
+    - Always update and maintain `QA_MASTER_TEST_PLAN.md` on an incremental basis whenever new features, phases, or bug fixes are implemented:
+      1. Append the new verification module with functional, destructive, cryptographic, and adversarial vectors.
+      2. Update the Document Index at the top.
+      3. Refresh the Quick Automated Verification Commands.
+      4. Update the Test Execution Tracking & Verification Sign-Off table with new scenario counts and results.
 
 ## SEO & Metadata rules (MANDATORY)
 

@@ -34,6 +34,33 @@
 22. [Module 22: Biometric Passkey / WebAuthn Cloud Sign-In & Authentication](#module-22-biometric-passkey--webauthn-cloud-sign-in--authentication)
 23. [Module 23: 3-Tier Multi-Admin Governance, Activity Log RBAC & Category UX](#module-23-3-tier-multi-admin-governance-activity-log-rbac--category-ux)
 24. [Module 24: Workspace Live Sync & Per-User Distinct Favorites](#module-24-workspace-live-sync--per-user-distinct-favorites)
+25. [Module 25: Workspace Security Watchtower, Breach Checks & Remediation (Phase 3)](#module-25-workspace-security-watchtower-breach-checks--remediation-phase-3)
+26. [Module 26: Workspace Password & Key Generator (Phase 3)](#module-26-workspace-password--key-generator-phase-3)
+27. [Module 27: Workspace Encrypted Import & Export (Phase 3)](#module-27-workspace-encrypted-import--export-phase-3)
+28. [Module 28: Zero-Knowledge Real-Time Cross-Member SSE Sync (Phase 4)](#module-28-zero-knowledge-real-time-cross-member-sse-sync-phase-4)
+
+---
+
+## Quick Automated Verification Commands
+
+Run these automated verification suites directly from the terminal before performing manual QA:
+
+```bash
+# Run all 27 automated test suites (210 tests)
+npm test
+
+# Run specific Phase 3 test suite (Watchtower, Generator, Portability)
+npx vitest run src/test/workspace-phase3.test.ts
+
+# Run specific Phase 4 test suite (Real-Time SSE Sync)
+npx vitest run src/test/workspace-realtime.test.ts
+
+# Verify strict TypeScript typechecking
+npx tsc --noEmit
+
+# Verify Next.js production build and route compilation
+npm run build
+```
 
 ---
 
