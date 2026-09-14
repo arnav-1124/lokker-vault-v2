@@ -20,6 +20,7 @@ import { CategoryDeleteModal } from "@/components/modals/category-delete-modal";
 import { CommandPalette } from "@/components/modals/command-palette";
 import { ExtensionGuideModal } from "@/components/modals/extension-guide-modal";
 import { ConfirmationModal } from "@/components/modals/confirmation-modal";
+import { DeleteItemModal } from "@/components/modals/delete-item-modal";
 import { ImportBackupModal } from "@/components/modals/import-backup-modal";
 import { CloudSyncModal } from "@/components/modals/cloud-sync-modal";
 import { ShortcutsModal } from "@/components/modals/shortcuts-modal";
@@ -242,6 +243,16 @@ function AppShell({ children }: { children: React.ReactNode }) {
           isDestructive={vault.confirmDialog.isDestructive}
           onConfirm={vault.confirmDialog.onConfirm}
           onClose={() => vault.dismissConfirm()}
+        />
+      )}
+
+      {vault.deleteItemDialog && (
+        <DeleteItemModal
+          isOpen={vault.deleteItemDialog.isOpen}
+          item={vault.deleteItemDialog.item}
+          hasCloudSession={vault.deleteItemDialog.hasCloudSession}
+          onConfirmDelete={vault.deleteItemDialog.onConfirm}
+          onClose={() => vault.dismissDeleteItemDialog()}
         />
       )}
 

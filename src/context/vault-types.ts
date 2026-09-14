@@ -37,6 +37,19 @@ export interface DeleteTransferDialogState {
   childCount: number;
 }
 
+export interface DeleteItemDialogState {
+  isOpen: boolean;
+  item: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    storageScope?: "cloud" | "local";
+    itemType: "password" | "bookmark";
+  };
+  hasCloudSession: boolean;
+  onConfirm: (mode: "everywhere" | "cloud-only" | "local") => Promise<void> | void;
+}
+
 // ==========================================
 // Navigation — URL-derived view state
 // ==========================================
@@ -97,6 +110,11 @@ export interface VaultUIContextType {
   // Category delete-transfer dialog
   deleteTransferDialog: DeleteTransferDialogState | null;
   setDeleteTransferDialog: React.Dispatch<React.SetStateAction<DeleteTransferDialogState | null>>;
+
+  // Item deletion dialog
+  deleteItemDialog: DeleteItemDialogState | null;
+  setDeleteItemDialog: React.Dispatch<React.SetStateAction<DeleteItemDialogState | null>>;
+  dismissDeleteItemDialog: () => void;
 
   // Toast & Confirm
   toasts: ToastMessage[];

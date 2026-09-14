@@ -9,7 +9,7 @@
 import * as React from "react";
 import type { Bookmark, PasswordEntry, ToastMessage, LokkerBackupPayload, LokkerEncryptedBackupFile } from "@/types";
 import { generateId } from "@/lib/id";
-import type { ConfirmDialogState, DeleteTransferDialogState, VaultUIContextType } from "./vault-types";
+import type { ConfirmDialogState, DeleteTransferDialogState, DeleteItemDialogState, VaultUIContextType } from "./vault-types";
 
 const VaultUIContext = React.createContext<VaultUIContextType | null>(null);
 
@@ -53,6 +53,10 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
 
   // Category delete-transfer dialog
   const [deleteTransferDialog, setDeleteTransferDialog] = React.useState<DeleteTransferDialogState | null>(null);
+
+  // Item delete dialog
+  const [deleteItemDialog, setDeleteItemDialog] = React.useState<DeleteItemDialogState | null>(null);
+  const dismissDeleteItemDialog = React.useCallback(() => setDeleteItemDialog(null), []);
 
   // Toast system
   const [toasts, setToasts] = React.useState<ToastMessage[]>([]);
@@ -210,6 +214,7 @@ export function VaultUIProvider({ children }: { children: React.ReactNode }) {
     pendingEncryptedBackup, setPendingEncryptedBackup,
     pendingUnencryptedBackup, setPendingUnencryptedBackup,
     confirmDialog, deleteTransferDialog, setDeleteTransferDialog,
+    deleteItemDialog, setDeleteItemDialog, dismissDeleteItemDialog,
     toasts, addToast, dismissToast, showConfirm, dismissConfirm,
   };
 

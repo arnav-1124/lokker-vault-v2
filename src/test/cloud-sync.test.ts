@@ -413,4 +413,186 @@ describe("Zero-Knowledge Encrypted Cloud Sync", () => {
       ).rejects.toThrow(/master password/i);
     });
   });
+
+  describe("Deletion Tombstones & Zombie Resurrection Prevention", () => {
+    function createTestPassword(overrides: Partial<PasswordEntry> & { id: string; websiteName: string }): PasswordEntry {
+      return {
+        websiteUrl: "https://example.com",
+        username: "user@example.com",
+        password: "Password123!",
+        category: "General",
+        isFavorite: false,
+        createdAt: 1000,
+        updatedAt: 1000,
+        ...overrides,
+      };
+    }
+
+    it("includes deletedItemIds in prepareCloudSyncPayload", () => {
+      const tombstones = { "pwd-deleted-1": 1700000000000, "bm-deleted-2": 1700000001000 };
+      const payload = prepareCloudSyncPayload({
+        passwords: samplePasswords,
+        bookmarks: sampleBookmarks,
+        categories: sampleCategories,
+        deletedItemIds: tombstones,
+      });
+
+      expect(payload.deletedItemIds).toEqual(tombstones);
+    });
+
+    it("prevents deleted local cloud items from resurrecting when remote snapshot contains them", () => {
+      const deletedAt = 2000;
+      const localTombstones = { "pwd-cloud-1": deletedAt };
+
+      // Local vault has deleted 'pwd-cloud-1', so local passwords only has local items
+      const localVault = {
+        passwords: samplePasswords.filter((p) => p.id !== "pwd-cloud-1"),
+        bookmarks: sampleBookmarks,
+        categories: sampleCategories,
+        deletedItemIds: localTombstones,
+      };
+
+      // Remote cloud snapshot still has 'pwd-cloud-1' updated at 1000 (<= deletedAt)
+      const remotePayload: CloudVaultPayload = {
+        passwords: [
+          createTestPassword({
+            id: "pwd-cloud-1",
+            websiteName: "GitHub",
+            websiteUrl: "https://github.com",
+            username: "alex",
+            password: "secretPassword1",
+            category: "Frontend",
+            isFavorite: true,
+            storageScope: "cloud",
+            createdAt: 1000,
+            updatedAt: 1000,
+          }),
+        ],
+        bookmarks: [],
+        categories: [],
+        exportedAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      const result = mergeCloudVaultWithLocal(localVault, remotePayload);
+
+      // The deleted item must NOT be resurrected!
+      expect(result.mergedPasswords.find((p) => p.id === "pwd-cloud-1")).toBeUndefined();
+      expect(result.mergedTombstones["pwd-cloud-1"]).toBe(deletedAt);
+    });
+
+    it("purges local item when remote cloud payload contains a tombstone for it", () => {
+      const localVault = {
+        passwords: [
+          createTestPassword({
+            id: "pwd-remote-deleted",
+            websiteName: "Stale Service",
+            storageScope: "cloud",
+            createdAt: 1000,
+            updatedAt: 1000,
+          }),
+        ],
+        bookmarks: [],
+        categories: [],
+      };
+
+      // Remote payload deleted it at 2000
+      const remotePayload: CloudVaultPayload = {
+        passwords: [],
+        bookmarks: [],
+        categories: [],
+        deletedItemIds: { "pwd-remote-deleted": 2000 },
+        exportedAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      const result = mergeCloudVaultWithLocal(localVault, remotePayload);
+
+      // Local item must be purged by remote tombstone
+      expect(result.mergedPasswords.find((p) => p.id === "pwd-remote-deleted")).toBeUndefined();
+      expect(result.hasChanges).toBe(true);
+      expect(result.mergedTombstones["pwd-remote-deleted"]).toBe(2000);
+    });
+
+    it("preserves local copy when user chooses Remove from Cloud Only", () => {
+      const localVault = {
+        passwords: [
+          createTestPassword({
+            id: "pwd-keep-local",
+            websiteName: "Personal Bank",
+            storageScope: "local",
+            createdAt: 1000,
+            updatedAt: 2000,
+          }),
+        ],
+        bookmarks: [],
+        categories: [],
+        deletedItemIds: { "pwd-keep-local": 2000 }, // Tombstone for cloud
+      };
+
+      // Remote payload still has the old cloud copy
+      const remotePayload: CloudVaultPayload = {
+        passwords: [
+          createTestPassword({
+            id: "pwd-keep-local",
+            websiteName: "Personal Bank",
+            storageScope: "cloud",
+            createdAt: 1000,
+            updatedAt: 1000,
+          }),
+        ],
+        bookmarks: [],
+        categories: [],
+        exportedAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      const result = mergeCloudVaultWithLocal(localVault, remotePayload);
+
+      // Local copy is preserved as storageScope: 'local'
+      const item = result.mergedPasswords.find((p) => p.id === "pwd-keep-local");
+      expect(item).toBeDefined();
+      expect(item?.storageScope).toBe("local");
+
+      // When preparing upload payload, this item is NOT included in cloud payload
+      const uploadPayload = prepareCloudSyncPayload({
+        passwords: result.mergedPasswords,
+        bookmarks: result.mergedBookmarks,
+        categories: result.mergedCategories,
+        deletedItemIds: result.mergedTombstones,
+      });
+
+      expect(uploadPayload.passwords.find((p) => p.id === "pwd-keep-local")).toBeUndefined();
+      expect(uploadPayload.deletedItemIds?.["pwd-keep-local"]).toBe(2000);
+    });
+
+    it("allows re-creation of an item if newer than the tombstone", () => {
+      const localVault = {
+        passwords: [
+          createTestPassword({
+            id: "pwd-recreated",
+            websiteName: "Re-created Account",
+            storageScope: "cloud",
+            createdAt: 3000,
+            updatedAt: 3000, // Newer than tombstone (2000)
+          }),
+        ],
+        bookmarks: [],
+        categories: [],
+        deletedItemIds: { "pwd-recreated": 2000 },
+      };
+
+      const remotePayload: CloudVaultPayload = {
+        passwords: [],
+        bookmarks: [],
+        categories: [],
+        deletedItemIds: { "pwd-recreated": 2000 },
+        exportedAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      const result = mergeCloudVaultWithLocal(localVault, remotePayload);
+      expect(result.mergedPasswords.find((p) => p.id === "pwd-recreated")).toBeDefined();
+    });
+  });
 });

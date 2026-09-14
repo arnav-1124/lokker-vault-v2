@@ -74,9 +74,24 @@ export async function getBookmarks(): Promise<Bookmark[]> {
       const store = tx.objectStore("bookmarks");
       const req = store.getAll();
       req.onsuccess = () => {
+        const isInitialized =
+          typeof window !== "undefined" &&
+          localStorage.getItem("lokker_bookmarks_initialized") === "true";
         if (!req.result || req.result.length === 0) {
-          saveAllBookmarks(INITIAL_BOOKMARKS).then(() => resolve(INITIAL_BOOKMARKS));
+          if (!isInitialized) {
+            saveAllBookmarks(INITIAL_BOOKMARKS).then(() => {
+              try {
+                localStorage.setItem("lokker_bookmarks_initialized", "true");
+              } catch {}
+              resolve(INITIAL_BOOKMARKS);
+            });
+          } else {
+            resolve([]);
+          }
         } else {
+          try {
+            localStorage.setItem("lokker_bookmarks_initialized", "true");
+          } catch {}
           resolve(req.result);
         }
       };
@@ -128,9 +143,24 @@ export async function getCategories(): Promise<Category[]> {
       const tx = db.transaction("categories", "readonly");
       const req = tx.objectStore("categories").getAll();
       req.onsuccess = () => {
+        const isInitialized =
+          typeof window !== "undefined" &&
+          localStorage.getItem("lokker_categories_initialized") === "true";
         if (!req.result || req.result.length === 0) {
-          saveAllCategories(INITIAL_CATEGORIES).then(() => resolve(INITIAL_CATEGORIES));
+          if (!isInitialized) {
+            saveAllCategories(INITIAL_CATEGORIES).then(() => {
+              try {
+                localStorage.setItem("lokker_categories_initialized", "true");
+              } catch {}
+              resolve(INITIAL_CATEGORIES);
+            });
+          } else {
+            resolve([]);
+          }
         } else {
+          try {
+            localStorage.setItem("lokker_categories_initialized", "true");
+          } catch {}
           resolve(req.result);
         }
       };
@@ -429,6 +459,8 @@ export async function resetDatabase(): Promise<void> {
     tx.oncomplete = () => {
       try {
         localStorage.removeItem("lokker_vault_meta_sync");
+        localStorage.removeItem("lokker_bookmarks_initialized");
+        localStorage.removeItem("lokker_categories_initialized");
       } catch {}
       resolve();
     };

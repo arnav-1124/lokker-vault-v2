@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { PasswordEntry, Bookmark, StorageScope } from "@/types";
 import { generateId } from "@/lib/id";
-import { shouldSkipLocalSaveWarning, setSkipLocalSaveWarning } from "@/lib/storage-scope";
+import {
+  shouldSkipLocalSaveWarning,
+  setSkipLocalSaveWarning,
+  getCloudTombstones,
+  saveCloudTombstones,
+  recordCloudTombstone,
+  clearCloudTombstone,
+  CLOUD_TOMBSTONES_KEY,
+} from "@/lib/storage-scope";
 
 describe("Storage Scope Models", () => {
   it("allows setting storageScope to cloud on password entries", () => {
@@ -290,6 +298,78 @@ describe("Storage Scope Models", () => {
     expect(warningModalSource).toContain("Don't ask me again on this device");
     expect(warningModalSource).toContain("dont-ask-local-save");
     expect(warningModalSource).toContain("setSkipLocalSaveWarning");
+  });
+
+  describe("Deletion Tombstones", () => {
+    it("records, retrieves, and clears deletion tombstones in localStorage", () => {
+      localStorage.removeItem(CLOUD_TOMBSTONES_KEY);
+      expect(getCloudTombstones()).toEqual({});
+
+      const now = Date.now();
+      const t1 = now - 1000;
+      recordCloudTombstone("pwd-123", t1);
+      expect(getCloudTombstones()["pwd-123"]).toBe(t1);
+
+      recordCloudTombstone("bm-456", t1 + 500);
+      const current = getCloudTombstones();
+      expect(current["pwd-123"]).toBe(t1);
+      expect(current["bm-456"]).toBe(t1 + 500);
+
+      clearCloudTombstone("pwd-123");
+      const afterClear = getCloudTombstones();
+      expect(afterClear["pwd-123"]).toBeUndefined();
+      expect(afterClear["bm-456"]).toBe(t1 + 500);
+    });
+
+    it("prunes tombstones older than 30 days to bound storage growth", () => {
+      const now = Date.now();
+      const freshTime = now - 5 * 24 * 60 * 60 * 1000; // 5 days old
+      const staleTime = now - 35 * 24 * 60 * 60 * 1000; // 35 days old
+
+      saveCloudTombstones({
+        "fresh-item": freshTime,
+        "stale-item": staleTime,
+      });
+
+      const loaded = getCloudTombstones();
+      expect(loaded["fresh-item"]).toBe(freshTime);
+      expect(loaded["stale-item"]).toBeUndefined();
+    });
+
+    it("verifies DeleteItemModal contains transparent options and plain English", () => {
+      const fs = require("fs");
+      const path = require("path");
+      const modalSource = fs.readFileSync(
+        path.resolve(__dirname, "../components/modals/delete-item-modal.tsx"),
+        "utf-8"
+      );
+
+      // Verify transparent deletion options
+      expect(modalSource).toContain("Delete Everywhere");
+      expect(modalSource).toContain("Remove from Cloud Only");
+      expect(modalSource).toContain("Keep Locally Only");
+      expect(modalSource).toContain("Delete from Device");
+
+      // Verify plain English badges
+      expect(modalSource).toContain("Cloud Synced");
+      expect(modalSource).toContain("Device Only");
+
+      // Verify forbidden technical jargon is absent
+      const forbiddenJargon = [
+        "IndexedDB",
+        "AES-GCM",
+        "PBKDF2",
+        "Argon2",
+        "KDF",
+        "ciphertext",
+        "salt",
+        "SHA-256",
+        "WebCrypto",
+      ];
+      for (const word of forbiddenJargon) {
+        expect(modalSource).not.toContain(word);
+      }
+    });
   });
 });
 

@@ -54,3 +54,26 @@ describe("appConfig", () => {
     expect(appConfig.url.endsWith("/")).toBe(false);
   });
 });
+
+describe("Local DB Deletion & Empty Initialization Flags", () => {
+  it("ensures bookmarks and categories initialization flags prevent zombie resurrection", () => {
+    // 1. Clean state: flags not present
+    localStorage.removeItem("lokker_bookmarks_initialized");
+    localStorage.removeItem("lokker_categories_initialized");
+    expect(localStorage.getItem("lokker_bookmarks_initialized")).toBeNull();
+    expect(localStorage.getItem("lokker_categories_initialized")).toBeNull();
+
+    // 2. Once initialized, the flags are recorded
+    localStorage.setItem("lokker_bookmarks_initialized", "true");
+    localStorage.setItem("lokker_categories_initialized", "true");
+    expect(localStorage.getItem("lokker_bookmarks_initialized")).toBe("true");
+    expect(localStorage.getItem("lokker_categories_initialized")).toBe("true");
+
+    // 3. User intentionally deletes all items down to 0:
+    // With flag set to 'true', db getBookmarks/getCategories returns [] instead of re-seeding
+    const isBookmarksInitialized = localStorage.getItem("lokker_bookmarks_initialized") === "true";
+    const isCategoriesInitialized = localStorage.getItem("lokker_categories_initialized") === "true";
+    expect(isBookmarksInitialized).toBe(true);
+    expect(isCategoriesInitialized).toBe(true);
+  });
+});

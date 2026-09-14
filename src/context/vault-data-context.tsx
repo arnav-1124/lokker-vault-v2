@@ -27,6 +27,11 @@ import {
   mergeCloudVaultWithLocal,
 } from "@/lib/cloud-sync";
 import { getCloudSession, clearCloudSession, CLOUD_AUTH_CHANGE_EVENT } from "@/lib/auth-session";
+import {
+  getCloudTombstones,
+  saveCloudTombstones,
+  recordCloudTombstone,
+} from "@/lib/storage-scope";
 import { appConfig } from "@/config/app";
 import { useVaultUI } from "./vault-ui-context";
 import { useVaultSecurity } from "./vault-security-context";
@@ -53,7 +58,7 @@ export function useVaultData(): VaultDataContextType {
 
 export function VaultDataProvider({ children }: { children: React.ReactNode }) {
   const {
-    addToast, showConfirm, setDeleteTransferDialog,
+    addToast, showConfirm, setDeleteTransferDialog, setDeleteItemDialog,
     setEditingPassword, setIsPasswordModalOpen, setEditingBookmark, setIsBookmarkModalOpen,
     selectedCategory, setSelectedCategory,
   } = useVaultUI();
@@ -151,14 +156,18 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (downloadResult.exists && downloadResult.payload) {
+          const localTombstones = getCloudTombstones();
           const merged = mergeCloudVaultWithLocal(
             {
               passwords: passwordsRef.current,
               bookmarks: bookmarksRef.current,
               categories: categoriesRef.current,
+              deletedItemIds: localTombstones,
             },
             downloadResult.payload
           );
+
+          saveCloudTombstones(merged.mergedTombstones);
 
           if (merged.hasChanges) {
             currentPasswords = merged.mergedPasswords;
@@ -182,6 +191,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
           passwords: currentPasswords,
           bookmarks: currentBookmarks,
           categories: currentCategories,
+          deletedItemIds: getCloudTombstones(),
         });
 
         // 3. Encrypt and upload
@@ -469,31 +479,72 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
 
   const handleDeleteBookmark = async (id: string) => {
     const target = bookmarks.find((b) => b.id === id);
-    showConfirm(
-      "Delete Bookmark",
-      `Are you sure you want to delete "${target?.title || "this bookmark"}"?`,
-      async () => {
-        const updated = bookmarks.filter((b) => b.id !== id);
-        setBookmarks(updated);
-        await deleteBookmarkDB(id);
-        if (target?.storageScope === "cloud") {
-          scheduleAutoSync();
+    if (!target) return;
+
+    const session = getCloudSession();
+    const hasCloud = !!session?.accessToken;
+
+    setDeleteItemDialog({
+      isOpen: true,
+      item: {
+        id: target.id,
+        title: target.title,
+        subtitle: target.url,
+        storageScope: target.storageScope,
+        itemType: "bookmark",
+      },
+      hasCloudSession: hasCloud,
+      onConfirm: async (mode) => {
+        if (mode === "cloud-only") {
+          const updated = bookmarks.map((b) =>
+            b.id === id ? { ...b, storageScope: "local" as const, updatedAt: Date.now() } : b
+          );
+          bookmarksRef.current = updated;
+          setBookmarks(updated);
+          const targetBm = updated.find((b) => b.id === id);
+          if (targetBm) {
+            await saveBookmark(targetBm);
+          }
+          recordCloudTombstone(id);
+          if (hasCloud) {
+            scheduleAutoSync();
+          }
+          addToast("Removed from cloud. Kept locally on this device.", "info");
+          return;
         }
-        addToast("Bookmark deleted.", "info");
+
+        const remaining = bookmarks.filter((b) => b.id !== id);
+        bookmarksRef.current = remaining;
+        setBookmarks(remaining);
+        await deleteBookmarkDB(id);
+
+        if (target.storageScope === "cloud" || mode === "everywhere") {
+          recordCloudTombstone(id);
+          if (hasCloud) {
+            scheduleAutoSync();
+          }
+          addToast("Bookmark deleted everywhere.", "info");
+        } else {
+          addToast("Bookmark deleted from device.", "info");
+        }
 
         // Deletion is isolated by default — only offer to remove the linked
         // password entry, and the default answer is No (Keep Entry).
-        const linked = target
-          ? decryptedPasswords.find(
-              (p) => normalizeHost(p.websiteUrl || p.websiteName) === normalizeHost(target.url || target.title)
-            )
-          : undefined;
+        const linked = decryptedPasswords.find(
+          (p) => normalizeHost(p.websiteUrl || p.websiteName) === normalizeHost(target.url || target.title)
+        );
         if (linked) {
           showConfirm(
             "Delete Linked Password Entry?",
             `"${linked.websiteName}" (${linked.username || "no username"}) shares this bookmark's URL. Delete it too?`,
             async () => {
-              await saveAndEncryptPasswords(decryptedPasswords.filter((p) => p.id !== linked.id));
+              const updatedPwds = decryptedPasswords.filter((p) => p.id !== linked.id);
+              passwordsRef.current = updatedPwds;
+              await saveAndEncryptPasswords(updatedPwds);
+              if (linked.storageScope === "cloud") {
+                recordCloudTombstone(linked.id);
+                if (hasCloud) scheduleAutoSync();
+              }
               addToast("Linked password entry deleted.", "info");
             },
             true,
@@ -502,8 +553,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
           );
         }
       },
-      true
-    );
+    });
   };
 
   // ==========================================
@@ -584,31 +634,68 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
 
   const handleDeletePassword = async (id: string) => {
     const target = decryptedPasswords.find((p) => p.id === id);
-    showConfirm(
-      "Delete Password Entry",
-      `Are you sure you want to permanently delete credentials for "${target?.websiteName || "this entry"}"?`,
-      async () => {
-        await saveAndEncryptPasswords(decryptedPasswords.filter((p) => p.id !== id));
-        if (target?.storageScope === "cloud") {
-          scheduleAutoSync();
+    if (!target) return;
+
+    const session = getCloudSession();
+    const hasCloud = !!session?.accessToken;
+
+    setDeleteItemDialog({
+      isOpen: true,
+      item: {
+        id: target.id,
+        title: target.websiteName,
+        subtitle: target.username || target.websiteUrl,
+        storageScope: target.storageScope,
+        itemType: "password",
+      },
+      hasCloudSession: hasCloud,
+      onConfirm: async (mode) => {
+        if (mode === "cloud-only") {
+          const updated = decryptedPasswords.map((p) =>
+            p.id === id ? { ...p, storageScope: "local" as const, updatedAt: Date.now() } : p
+          );
+          passwordsRef.current = updated;
+          await saveAndEncryptPasswords(updated);
+          recordCloudTombstone(id);
+          if (hasCloud) {
+            scheduleAutoSync();
+          }
+          addToast("Removed from cloud. Kept locally on this device.", "info");
+          return;
         }
-        addToast("Password entry deleted.", "info");
+
+        const remaining = decryptedPasswords.filter((p) => p.id !== id);
+        passwordsRef.current = remaining;
+        await saveAndEncryptPasswords(remaining);
+
+        if (target.storageScope === "cloud" || mode === "everywhere") {
+          recordCloudTombstone(id);
+          if (hasCloud) {
+            scheduleAutoSync();
+          }
+          addToast("Password entry deleted everywhere.", "info");
+        } else {
+          addToast("Password entry deleted from device.", "info");
+        }
 
         // Deletion is isolated by default — only offer to remove the linked
         // bookmark, and the default answer is No (Keep Bookmark).
-        const linked = target
-          ? bookmarks.find(
-              (b) => normalizeHost(b.url || b.title) === normalizeHost(target.websiteUrl || target.websiteName)
-            )
-          : undefined;
+        const linked = bookmarks.find(
+          (b) => normalizeHost(b.url || b.title) === normalizeHost(target.websiteUrl || target.websiteName)
+        );
         if (linked) {
           showConfirm(
             "Delete Linked Bookmark?",
             `"${linked.title}" shares this entry's URL. Delete it too?`,
             async () => {
               const updatedBms = bookmarks.filter((b) => b.id !== linked.id);
+              bookmarksRef.current = updatedBms;
               setBookmarks(updatedBms);
               await deleteBookmarkDB(linked.id);
+              if (linked.storageScope === "cloud") {
+                recordCloudTombstone(linked.id);
+                if (hasCloud) scheduleAutoSync();
+              }
               addToast("Linked bookmark deleted.", "info");
             },
             true,
@@ -617,8 +704,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
           );
         }
       },
-      true
-    );
+    });
   };
 
   // ==========================================

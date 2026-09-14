@@ -29,6 +29,7 @@ export interface CloudVaultPayload {
   passwords: PasswordEntry[];
   bookmarks: Bookmark[];
   categories: Category[];
+  deletedItemIds?: Record<string, number>;
   exportedAt: string;
   version: number;
 }
@@ -58,6 +59,7 @@ export function prepareCloudSyncPayload(items: {
   passwords: PasswordEntry[];
   bookmarks: Bookmark[];
   categories: Category[];
+  deletedItemIds?: Record<string, number>;
 }): CloudVaultPayload {
   const cloudPasswords = items.passwords.filter((p) => p.storageScope === "cloud");
   const cloudBookmarks = items.bookmarks.filter((b) => b.storageScope === "cloud");
@@ -95,6 +97,7 @@ export function prepareCloudSyncPayload(items: {
     passwords: cloudPasswords,
     bookmarks: cloudBookmarks,
     categories: relevantCategories,
+    deletedItemIds: items.deletedItemIds || {},
     exportedAt: new Date().toISOString(),
     version: 1,
   };
@@ -298,15 +301,21 @@ export function mergeCloudVaultWithLocal(
     passwords: PasswordEntry[];
     bookmarks: Bookmark[];
     categories: Category[];
+    deletedItemIds?: Record<string, number>;
   },
   cloud: CloudVaultPayload
 ): {
   mergedPasswords: PasswordEntry[];
   mergedBookmarks: Bookmark[];
   mergedCategories: Category[];
+  mergedTombstones: Record<string, number>;
   hasChanges: boolean;
 } {
   let hasChanges = false;
+  const allTombstones: Record<string, number> = {
+    ...(cloud.deletedItemIds || {}),
+    ...(local.deletedItemIds || {}),
+  };
 
   // 1. Reconcile Categories
   const existingCatMap = new Map<string, Category>();
@@ -314,6 +323,9 @@ export function mergeCloudVaultWithLocal(
 
   const updatedCategories = [...local.categories];
   for (const cloudCat of cloud.categories) {
+    if (allTombstones[cloudCat.id] !== undefined) {
+      continue;
+    }
     if (!existingCatMap.has(cloudCat.id)) {
       existingCatMap.set(cloudCat.id, cloudCat);
       updatedCategories.push(cloudCat);
@@ -323,9 +335,26 @@ export function mergeCloudVaultWithLocal(
 
   // 2. Reconcile Passwords
   const passwordMap = new Map<string, PasswordEntry>();
-  local.passwords.forEach((p) => passwordMap.set(p.id, p));
+  local.passwords.forEach((p) => {
+    const deletedAt = allTombstones[p.id];
+    if (deletedAt !== undefined && (p.updatedAt || 0) <= deletedAt && p.storageScope === "cloud") {
+      hasChanges = true;
+      return;
+    }
+    passwordMap.set(p.id, p);
+  });
 
   for (const cloudPwd of cloud.passwords) {
+    const deletedAt = allTombstones[cloudPwd.id];
+    if (deletedAt !== undefined && (cloudPwd.updatedAt || 0) <= deletedAt) {
+      const existing = passwordMap.get(cloudPwd.id);
+      if (existing && existing.storageScope === "cloud") {
+        passwordMap.delete(cloudPwd.id);
+        hasChanges = true;
+      }
+      continue;
+    }
+
     const localItem = passwordMap.get(cloudPwd.id);
     if (!localItem) {
       // New item from another device
@@ -343,9 +372,26 @@ export function mergeCloudVaultWithLocal(
 
   // 3. Reconcile Bookmarks
   const bookmarkMap = new Map<string, Bookmark>();
-  local.bookmarks.forEach((b) => bookmarkMap.set(b.id, b));
+  local.bookmarks.forEach((b) => {
+    const deletedAt = allTombstones[b.id];
+    if (deletedAt !== undefined && (b.updatedAt || 0) <= deletedAt && b.storageScope === "cloud") {
+      hasChanges = true;
+      return;
+    }
+    bookmarkMap.set(b.id, b);
+  });
 
   for (const cloudBm of cloud.bookmarks) {
+    const deletedAt = allTombstones[cloudBm.id];
+    if (deletedAt !== undefined && (cloudBm.updatedAt || 0) <= deletedAt) {
+      const existing = bookmarkMap.get(cloudBm.id);
+      if (existing && existing.storageScope === "cloud") {
+        bookmarkMap.delete(cloudBm.id);
+        hasChanges = true;
+      }
+      continue;
+    }
+
     const localItem = bookmarkMap.get(cloudBm.id);
     if (!localItem) {
       bookmarkMap.set(cloudBm.id, { ...cloudBm, storageScope: "cloud" });
@@ -379,6 +425,7 @@ export function mergeCloudVaultWithLocal(
     mergedPasswords,
     mergedBookmarks,
     mergedCategories: finalCategories,
+    mergedTombstones: allTombstones,
     hasChanges,
   };
 }
