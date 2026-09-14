@@ -39,6 +39,7 @@ import {
 import { buildCategoryTree } from "@/lib/category-tree";
 import { useBreachCheck } from "@/hooks/use-breach-check";
 import { BreachBadge } from "@/components/ui/breach-badge";
+import { TotpCountdownPill } from "@/components/ui/totp-countdown-pill";
 
 interface WorkspacePasswordModalProps {
   isOpen: boolean;
@@ -71,6 +72,8 @@ export function WorkspacePasswordModal({
   const [totpSecret, setTotpSecret] = React.useState(initialEntry?.totpSecret || "");
   const [isFavorite, setIsFavorite] = React.useState(!!initialEntry?.isFavorite);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [nameError, setNameError] = React.useState<string | null>(null);
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
 
   // Credit card specific fields
   const [cardNumber, setCardNumber] = React.useState(initialEntry?.cardDetails?.cardNumber || "");
@@ -123,6 +126,8 @@ export function WorkspacePasswordModal({
         setExpiryYear("");
         setCvv("");
       }
+      setNameError(null);
+      setPasswordError(null);
     }
   }, [isOpen, initialEntry, defaultCategoryId, categories]);
 
@@ -141,7 +146,18 @@ export function WorkspacePasswordModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!websiteName.trim()) return;
+    setNameError(null);
+    setPasswordError(null);
+
+    if (!websiteName.trim()) {
+      setNameError("Website / Service Name is required");
+      return;
+    }
+
+    if (entryType === "login" && !password.trim()) {
+      setPasswordError("Password cannot be blank. Enter a password or use the generator.");
+      return;
+    }
 
     let cleanUrl = websiteUrl.trim();
     if (cleanUrl && !cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
@@ -263,9 +279,15 @@ export function WorkspacePasswordModal({
                 required
                 placeholder={entryType === "login" ? "e.g. AWS Console, GitHub Team, Figma" : "Title..."}
                 value={websiteName}
-                onChange={(e) => setWebsiteName(e.target.value)}
-                className="h-8 text-xs bg-background"
+                onChange={(e) => {
+                  setWebsiteName(e.target.value);
+                  if (nameError) setNameError(null);
+                }}
+                className={`h-8 text-xs bg-background ${nameError ? "border-destructive focus-visible:ring-destructive/30" : ""}`}
               />
+              {nameError && (
+                <p className="text-[11px] text-destructive font-medium">{nameError}</p>
+              )}
             </div>
 
             {/* URL & Category (for Logins) or Category alone */}
@@ -399,8 +421,11 @@ export function WorkspacePasswordModal({
                       type={showPassword ? "text" : "password"}
                       placeholder="Password..."
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pr-9 h-8 text-xs font-mono bg-background"
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (passwordError) setPasswordError(null);
+                      }}
+                      className={`pr-9 h-8 text-xs font-mono bg-background ${passwordError ? "border-destructive focus-visible:ring-destructive/30" : ""}`}
                     />
                     <button
                       type="button"
@@ -410,6 +435,10 @@ export function WorkspacePasswordModal({
                       {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                     </button>
                   </div>
+
+                  {passwordError && (
+                    <p className="text-[11px] text-destructive font-medium">{passwordError}</p>
+                  )}
 
                   {password && (
                     <div className="space-y-1.5 pt-1">
@@ -439,6 +468,12 @@ export function WorkspacePasswordModal({
                     onChange={(e) => setTotpSecret(e.target.value.replace(/\s+/g, ""))}
                     className="h-8 text-xs font-mono bg-background uppercase"
                   />
+                  {totpSecret.trim().length >= 8 && (
+                    <div className="pt-1.5 flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle">
+                      <span className="text-[11px] text-muted-foreground font-medium">Active 2FA Code:</span>
+                      <TotpCountdownPill secret={totpSecret} />
+                    </div>
+                  )}
                 </div>
               </>
             )}

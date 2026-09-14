@@ -170,7 +170,7 @@ export function AppHeader({
     <header className="sticky top-0 z-[var(--z-sticky)] border-b border-border-subtle bg-background/95 backdrop-blur-sm">
       <div className="flex h-14 items-center justify-between px-2.5 sm:px-5 gap-1.5 sm:gap-3">
         {/* Left Section: Mobile Menu + View Title */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px]">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0 max-w-[200px] sm:max-w-xs md:max-w-sm lg:max-w-md">
           <Button
             variant="ghost"
             size="icon-sm"

@@ -42,6 +42,7 @@ export default function WorkspaceMembersPage() {
     createInvite,
     updateMemberRole,
     removeMember,
+    syncActiveWorkspace,
   } = useWorkspace();
 
   const [generatedLink, setGeneratedLink] = React.useState<string | null>(null);
@@ -49,6 +50,11 @@ export default function WorkspaceMembersPage() {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = React.useState<string | null>(null);
+
+  // Sync latest members from cloud on mount
+  React.useEffect(() => {
+    syncActiveWorkspace(true);
+  }, [syncActiveWorkspace]);
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = React.useState<{
@@ -79,6 +85,8 @@ export default function WorkspaceMembersPage() {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
+      // Immediately refresh workspace state to guarantee DOM synchronization
+      await syncActiveWorkspace(true);
     } catch (err: any) {
       setError(err.message || "Failed to generate invite link");
     } finally {

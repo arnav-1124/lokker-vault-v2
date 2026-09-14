@@ -6,7 +6,10 @@
  * - Local development falls back to http://localhost:3000 (see .env.example).
  * - Production sets it in the host's environment (e.g. Vercel project settings).
  */
-const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
+const envUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
+  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.trim().replace(/\/+$/, "")}` : undefined);
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
